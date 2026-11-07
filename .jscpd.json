@@ -1,0 +1,37 @@
+{
+  "threshold": 5,
+  "reporters": ["console", "json"],
+  "output": "./.jscpd-report",
+  "ignore": [
+    "**/node_modules/**",
+    "**/target/**",
+    "**/dist/**",
+    "**/dist_bin/**",
+    "**/manuals_and_schematics/**",
+    "**/firmware_and_images/**",
+    "**/.git/**",
+    "**/.github/**",
+    "**/*.json",
+    "**/*.svg",
+    "**/*.png",
+    "**/*.ico",
+    "**/*.bin",
+    "**/*.uf2",
+    "**/*.pdf"
+  ],
+  "format": [
+    "typescript",
+    "javascript",
+    "rust",
+    "python",
+    "c",
+    "cpp",
+    "css"
+  ],
+  "path": [
+    "apps/desktop/src",
+    "crates/panadiga/src",
+    "dwire32a_jtag_research",
+    "tools"
+  ]
+}

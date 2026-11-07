@@ -55,11 +55,15 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
           onChange={e => onSelectPort(e.target.value)}
           className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
         >
-          {availablePorts.map(p => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
+          {availablePorts.length === 0 ? (
+            <option value="">Nenhuma porta serial detectada</option>
+          ) : (
+            availablePorts.map(p => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))
+          )}
         </select>
 
         <button

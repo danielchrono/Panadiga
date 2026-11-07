@@ -25,29 +25,56 @@ Para compilar o firmware a partir do código-fonte:
 
 ---
 
-## 3. Como Compilar o Firmware
+## 3. Como Compilar o Firmware Multi-Plataforma (RP2040 e RP2350)
 
-O diretório conta com scripts de automação prontos para Windows:
+O subsistema possui suporte nativo dual-target para **RP2040 (Pico 1)** e **RP2350 (Pico 2)**, com scripts de automação para Windows, Linux e macOS:
 
-### Opção A: Via Prompt de Comando (CMD)
+### Opção A: Linux / macOS / WSL (Bash POSIX)
+```bash
+cd dwire32a_jtag_research
+chmod +x build_firmware.sh
+
+# Compilar para ambos os targets (RP2040 e RP2350):
+./build_firmware.sh all
+
+# Ou compilar apenas para uma placa específica:
+./build_firmware.sh pico    # RP2040
+./build_firmware.sh pico2   # RP2350
+```
+
+### Opção B: Windows (PowerShell)
+```powershell
+cd dwire32a_jtag_research
+
+# Compila ambos os alvos (padrão):
+.\build_pico_firmware.ps1 -Board all
+
+# Ou compila alvo individual:
+.\build_pico_firmware.ps1 -Board pico     # RP2040
+.\build_pico_firmware.ps1 -Board pico2    # RP2350
+.\build_pico_firmware.ps1 -Clean -Board all
+```
+
+### Opção C: Windows (Prompt CMD Clássico)
 ```cmd
-cd "dwire32a_jtag_research"
-build_pico_firmware.bat
+cd dwire32a_jtag_research
+build_pico_firmware.bat all
+build_pico_firmware.bat pico
+build_pico_firmware.bat pico2
 ```
 
-### Opção B: Via PowerShell
-```powershell
-cd "dwire32a_jtag_research"
-.\build_pico_firmware.ps1
-```
-*Para forçar uma compilação limpa:*
-```powershell
-.\build_pico_firmware.ps1 -Clean
-```
+### Artefatos Binários Gerados
+A compilação produz artefatos UF2 separados e auto-contidos:
+* **`panasonic_dwire32a_rp2040.uf2`** $\leftarrow$ Imagem para Raspberry Pi Pico / Pico W, Arduino Nano RP2040, XIAO RP2040 (264 KB SRAM).
+* **`panasonic_dwire32a_rp2350.uf2`** $\leftarrow$ Imagem para Raspberry Pi Pico 2 (Dual ARM Cortex-M33 / Hazard3 RISC-V, 520 KB SRAM com 64 KB de cache local de setor).
+* Imagens de depuração com símbolos (`.elf`) e mapas de memória (`.map`) em `build_pico/` e `build_pico2/`.
 
-O build gerará os seguintes artefatos no diretório `dwire32a_jtag_research/build/`:
-* **`panasonic_dwire32a.uf2`** $\leftarrow$ Arquivo principal para gravação no Pico
-* `panasonic_dwire32a.elf` $\leftarrow$ Imagem ELF com símbolos de debug
+### Integração Contínua (CI/CD)
+O repositório inclui esteira automatizada no GitHub Actions (`.github/workflows/ci.yml`), que valida a cada commit ou pull request:
+1. Compilação e testes de regressão Rust no Linux, Windows e macOS;
+2. Lint e formatação de código (`clippy`, `rustfmt`);
+3. Build e checagem de tipos da aplicação desktop (`apps/desktop` com React/Vite);
+4. Compilação cruzada dos dois firmwares com `arm-none-eabi-gcc` e upload automático dos arquivos `.uf2` como artefatos.
 * `panasonic_dwire32a.bin` $\leftarrow$ Binário cru para gravadores SWD (Picoprobe/J-Link)
 * `panasonic_dwire32a.hex` $\leftarrow$ Formato Intel Hex
 

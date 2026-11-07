@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   Cpu,
@@ -123,17 +124,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={item.key}
                 onClick={() => onSelectView(item.key)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 ${
+                className={cn(
+                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150',
                   isActive
                     ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-950/20'
                     : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
-                }`}
+                )}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div
-                    className={`${
+                    className={cn(
                       isActive ? 'text-cyan-400' : 'text-slate-500'
-                    }`}
+                    )}
                   >
                     {item.icon}
                   </div>

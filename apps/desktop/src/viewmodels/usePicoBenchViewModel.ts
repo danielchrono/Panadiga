@@ -44,6 +44,7 @@ export function usePicoBenchViewModel() {
     isGdbStarting: gdb.isGdbStarting,
     startGdbServer: gdb.startGdbServer,
     stopGdbServer: gdb.stopGdbServer,
+    launchExternalTool: gdb.launchTool,
 
     // In-Circuit NVRAM Erase Subsystem
     isErasing: erase.isErasing,

@@ -5,6 +5,7 @@
 
 pub mod constants;
 pub mod crypto;
+pub mod ghidra;
 pub mod hdd;
 pub mod headers;
 pub mod manuals;

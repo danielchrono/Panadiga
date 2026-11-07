@@ -56,6 +56,19 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     }
   }, [onLog]);
 
+  const launchTool = useCallback(
+    async (tool: 'gdb' | 'openocd' | 'ghidra' | 'hxd' | 'terminal') => {
+      onLog?.('info', 'HOST', `Disparando ferramenta externa: ${tool.toUpperCase()}...`);
+      try {
+        const msg = await invokeCommand<string>('launch_external_tool_command', { tool });
+        onLog?.('success', 'HOST', msg);
+      } catch (err) {
+        onLog?.('error', 'HOST', `Erro ao abrir ${tool}: ${err}`);
+      }
+    },
+    [onLog]
+  );
+
   useEffect(() => {
     pollGdbState();
     const interval = setInterval(pollGdbState, 2000);
@@ -69,5 +82,6 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     startGdbServer,
     stopGdbServer,
     pollGdbState,
+    launchTool,
   };
 }

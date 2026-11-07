@@ -62,7 +62,10 @@ export const ColdBreakinSelector: React.FC<ColdBreakinSelectorProps> = ({
       </div>
 
       <div className="space-y-2.5">
-        {BREAKIN_MODES.map(m => {
+        {BREAKIN_MODES.length === 0 ? (
+          <div className="text-slate-500 text-xs p-3 font-mono">Nenhum modo configurado</div>
+        ) : (
+          BREAKIN_MODES.map(m => {
           const isSelected = currentMode === m.mode;
           return (
             <div
@@ -88,7 +91,8 @@ export const ColdBreakinSelector: React.FC<ColdBreakinSelectorProps> = ({
               </span>
             </div>
           );
-        })}
+        })
+        )}
       </div>
     </div>
   );

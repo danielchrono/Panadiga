@@ -31,6 +31,7 @@ export const PicoBenchView: React.FC = () => {
     isGdbStarting,
     startGdbServer,
     stopGdbServer,
+    launchExternalTool,
     changeBreakinMode,
     toggleConnection,
     injectRamLoaderAndErase,
@@ -79,6 +80,7 @@ export const PicoBenchView: React.FC = () => {
         isStarting={isGdbStarting}
         onStart={startGdbServer}
         onStop={stopGdbServer}
+        onLaunchTool={launchExternalTool}
       />
 
       {/* Main Grid: Timing Modes & Live Serial Terminal */}

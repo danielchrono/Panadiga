@@ -1,5 +1,7 @@
 # Rust build artifacts
 /target/
+/dist_bin/
+.jscpd-report/
 crates/**/target/
 apps/desktop/src-tauri/target/
 **/*.rs.bk

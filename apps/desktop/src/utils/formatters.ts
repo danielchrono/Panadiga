@@ -49,5 +49,5 @@ export const isTargetPowered = (volts: number | undefined | null, threshold = 2.
  */
 export const formatElapsedMs = (ms: number | undefined | null): string => {
   if (!ms || ms < 0) return '0ms';
-  return `${ms.toLocaleString()}ms`;
+  return `${ms.toLocaleString('en-US')}ms`;
 };

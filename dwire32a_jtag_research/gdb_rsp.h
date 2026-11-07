@@ -40,10 +40,14 @@ extern "C" {
  */
 #if defined(PICO_RP2350) && (PICO_RP2350 != 0)
     #define GDB_SECTOR_CACHE_SIZE   65536U
-    #define GDB_TARGET_CHIP_LABEL   "RP2350 (Pico 2) - 520KB SRAM - 64KB Sector Cache"
+    #if defined(PICO_RP2350_RISCV) && (PICO_RP2350_RISCV != 0)
+        #define GDB_TARGET_CHIP_LABEL   "RP2350 (Pico 2 RISC-V Hazard3) - 520KB SRAM - 64KB Sector Cache"
+    #else
+        #define GDB_TARGET_CHIP_LABEL   "RP2350 (Pico 2 ARM Cortex-M33) - 520KB SRAM - 64KB Sector Cache"
+    #endif
 #else
     #define GDB_SECTOR_CACHE_SIZE   8192U
-    #define GDB_TARGET_CHIP_LABEL   "RP2040 (Pico 1) - 264KB SRAM - 8KB Sector Cache"
+    #define GDB_TARGET_CHIP_LABEL   "RP2040 (Pico 1 Dual Cortex-M0+) - 264KB SRAM - 8KB Sector Cache"
 #endif
 
 /* =========================================================================

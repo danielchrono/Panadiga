@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 export type StatusVariant = 'success' | 'warning' | 'error' | 'info' | 'neutral';
 
@@ -52,7 +53,13 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border ${style.bg} ${style.text} ${style.border} ${className}`}
+      className={cn(
+        'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border',
+        style.bg,
+        style.text,
+        style.border,
+        className
+      )}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full ${style.dotColor}`} />}
       {label}

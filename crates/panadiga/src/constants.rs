@@ -263,3 +263,38 @@ pub const MEIHDFS_TAG_DESCRIPTOR_5F: u8 = MEIHDFS_TAG_EXTENT_BOUNDARY;
 pub const MEIHDFS_TAG_DIR_ENTRY_E0: u8 = MEIHDFS_TAG_VNODE_ENTRY;
 pub const MEIHDFS_TAG_VIRTUAL_NODE_E1: u8 = MEIHDFS_TAG_VINODE_LINK;
 
+// ============================================================================
+// 7. AM34 / UniPhier Hardware Bus Regions & Peripheral Addresses (Ghidra SSOT)
+// ============================================================================
+
+/// AM34 Internal Work SRAM Base Physical Address (0x0000_0000).
+pub const AM34_INTERNAL_SRAM_BASE: u32 = 0x0000_0000;
+/// AM34 Internal Work SRAM Size (256 Kilobytes).
+pub const AM34_INTERNAL_SRAM_SIZE: u32 = 0x0004_0000;
+
+/// RAM Loader Injection Physical Address (0x0000_4000).
+pub const AM34_SRAM_LOADER_BASE: u32 = 0x0000_4000;
+/// RAM Loader Memory Size (4 Kilobytes).
+pub const AM34_SRAM_LOADER_SIZE: u32 = 0x0000_1000;
+
+/// Spansion NOR Flash Hardware Mirror Base Address (0x8000_0000).
+pub const AM34_FLASH_BASE: u32 = 0x8000_0000;
+/// Spansion NOR Flash Memory Size (8 Megabytes).
+pub const AM34_FLASH_SIZE: u32 = 0x0080_0000;
+
+/// NVRAM Top-Boot Partition Base Physical Address (0x807F_0000).
+pub const AM34_NVRAM_BASE: u32 = 0x807F_0000;
+/// NVRAM Parameter Storage Area Size (64 Kilobytes).
+pub const AM34_NVRAM_SIZE: u32 = 0x0001_0000;
+
+/// Panasonic UniPhier ASIC MMIO Base Physical Address (0xC000_0000).
+pub const AM34_ASIC_MMIO_BASE: u32 = 0xC000_0000;
+/// UniPhier System MMIO Space Size (64 Kilobytes).
+pub const AM34_ASIC_MMIO_SIZE: u32 = 0x0001_0000;
+
+/// PATA / IDE Controller Registers Base Physical Address (0xD400_0000).
+pub const AM34_PATA_MMIO_BASE: u32 = 0xD400_0000;
+/// PATA / IDE Controller Space Size (4 Kilobytes).
+pub const AM34_PATA_MMIO_SIZE: u32 = 0x0000_1000;
+
+

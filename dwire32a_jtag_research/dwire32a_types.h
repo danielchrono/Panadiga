@@ -5,7 +5,7 @@
  *
  * Target Processor: Panasonic MN2DS0016 (UniPhier / AM34 / MN103S core)
  * Target Hardware:  Panasonic DMR-EH55 Main Digital PCB (VEP79138)
- * Host Controller:  Raspberry Pi Pico (RP2040)
+ * Host Controller:  Universal RP2 Family (RP2040 / RP2350 Dual-Core)
  *
  * @standard ISO/IEC 9899:2011 (C11)
  */
@@ -21,11 +21,11 @@ extern "C" {
 #endif
 
 /* =========================================================================
- * Physical GPIO Pin Allocations (RP2040)
+ * Physical GPIO Pin Allocations (RP2 Family - RP2040 / RP2350)
  * ========================================================================= */
 
 /**
- * @brief RP2040 GPIO pin assignments for the DWire32A CN55001 connector.
+ * @brief Host GPIO pin assignments for the DWire32A CN55001 connector.
  */
 enum dwire_gpio_pin {
     DWIRE_PIN_EXTRG   = 2,  /**< GP2 (Pin 4): External Trigger (OCD stop request) */

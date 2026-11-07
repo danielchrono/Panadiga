@@ -1,51 +1,16 @@
 /**
  * @file domain.ts
- * @brief Strict domain models, type definitions, and physical constants
+ * @brief Strict domain models, type definitions, and functional result containers
  *        for the Panasonic DMR-EH55 DIGA Engineering Suite.
  *
  * Adheres strictly to Single Source of Truth (SSOT), Zero Magic Numbers,
  * and Functional Programming (FP) error result models.
  */
 
-/* =========================================================================
- * 1. Physical Hardware Constants (SSOT)
- * ========================================================================= */
-
-/** Total physical capacity of Spansion S29JL064H NOR Flash (8 MB / 64 Mbit) */
-export const SPANSION_FLASH_SIZE_BYTES = 8 * 1024 * 1024; // 8,388,608 bytes
-
-/** Base memory offset of the top NVRAM emulation sector (0x007F_0000) */
-export const SPANSION_NVRAM_BASE_OFFSET = 0x007f0000;
-
-/** Total size of the NVRAM parameter storage partition (64 KB) */
-export const SPANSION_NVRAM_SIZE_BYTES = 64 * 1024; // 65,536 bytes
-
-/** Size of each individual microsector in top-boot partition (8 KB) */
-export const SPANSION_MICROSECTOR_SIZE_BYTES = 8 * 1024; // 8,192 bytes
-
-/** Total count of 8 KB microsectors (SA134 through SA141) */
-export const SPANSION_MICROSECTOR_COUNT = 8;
-
-/** First microsector numeric index in Spansion datasheet */
-export const SPANSION_MICROSECTOR_BASE_INDEX = 134;
-
-/** Standard ATA/IDE sector size in bytes */
-export const LBA_SECTOR_SIZE_BYTES = 512;
-
-/** Panasonic MEIHDFS Storage Header magic string */
-export const MEIHDFS_MBR_SIGNATURE_ASCII = "SH";
-
-/** Known Feistel 64-bit ECB Ciphertext for 8 consecutive 0x00 bytes */
-export const ECB_CIPHERTEXT_NULL_BLOCK_HEX = "E5D1F34A518B2690";
-
-/** Known Feistel 64-bit ECB Ciphertext for 8 consecutive 0xFF bytes (Virgin Flash) */
-export const ECB_CIPHERTEXT_VIRGIN_FLASH_HEX = "035065C87BB8E090";
-
-/** Nominal DWire32A clock speed in Hertz */
-export const DWIRE_NOMINAL_CLOCK_HZ = 1_000_000;
+export * from "@/constants";
 
 /* =========================================================================
- * 2. Enumerations
+ * 1. Enumerations
  * ========================================================================= */
 
 /** Navigation views available in the desktop application */
@@ -74,10 +39,10 @@ export enum DwireBreakInMode {
 }
 
 /* =========================================================================
- * 3. Functional Programming Result Type (Either pattern)
+ * 2. Functional Programming Result Type Container
  * ========================================================================= */
 
-export type Result<T, E = Error> =
+export type Result<T, E = Error | string> =
   | { readonly success: true; readonly data: T }
   | { readonly success: false; readonly error: E };
 
@@ -92,7 +57,7 @@ export const err = <E>(error: E): Result<never, E> => ({
 });
 
 /* =========================================================================
- * 4. Domain Data Transfer Objects (DTO)
+ * 3. Domain Data Transfer Objects (DTO)
  * ========================================================================= */
 
 /** Microsector audit record */

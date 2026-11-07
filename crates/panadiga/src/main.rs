@@ -51,6 +51,9 @@ enum Commands {
 
     /// Hardware host controller (RP2040 / RP2350) and GDB RSP bridge
     Pico(PicoArgs),
+
+    /// Ghidra reverse engineering script generation directly from Rust SSOT
+    Ghidra(GhidraArgs),
 }
 
 // ============================================================================
@@ -329,6 +332,40 @@ enum PicoActions {
 }
 
 // ============================================================================
+// Ghidra Script Generator Subcommand Definitions
+// ============================================================================
+
+#[derive(Args, Debug)]
+struct GhidraArgs {
+    #[command(subcommand)]
+    action: GhidraActions,
+}
+
+#[derive(Subcommand, Debug)]
+enum GhidraActions {
+    /// Export AM34 memory map Python script for Ghidra
+    Map {
+        /// Target Python script file path
+        #[arg(short, long, default_value = "tools/ghidra_am34_memory_map.py")]
+        output: PathBuf,
+    },
+
+    /// Export AM34 vector, peripheral, and NVRAM symbols Python script for Ghidra
+    Symbols {
+        /// Target Python script file path
+        #[arg(short, long, default_value = "tools/ghidra_importar_simbolos_panadiga.py")]
+        output: PathBuf,
+    },
+
+    /// Export all Ghidra automation scripts into a target directory
+    ExportAll {
+        /// Destination directory for generated Ghidra scripts
+        #[arg(short, long, default_value = "tools")]
+        dir: PathBuf,
+    },
+}
+
+// ============================================================================
 // Entrypoint
 // ============================================================================
 
@@ -437,6 +474,22 @@ fn main() -> Result<()> {
             }
             PicoActions::GdbBridge { port, baud, listen } => {
                 run_gdb_bridge(&port, baud, &listen)?;
+            }
+        },
+        Commands::Ghidra(ghidra_args) => match ghidra_args.action {
+            GhidraActions::Map { output } => {
+                let script = panadiga::ghidra::generate_ghidra_memory_map();
+                std::fs::write(&output, script)?;
+                println!("[OK] Ghidra Memory Map script generated at: {:?}", output);
+            }
+            GhidraActions::Symbols { output } => {
+                let script = panadiga::ghidra::generate_ghidra_symbols();
+                std::fs::write(&output, script)?;
+                println!("[OK] Ghidra Symbols script generated at: {:?}", output);
+            }
+            GhidraActions::ExportAll { dir } => {
+                panadiga::ghidra::export_all_ghidra_scripts(&dir)?;
+                println!("[OK] All Ghidra scripts generated into directory: {:?}", dir);
             }
         },
     }

@@ -1,0 +1,15 @@
+{
+  "framework": "react",
+  "rules": {
+    "missing_loading_state": "warn",
+    "missing_error_state": "warn",
+    "missing_empty_state": "warn",
+    "missing_disabled_submit": "warn",
+    "missing_success_feedback": "warn"
+  },
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/setup.ts"
+  ]
+}

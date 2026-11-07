@@ -8,6 +8,8 @@ Repositório centralizado de engenharia reversa, recuperação de falhas crític
 
 A documentação do ecossistema é composta por três relatórios técnicos aprofundados e homologados:
 
+* 🧠 **[Dossiê de Arquitetura da Suíte Panadiga, Decisões de Silício e Matriz de Compatibilidade](docs/ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md)**  
+  *Arquitetura da Suíte Panadiga em 3 camadas, análise de silício RP2040 (C11 + PIO vs MicroPython), distinção USB assíncrono vs DWire32A síncrono, compatibilidade universal JEDEC/CFI de memórias Flash e suporte à família Panasonic DIGA / UniPhier.*
 * 📘 **[Inventário Técnico, Auditoria de QA e Guia de Operação de Bancada](docs/INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md)**  
   *Inventário criptográfico exaustivo de todos os arquivos, análise detalhada dos 15 manuais de serviço, especificações de equipamentos de bancada, fluxograma passo a passo de recuperação e matriz FMEA de riscos e mitigações.*
 * ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)**  
@@ -28,6 +30,7 @@ Panasonic Firmware HDD bin/
 │
 ├── docs/                                          <-- Documentação de engenharia e auditoria de QA
 │   ├── INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md   <-- Inventário criptográfico e guia operacional completo
+│   ├── ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md <-- Arquitetura da suíte e matriz universal
 │   ├── BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md      <-- Blueprint elétrico de bancada (RP2040 e TSOP-48)
 │   ├── DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md <-- Dossiê de criptoanálise e segurança de firmware
 │   └── ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md   <-- Arquitetura de storage, MEIHDFS, MBR e partições do HDD

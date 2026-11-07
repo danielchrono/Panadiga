@@ -2,7 +2,6 @@
 
 pub mod commands;
 pub mod pico;
-pub mod pico_serial;
 
 use commands::*;
 
@@ -27,6 +26,7 @@ pub fn run() {
             stop_gdb_bridge_command,
             get_gdb_bridge_status_command,
             get_am34_registers_command,
+            launch_external_tool_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

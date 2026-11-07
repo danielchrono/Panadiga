@@ -836,6 +836,8 @@ O diretório [`manuals_and_schematics/`](manuals_and_schematics/) contém o acer
 
 Para aprofundamento específico em cada área de engenharia, consulte os dossiês técnicos oficiais do projeto:
 
+* 🧠 **[Dossiê de Arquitetura da Suíte Panadiga, Decisões de Silício e Matriz de Compatibilidade](docs/ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md)**  
+  *Arquitetura completa da Suíte Panadiga em 3 camadas, rejeição formal de MicroPython por jitter/timing, desmistificação de terminal serial assíncrono (PuTTY/USB CDC) vs. barramento síncrono DWire32A, matriz de compatibilidade universal JEDEC/CFI (Spansion, ST, Macronix, Fujitsu, Toshiba) e compatibilidade cross-device de gravadores DIGA e silício Matsushita UniPhier / MN103.*
 * 🛠️ **[Especificação de Engenharia de Produto: Hardware Dedicado, Cabeamento e Embalagem](docs/ESPECIFICACAO_PRODUTO_HARDWARE_DWIRE32_PROBE.md)**  
   *Especificação para fabricação de PCB dedicada (Dongle All-in-One RP2040), proteção ESD TVS, chicote oficial JST ZR-6 / sonda Pogo-Pin "No-Solder", gabinete usinado/SLA 3D, BOM com part numbers e embalagem comercial.*
 * ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)**  

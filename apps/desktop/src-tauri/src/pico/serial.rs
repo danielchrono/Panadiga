@@ -7,10 +7,7 @@ use std::io::{Read, Write};
 use std::time::Duration;
 use serialport::SerialPortType;
 
-use super::types::{
-    extract_port_name, PicoStatusResponse, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
-    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID,
-};
+use super::types::{extract_port_name, PicoStatusResponse};
 
 /// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
 /// and includes high-fidelity bench simulator options.
@@ -20,33 +17,16 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
         for p in available {
             let mut label = p.port_name.clone();
             if let SerialPortType::UsbPort(info) = &p.port_type {
-                if info.vid == RASPBERRY_PI_VID {
-                    match info.pid {
-                        PICO_RP2040_CDC_PID => {
-                            label = format!("{} [Raspberry Pi Pico (RP2040) DWire32A - VID:2E8A PID:000A]", p.port_name);
-                        }
-                        PICO_RP2350_CDC_PID => {
-                            label = format!("{} [Raspberry Pi Pico 2 (RP2350) DWire32A - VID:2E8A PID:000F]", p.port_name);
-                        }
-                        PICO_BOOTSEL_PID => {
-                            label = format!("{} [Raspberry Pi BOOTSEL Mode - VID:2E8A PID:0003]", p.port_name);
-                        }
-                        other => {
-                            let desc = info.product.as_deref().unwrap_or("Raspberry Pi Device");
-                            label = format!("{} [{} - VID:2E8A PID:{:04X}]", p.port_name, desc, other);
-                        }
-                    }
-                } else {
-                    let desc = info.product.as_deref().unwrap_or("USB Serial Device");
-                    label = format!("{} [{} - {:04X}:{:04X}]", p.port_name, desc, info.vid, info.pid);
-                }
+                let (_plat, desc) = panadiga::pico::classify_usb_device(info.vid, info.pid, info.product.as_deref());
+                label = format!("{} [{} - VID:{:04X} PID:{:04X}]", p.port_name, desc, info.vid, info.pid);
             }
             ports.push(label);
         }
     }
-    // Always provide Bench Simulator options for both architectures
+    // Multi-platform bench simulator options for development and headless verification
     ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
     ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
+    ports.push("MOCK_RP2350_RISCV [RP2350 Hazard3 RISC-V Bench Simulator - 520KB SRAM]".to_string());
     Ok(ports)
 }
 
@@ -54,11 +34,14 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
 pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoStatusResponse, String> {
     let clean = extract_port_name(&port_name);
     if clean.starts_with("MOCK") {
+        let is_riscv = clean.contains("RISCV") || port_name.contains("RISCV");
         let is_rp2350 = clean.contains("2350") || port_name.contains("2350");
-        let (soc_name, sram_desc) = if is_rp2350 {
-            ("RP2350 (Pico 2)", "520 KB SRAM / 64 KB Cache Setor")
+        let (soc_name, sram_desc) = if is_riscv {
+            ("RP2350 (Pico 2 RISC-V Hazard3)", "520 KB SRAM / 64 KB Cache Setor")
+        } else if is_rp2350 {
+            ("RP2350 (Pico 2 ARM Cortex-M33)", "520 KB SRAM / 64 KB Cache Setor")
         } else {
-            ("RP2040 (Pico 1)", "264 KB SRAM / 8 KB Cache Microsetor")
+            ("RP2040 (Pico 1 Dual Cortex-M0+)", "264 KB SRAM / 8 KB Cache Microsetor")
         };
 
         return Ok(PicoStatusResponse {

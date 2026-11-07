@@ -1,4 +1,5 @@
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 interface MetricCardProps {
   title: string;
@@ -39,7 +40,11 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-bench-900/80 backdrop-blur border p-4 transition-all duration-200 shadow-lg ${borderVariants[variant]} ${className}`}
+      className={cn(
+        'relative overflow-hidden rounded-xl bg-bench-900/80 backdrop-blur border p-4 transition-all duration-200 shadow-lg',
+        borderVariants[variant],
+        className
+      )}
     >
       <div className="flex items-center justify-between gap-2 mb-2">
         <span className="text-xs font-mono font-medium tracking-wide text-slate-400 uppercase">

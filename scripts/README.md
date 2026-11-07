@@ -1,18 +1,19 @@
-# Scripts Legados em Python (Status: Migrados para Rust)
+# Scripts Legados em Python (Status: Arquivados & 100% Substituídos por Rust)
 
 > [!NOTE]
-> Todos os scripts utilitários em Python contidos neste diretório foram integralmente migrados para a suíte nativa em Rust **`panadiga`** (localizada em `crates/panadiga`).
-> Recomenda-se utilizar os comandos nativos do Rust para maior velocidade (zero-copy via `memmap2`), auditoria com tipagem estrita e ausência de dependências de runtime do Python.
+> Todos os scripts utilitários em Python contidos anteriormente neste diretório foram migrados integralmente para a crate nativa em Rust **`panadiga`** (`crates/panadiga`) e arquivados em `scripts/legacy_python/`.
+> A suíte prioriza nativamente código compilado em Rust com acesso zero-copy via `memmap2`, ausência de runtime externo e velocidade em nível de hardware.
 
 ---
 
-## Tabela de Correspondência: Python $\rightarrow$ Rust (`panadiga`)
+## Tabela de Equivalência Oficial (Rust Native vs Python Legado)
 
-| Script Python Legado | Comando Equivalente em Rust (`panadiga`) | Status | Benefícios da Versão em Rust |
-| :--- | :--- | :---: | :--- |
-| `clean_spansion_nvram.py` | `cargo run -- nvram clean <DUMP.bin> [-o <CLEAN.bin>]` | **Migrado (100%)** | Auditoria estruturada dos 8 micro-setores `SA134..SA141`, backup automático e cálculo formal de SHA-256. |
-| `inspect_hdd_image.py` | `cargo run -- hdd inspect [IMAGEM.bin] --density` | **Migrado (100%)** | Zero-copy `memmap2` (sem carregar 100 MB na RAM), gráfico de densidade de blocos em ASCII e relatório JSON. |
-| `parse_panasonic_hdd_partitions.py` | `cargo run -- hdd inspect`<br/>`cargo run -- hdd extract --outdir <DIR>` | **Migrado (100%)** | Validação bit-a-bit do MBR mestre e espelho (LBA 57344), journal de alocação e extração de binários limpos com manifesto `SHA256SUMS.txt`. |
-| `inspect_firmware_headers.py` | `cargo run -- headers`<br/>`cargo run -- headers dump <FILE> -o <OFF> -l <LEN>` | **Migrado (100%)** | Inspeção dos blocos de 32 MB, 64 MB e FRM com validação de magic signature e ferramenta genérica de hex dump. |
-| `analyze_deep.py` | `cargo run -- scan [FILE] [--keyword <KW>] [--limit <N>]` | **Migrado (100%)** | Varredura de strings com `memmap2` ultra-rápida e filtro automatizado de keywords forenses. |
-| `search_manuals.py` | `cargo run -- manuals [--dir <DIR>] [--filter <NAME>]` | **Migrado (100%)** | Indexador nativo de PDFs com `lopdf`, sem necessidade de bibliotecas C ou PyMuPDF/fitz. |
+| Funcionalidade | Implementação Legada (Arquivada) | Comando Oficial Rust (`panadiga`) | Benefícios da Versão Nativa em Rust |
+| :--- | :--- | :--- | :--- |
+| **Cirurgia NVRAM U99** | `clean_spansion_nvram.py` | `panadiga nvram clean <DUMP.bin> [-o <CLEAN.bin>]` | Auditoria atômica dos 8 micro-setores `SA134..SA141`, backup automático e cálculo formal SHA-256. |
+| **Forensic MEIHDFS HDD** | `inspect_hdd_image.py` | `panadiga hdd inspect <IMAGEM.bin> [--density]` | Zero-copy `memmap2` (sem alocar dezenas de megabytes na RAM) e densidade visual em ASCII. |
+| **Extração de Partições** | `parse_panasonic_hdd_partitions.py` | `panadiga hdd extract <IMAGEM.bin> [--outdir <DIR>]` | Validação de MBR principal e espelho (LBA 57344), journal e manifesto criptográfico `SHA256SUMS.txt`. |
+| **Inspeção de Cabeçalhos** | `inspect_firmware_headers.py` | `panadiga headers dump <FILE> -o <OFF> -l <LEN>` | Validação de magic signatures de 32MB/64MB/FRM e inspeção com alinhamento de LBA. |
+| **Varredura Forense** | `analyze_deep.py` | `panadiga scan <FILE> [--keyword <KW>]` | Busca de strings vetorial multithread em dumps brutos sem carregar o arquivo em memória. |
+| **Indexação de Manuais** | `search_manuals.py` | `panadiga manuals [--query <QUERY>]` | Motor PDF nativo construído com `lopdf`, sem dependências de CPython ou PyMuPDF. |
+| **Scripts para Ghidra** | `ghidra_am34_memory_map.py` | `panadiga ghidra export-map` | Gerado diretamente a partir de `constants.rs` em Rust (Single Source of Truth). |

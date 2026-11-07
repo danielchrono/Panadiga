@@ -1,14 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Sidebar, ViewKey } from './components/Sidebar';
 import { Header } from './components/Header';
-import { DashboardView } from './views/DashboardView';
-import { NvramView } from './views/NvramView';
-import { HddStorageView } from './views/HddStorageView';
-import { PicoBenchView } from './views/PicoBenchView';
-import { FrmCryptoView } from './views/FrmCryptoView';
-import { ManualsView } from './views/ManualsView';
-import { HexInspectorView } from './views/HexInspectorView';
 import { isDemoModeActive, setDemoMode } from './services/ipc';
+import { Loader2 } from 'lucide-react';
+
+// Lazy-loaded views for optimal code-splitting and reduced initial bundle size
+const DashboardView = lazy(() =>
+  import('./views/DashboardView').then(m => ({ default: m.DashboardView }))
+);
+const NvramView = lazy(() =>
+  import('./views/NvramView').then(m => ({ default: m.NvramView }))
+);
+const HddStorageView = lazy(() =>
+  import('./views/HddStorageView').then(m => ({ default: m.HddStorageView }))
+);
+const PicoBenchView = lazy(() =>
+  import('./views/PicoBenchView').then(m => ({ default: m.PicoBenchView }))
+);
+const FrmCryptoView = lazy(() =>
+  import('./views/FrmCryptoView').then(m => ({ default: m.FrmCryptoView }))
+);
+const ManualsView = lazy(() =>
+  import('./views/ManualsView').then(m => ({ default: m.ManualsView }))
+);
+const HexInspectorView = lazy(() =>
+  import('./views/HexInspectorView').then(m => ({ default: m.HexInspectorView }))
+);
+
+const ViewLoadingFallback: React.FC = () => (
+  <div className="flex flex-col items-center justify-center min-h-[400px] h-full gap-3 text-slate-400">
+    <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+    <span className="text-sm font-mono tracking-wide animate-pulse">
+      Carregando subsistema de bancada...
+    </span>
+  </div>
+);
 
 export const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewKey>('dashboard');
@@ -47,17 +73,19 @@ export const App: React.FC = () => {
           onToggleDemoMode={handleToggleDemoMode}
         />
 
-        {/* View Content with scrolling */}
+        {/* View Content with declarative Suspense loading */}
         <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-800">
-          {currentView === 'dashboard' && (
-            <DashboardView onNavigate={setCurrentView} />
-          )}
-          {currentView === 'nvram' && <NvramView />}
-          {currentView === 'hdd' && <HddStorageView />}
-          {currentView === 'picobench' && <PicoBenchView />}
-          {currentView === 'frmcrypto' && <FrmCryptoView />}
-          {currentView === 'manuals' && <ManualsView />}
-          {currentView === 'hexinspector' && <HexInspectorView />}
+          <Suspense fallback={<ViewLoadingFallback />}>
+            {currentView === 'dashboard' && (
+              <DashboardView onNavigate={setCurrentView} />
+            )}
+            {currentView === 'nvram' && <NvramView />}
+            {currentView === 'hdd' && <HddStorageView />}
+            {currentView === 'picobench' && <PicoBenchView />}
+            {currentView === 'frmcrypto' && <FrmCryptoView />}
+            {currentView === 'manuals' && <ManualsView />}
+            {currentView === 'hexinspector' && <HexInspectorView />}
+          </Suspense>
         </main>
       </div>
     </div>

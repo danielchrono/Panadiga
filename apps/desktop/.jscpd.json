@@ -1,0 +1,12 @@
+{
+  "threshold": 5,
+  "reporters": ["console"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.json",
+    "**/*.svg"
+  ],
+  "format": ["typescript", "tsx", "css"],
+  "path": ["src"]
+}

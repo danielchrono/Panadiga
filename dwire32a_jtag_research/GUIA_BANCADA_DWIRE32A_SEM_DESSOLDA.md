@@ -373,3 +373,27 @@ ERASE_NVRAM: OK (8 micro-sectors 0x007F0000..0x007FFFFF erased, U99 cleared)
 | `INJECT_LOADER` falha na verificação (`mismatch`) | Fiação longa com reflexão capacitiva em `SDATA` | Reduzir comprimento dos fios para $< 15\text{ cm}$ e conferir pull-up de $4.7\text{ k}\Omega$. |
 | `ERASE_NVRAM` trava em `SA140` ou `SA141` | Pino 14 (`WP#`) da Spansion aterrado por hardware | Medir a ilha do Pino 14. Se estiver em $0\text{V}$, injetar $3.3\text{V}$ com resistor de $1\text{ k}\Omega$. |
 | Terminal serial não responde a comandos | Driver USB CDC não inicializado ou terminal travado | Reconectar cabo USB do Pico e conferir porta COM no Gerenciador de Dispositivos. |
+
+---
+
+## 7. Arquitetura da Sonda e Matriz de Compatibilidade Universal
+
+### 7.1. Terminal Serial Assíncrono (PuTTY/USB) vs. Barramento Síncrono (DWire32A)
+O operador humano interage com o **Raspberry Pi Pico** através de um terminal serial assíncrono padrão (PuTTY, TeraTerm, RealTerm ou scripts Python via `pyserial`) a $115200	ext{ bps}$ pelo cabo USB.
+* **O Pico como Tradutor Ativo:** O microcontrolador RP2040 recebe os comandos de texto ASCII via USB CDC assíncrono e comanda o subsistema **PIO (Programmable I/O)**.
+* **Barramento de Silício Síncrono:** As máquinas de estado do PIO geram os trens de pulsos de clock síncronos de $1.000	ext{ MHz}$ em `SCLK` e amostram os bits síncronos em `SDATA`.
+* **Alerta Elétrico Crítico:** **NUNCA** conecte cabos conversores USB-Serial UART comerciais (FTDI, CP2102, CH340) diretamente ao conector `P7501/CN55001`. Eles não geram sinal de clock síncrono e causarão curto-circuito lógico (*bus contention*).
+
+### 7.2. Compatibilidade com Outros Fabricantes de NOR Flash (Padrão JEDEC CFI)
+O microcódigo AM34 (`ram_loader_payload.h`) implementa a sequência padrão internacional **JEDEC / CFI (Common Flash Interface) / AMD Standard Command Set**. Portanto, o procedimento de recuperação opera de forma transparente não apenas em chips Spansion, mas também em memórias equivalentes de segunda fonte:
+* **Spansion:** `S29JL064H`, `S29GL064N`, `S29AL016D`
+* **STMicroelectronics / Numonyx:** `M29W640FB`, `M29W640FT` *(frequente em placas Panasonic)*
+* **Macronix:** `MX29LV640DT`, `MX29GL640`
+* **Fujitsu:** `MBM29LV640`
+* **Toshiba / Winbond:** `TC58FVM6T2A`, `W19B640BT`
+
+### 7.3. Compatibilidade com Outros Gravadores da Família Panasonic DIGA
+A arquitetura de emulação de EEPROM em Flash (`EEMUL`) é a causadora do clássico erro `U99` em toda a geração de gravadores Matsushita. Este procedimento atende:
+1. **Compatibilidade 100% Plug-and-Play Direta (8 MB Flash Top-Boot):** Panasonic DMR-EH55 (todas as versões mundiais), DMR-EH56, DMR-EH50, DMR-EH60, DMR-EH65 e gravadores OEM parceiros (ex: Philips chassi DIGA).
+2. **Gerações Anteriores (Flash de 2 MB / 4 MB):** Modelos como DMR-E85H, DMR-E95H, DMR-E55, DMR-ES10 sofrem da mesma corrupção de EEMUL. O algoritmo é idêntico, requerendo apenas apontar o endereço base do topo da Flash para `0x803F0000` (Flash de 4 MB) ou `0x801F0000` (Flash de 2 MB).
+3. **Documento Técnico de Referência Completa:** Para a análise profunda de silício, tempos de setup/hold e matriz cross-device detalhada, consulte o [Dossiê de Arquitetura da Suíte Panadiga e Matriz de Compatibilidade](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/docs/ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md).

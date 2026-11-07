@@ -237,6 +237,11 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
       } as unknown as T;
     }
 
+    case 'launch_external_tool_command': {
+      const tool = (args?.tool as string) || 'desconhecido';
+      return `[Modo Demonstração] Ferramenta externa '${tool}' executada com sucesso.` as unknown as T;
+    }
+
     default:
       console.warn(`[MockIPC] Unhandled command: ${cmd}`);
       return {} as unknown as T;

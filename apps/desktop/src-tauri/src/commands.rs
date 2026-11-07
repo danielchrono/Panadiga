@@ -1,9 +1,10 @@
 //! Panasonic DMR-EH55 DIGA Suite - Tauri IPC Commands
 //!
 //! Strongly-typed command dispatchers linking the frontend to native `panadiga`
-//! forensics engines and RP2040 hardware controllers.
+//! forensics engines, RP2040/RP2350 hardware controllers, and external debugging tools.
 
 use std::path::Path;
+use std::process::Command;
 
 pub use panadiga::crypto::{
     CodebookReport, CryptanalysisReport as FrmEntropyReport, FrmTocDumpReport,
@@ -11,7 +12,7 @@ pub use panadiga::crypto::{
 pub use panadiga::hdd::{ExtractedPartitionReport, HddAnalysisReport, MeihdfsAllocationReport};
 pub use panadiga::manuals::PdfSearchResult as ManualSearchResult;
 pub use panadiga::nvram::NvramCleanReport;
-pub use crate::pico_serial::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
+pub use crate::pico::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
 
 /// Surgically cleans and audits the Spansion S29JL064H flash dump NVRAM emulation partitions.
 #[tauri::command]
@@ -106,7 +107,7 @@ pub fn search_manuals_command(term: String) -> Result<Vec<ManualSearchResult>, S
 /// Enumerates connected serial ports and provides RP2040 simulation options.
 #[tauri::command]
 pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
-    crate::pico_serial::list_pico_serial_ports()
+    crate::pico::list_pico_serial_ports()
 }
 
 /// Connects to a Pico serial COM port and reads device telemetry and VDD voltage.
@@ -115,25 +116,25 @@ pub fn pico_connect_and_test(
     port_name: String,
     baud_rate: u32,
 ) -> Result<PicoStatusResponse, String> {
-    crate::pico_serial::pico_connect_and_test(port_name, baud_rate)
+    crate::pico::pico_connect_and_test(port_name, baud_rate)
 }
 
 /// Triggers Cold Break-In sequence on the RP2040 DWire32A interface.
 #[tauri::command]
 pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String, String> {
-    crate::pico_serial::pico_execute_cold_break_in(port_name, mode)
+    crate::pico::pico_execute_cold_break_in(port_name, mode)
 }
 
 /// Executes in-circuit surgical sector erase of NVRAM micro-sectors on Spansion S29JL064H.
 #[tauri::command]
 pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String> {
-    crate::pico_serial::pico_execute_in_circuit_erase(port_name)
+    crate::pico::pico_execute_in_circuit_erase(port_name)
 }
 
 /// Switches the Pico firmware into GDB Remote Serial Protocol bridge mode.
 #[tauri::command]
 pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
-    crate::pico_serial::pico_switch_to_gdb_mode(port_name)
+    crate::pico::pico_switch_to_gdb_mode(port_name)
 }
 
 /// Starts the GDB TCP-to-Serial bridge server.
@@ -142,23 +143,69 @@ pub fn start_gdb_bridge_command(
     port_name: String,
     listen_addr: String,
 ) -> Result<GdbBridgeStatus, String> {
-    crate::pico_serial::start_gdb_bridge(port_name, listen_addr)
+    crate::pico::start_gdb_bridge(port_name, listen_addr)
 }
 
 /// Stops the GDB TCP-to-Serial bridge server.
 #[tauri::command]
 pub fn stop_gdb_bridge_command() -> Result<GdbBridgeStatus, String> {
-    crate::pico_serial::stop_gdb_bridge()
+    crate::pico::stop_gdb_bridge()
 }
 
 /// Retrieves the current status of the GDB bridge server.
 #[tauri::command]
 pub fn get_gdb_bridge_status_command() -> Result<GdbBridgeStatus, String> {
-    crate::pico_serial::get_gdb_bridge_status()
+    crate::pico::get_gdb_bridge_status()
 }
 
 /// Retrieves the current AM34 CPU register file state.
 #[tauri::command]
 pub fn get_am34_registers_command() -> Result<Am34RegisterState, String> {
-    crate::pico_serial::get_am34_registers()
+    crate::pico::get_am34_registers()
+}
+
+/// Launches external engineering tools (GDB Multiarch, OpenOCD, Ghidra scripts, HxD, PowerShell).
+#[tauri::command]
+pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
+    match tool.to_lowercase().as_str() {
+        "gdb" => {
+            Command::new("cmd")
+                .args(["/c", "start", "tools\\conectar_gdb_multiarch.bat"])
+                .spawn()
+                .map_err(|e| format!("Falha ao iniciar GDB Multiarch: {}", e))?;
+            Ok("Sessão interativa do GDB iniciada em novo terminal.".to_string())
+        }
+        "openocd" => {
+            Command::new("cmd")
+                .args(["/c", "start", "tools\\executar_openocd.bat"])
+                .spawn()
+                .map_err(|e| format!("Falha ao iniciar OpenOCD: {}", e))?;
+            Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
+        }
+        "ghidra_scripts" | "ghidra" => {
+            Command::new("explorer")
+                .arg("tools")
+                .spawn()
+                .map_err(|e| format!("Falha ao abrir pasta de scripts do Ghidra: {}", e))?;
+            Ok("Pasta de scripts do Ghidra (tools/) aberta no Explorer.".to_string())
+        }
+        "hxd" => {
+            Command::new("cmd")
+                .args(["/c", "start", "tools\\Abrir_HxD.bat"])
+                .spawn()
+                .map_err(|e| format!("Falha ao abrir HxD: {}", e))?;
+            Ok("HxD Hex Editor iniciado com o dump de memória.".to_string())
+        }
+        "terminal" => {
+            Command::new("cmd")
+                .args(["/c", "start", "powershell"])
+                .spawn()
+                .map_err(|e| format!("Falha ao abrir terminal: {}", e))?;
+            Ok("Terminal PowerShell iniciado no workspace.".to_string())
+        }
+        other => Err(format!(
+            "Ferramenta externa '{}' não suportada. Opções: gdb, openocd, ghidra, hxd, terminal",
+            other
+        )),
+    }
 }

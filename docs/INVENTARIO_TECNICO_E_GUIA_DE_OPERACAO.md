@@ -126,14 +126,15 @@ A biblioteca técnica reúne 15 manuais em PDF, totalizando **1.090 páginas** d
 O conector de 6 pinos `CN55001` na placa digital verde `VEP79138` é a interface de depuração e gravação in-circuit do protocolo **Matsushita DWire32A** (interface OCD de 1 via de dados síncrona com clock de hardware) do processador **MN2DS0016** (núcleo Matsushita AM34 / MN103S de 32 bits).
 
 ```text
-               Conector CN55001 (Placa Digital VEP79138)
+               Conector CN55001 / P7501 [B6B-ZR-3R4] (Placa Digital VEP79138)
+               (Contagem Física a partir do Cabo Flat 10V para o Flat 8V)
                           ┌───────────┐
-                   Pin 1  │ ● GND     │  Ground (0V - Chassi)
-                   Pin 2  │ ● EXTRG   │  External Trigger (Gatilho de Breakpoint)
-                   Pin 3  │ ● SCLK    │  Serial Clock (Clock Síncrono Master)
-                   Pin 4  │ ● SDATA   │  Serial Data (Dados Half-Duplex)
-                   Pin 5  │ ● VDD     │  Target Power Reference (Sense de 3.3V)
-                   Pin 6  │ ● nRESET  │  Hardware Reset (Linha ativa em nível baixo)
+                   Pino 1 │ ● EXTRG   │  External Trigger (Gatilho de Breakpoint OCD)
+                   Pino 2 │ ● SCLK    │  Serial Clock (Clock Síncrono Master 1.0 MHz)
+                   Pino 3 │ ● GND     │  Ground Comum (0.0Ω ao Chassi Metálico!)
+                   Pino 4 │ ● SDATA   │  Serial Data (Dados Half-Duplex, Pull-up 4.7kΩ)
+                   Pino 5 │ ● nRESET  │  Hardware Reset (Linha ativa em nível baixo / Open-Drain)
+                   Pino 6 │ ● VDD     │  Target Power Reference (Sense de +3.3V)
                           └───────────┘
 ```
 

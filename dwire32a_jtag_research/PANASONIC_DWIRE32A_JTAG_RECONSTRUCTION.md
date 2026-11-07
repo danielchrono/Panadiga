@@ -16,13 +16,15 @@ Diferente de uma UART assíncrona comum, o conector de 6 pinos na placa digital 
   * **Ambiente de Software:** *DebugFactory Builder*, *EX Commander*, *fl103* (Flash Loader), *db103* (Debugger).
 
 ```text
+       CONECTOR DE DIAGNÓSTICO DWIRE32A / P7501 [B6B-ZR-3R4] (1.5mm Pitch)
+       (Orientação Física na Placa VEP79138: Contagem do Flat 10V para Flat 8V)
        ┌───────────┐
-Pin 1  │ ● GND     │ Ground (0V - Chassi)
-Pin 2  │ ● EXTRG   │ External Trigger (Gatilho de Hardware / Breakpoint Trace)
-Pin 3  │ ● SCLK    │ Serial Clock (Clock Síncrono gerado pelo Gravador/Master)
-Pin 4  │ ● SDATA   │ Serial Data (Dados Bidirecionais Half-Duplex)
-Pin 5  │ ● VDD     │ Target Power Reference (Sense de 3.3V da placa)
-Pin 6  │ ● nRESET  │ Hardware Reset (Linha ativa em nível baixo / XRST / D_RESET)
+Pin 1  │ ● EXTRG   │ External Trigger (Gatilho de Hardware / Breakpoint Trace)
+Pin 2  │ ● SCLK    │ Serial Clock (Clock Síncrono gerado pelo Host RP2040 @ 1.0 MHz)
+Pin 3  │ ● GND     │ Ground Comum (0.0Ω para o Chassi Metálico!)
+Pin 4  │ ● SDATA   │ Serial Data (Dados Bidirecionais Half-Duplex, Pull-up 4.7kΩ)
+Pin 5  │ ● nRESET  │ Hardware Reset (Linha ativa em nível baixo / XRST / Open-Drain)
+Pin 6  │ ● VDD     │ Target Power Reference (Sense de +3.3V da placa)
        └───────────┘
 ```
 
@@ -32,14 +34,14 @@ Pin 6  │ ● nRESET  │ Hardware Reset (Linha ativa em nível baixo / XRST / 
 
 Para conectar o **Raspberry Pi Pico (RP2040)** ao conector de 6 pinos da placa verde sem risco de colisão de barramento (*bus contention*) durante a troca de direção da linha bidirecional `SDATA`, a interface física deve incluir resistores de amortecimento em série e controle em dreno aberto (*Open-Drain*) para a linha de reset.
 
-| Pino DWire32A | Sinal na Placa | GPIO RP2040 | Componente em Série / Proteção | Função Elétrica |
-| :--- | :--- | :--- | :--- | :--- |
-| **Pino 1** | `GND` | `GND` (Pino 38) | Ligação direta | Referência comum de 0V |
-| **Pino 2** | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo / Request de parada OCD |
-| **Pino 3** | `SCLK` | `GP3` (Pino 5) | Resistor $47\,\Omega$ a $100\,\Omega$ em série | Clock síncrono gerado pelo PIO Master |
-| **Pino 4** | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ 3.3V | Linha de dados Half-Duplex bidirecional |
-| **Pino 5** | `VDD` | `GP26 / ADC0` | Leitura via resistor $1\text{ k}\Omega$ | Monitoramento da presença de 3.3V na placa |
-| **Pino 6** | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ (Modo Open-Drain) | Controle da malha `XRST` / `D_RESET` |
+| Pino DWire32A (Físico) | Pino Esquemático P7501 | Sinal na Placa | GPIO RP2040 | Componente em Série / Proteção | Função Elétrica |
+| :---: | :---: | :--- | :--- | :--- | :--- |
+| **Pino 1** | Pino 6 | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo / Request de parada OCD |
+| **Pino 2** | Pino 5 | `SCLK` | `GP3` (Pino 5) | Resistor $47\,\Omega$ a $100\,\Omega$ em série | Clock síncrono gerado pelo PIO Master (1.0 MHz) |
+| **Pino 3** | **Pino 4** | **`GND`** | **`GND` (Pino 38)** | Ligação direta de baixa impedância | **Referência comum de 0V ($0.0\,\Omega$ ao chassi)** |
+| **Pino 4** | Pino 3 | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ Target VDD | Linha de dados Half-Duplex bidirecional |
+| **Pino 5** | Pino 2 | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ (**Modo Open-Drain**) | Controle da malha `XRST` / `D_RESET`. Nunca push-pull! |
+| **Pino 6** | Pino 1 | `VDD` | `GP26 / ADC0` | Leitura via resistor $1\text{ k}\Omega$ | Monitoramento da presença de 3.3V na placa |
 
 ### Regras Críticas de Montagem Elétrica
 

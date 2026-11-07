@@ -7,6 +7,8 @@ edition = "2021"
 [lib]
 name = "panasonic_diga_desktop_lib"
 crate-type = ["lib"]
+test = false
+doctest = false
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

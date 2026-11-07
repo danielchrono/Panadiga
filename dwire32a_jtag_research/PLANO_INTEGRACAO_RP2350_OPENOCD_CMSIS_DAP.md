@@ -31,13 +31,13 @@
 
 ---
 
-## 3. Especificação Mecânica e Comercial do Conector CN55001
+## 3. Especificação Mecânica e Comercial do Conector CN55001 / P7501
 
-* **Padrão Oficial do Conector:** **JST SH de 6 pinos (Pitch de 1.0 mm)**.
-* **Espaçamento entre Pinos:** `1.0 mm` (centro a centro). Não confundir com conectores de prototipagem comuns de 2.54 mm (JST XH) ou 2.0 mm (JST PH).
+* **Padrão Oficial do Conector:** **JST ZR de 6 pinos (Pitch de 1.5 mm)**, Part Number oficial Panasonic **`B6B-ZR-3R4`** (*Top Entry*), identificado com a legenda *"TO WRITE JIGU"*.
+* **Espaçamento entre Pinos:** `1.5 mm` (centro a centro). Não confundir com conectores JST SH (1.0 mm), JST PH (2.0 mm) ou JST XH (2.54 mm).
 * **Guia de Busca Comercial:**  
-  * Buscar por: `Cabo JST SH 1.0mm 6 pinos Fêmea para Dupont 2.54mm Macho` (ou Fêmea, dependendo dos pinos soldados na Pico).
-* **Vantagem de Bancada:** O uso desse chicote pronto elimina qualquer necessidade de microsolda na placa digital do aparelho, conectando o Pico de forma plug-and-play e segura.
+  * Buscar por: `Cabo JST ZR / ZH 1.5mm 6 pinos Fêmea para Dupont 2.54mm Macho` (alojamento fêmea `ZHR-6` com terminais `SZH-002T-P0.5`).
+* **Vantagem de Bancada:** O uso desse chicote pronto com conector de 1.5mm elimina qualquer necessidade de microsolda na placa digital do aparelho, conectando o Pico de forma plug-and-play e segura.
 
 ---
 

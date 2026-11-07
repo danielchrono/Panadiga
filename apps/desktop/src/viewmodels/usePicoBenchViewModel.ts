@@ -4,39 +4,65 @@ import {
   SerialLogEntry,
   InCircuitNvramEraseResult,
   ColdBreakinMode,
+  GdbBridgeStatus,
+  Am34RegisterState,
 } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { mockInitialSerialLogs } from '@/services/mockData';
 
 export function usePicoBenchViewModel() {
   const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(null);
-  const [availablePorts] = useState<string[]>([
-    'COM4 (Raspberry Pi Pico RP2040 DWire32A)',
-    'COM3 (Silicon Labs CP210x USB to UART)',
-    'COM1 (Standard Communications Port)',
+  const [availablePorts, setAvailablePorts] = useState<string[]>([
+    'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]',
+    'MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]',
   ]);
-  const [selectedPort, setSelectedPort] = useState<string>('COM4 (Raspberry Pi Pico RP2040 DWire32A)');
+  const [selectedPort, setSelectedPort] = useState<string>('MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]');
   const [logs, setLogs] = useState<SerialLogEntry[]>(mockInitialSerialLogs);
   const [isErasing, setIsErasing] = useState<boolean>(false);
   const [eraseResult, setEraseResult] = useState<InCircuitNvramEraseResult | null>(null);
   const [commandInput, setCommandInput] = useState<string>('');
+  const [gdbStatus, setGdbStatus] = useState<GdbBridgeStatus | null>(null);
+  const [am34Registers, setAm34Registers] = useState<Am34RegisterState | null>(null);
+  const [isGdbStarting, setIsGdbStarting] = useState<boolean>(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // Poll device status
+  // Load real system serial ports dynamically
+  const refreshPorts = useCallback(async () => {
+    try {
+      const ports = await invokeCommand<string[]>('list_pico_serial_ports');
+      if (ports && ports.length > 0) {
+        setAvailablePorts(ports);
+        if (!ports.includes(selectedPort)) {
+          setSelectedPort(ports[0]);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed loading system serial ports:', err);
+    }
+  }, [selectedPort]);
+
+  // Poll device status and GDB bridge state
   const pollStatus = useCallback(async () => {
     try {
       const status = await invokeCommand<PicoDeviceStatus>('pico_get_status');
       setDeviceStatus(status);
+      const gdb = await invokeCommand<GdbBridgeStatus>('get_gdb_bridge_status_command');
+      setGdbStatus(gdb);
+      if (gdb?.running) {
+        const regs = await invokeCommand<Am34RegisterState>('get_am34_registers_command');
+        setAm34Registers(regs);
+      }
     } catch (err) {
-      console.error('Failed querying Pico status:', err);
+      console.error('Failed querying Pico telemetry:', err);
     }
   }, []);
 
   useEffect(() => {
+    refreshPorts();
     pollStatus();
-    const interval = setInterval(pollStatus, 3000);
+    const interval = setInterval(pollStatus, 2500);
     return () => clearInterval(interval);
-  }, [pollStatus]);
+  }, [pollStatus, refreshPorts]);
 
   const addLog = useCallback((level: SerialLogEntry['level'], source: SerialLogEntry['source'], message: string, hexData?: string) => {
     const newEntry: SerialLogEntry = {
@@ -110,6 +136,34 @@ export function usePicoBenchViewModel() {
     setLogs([]);
   }, []);
 
+  const startGdbServer = useCallback(async (listenAddr: string = '127.0.0.1:3333') => {
+    setIsGdbStarting(true);
+    addLog('info', 'HOST', `Iniciando Servidor Ponte GDB RSP em ${listenAddr} (Porta: ${selectedPort})...`);
+    try {
+      const status = await invokeCommand<GdbBridgeStatus>('start_gdb_bridge_command', {
+        port_name: selectedPort,
+        listen_addr: listenAddr,
+      });
+      setGdbStatus(status);
+      addLog('success', 'HOST', `Ponte GDB RSP ativa! Conecte seu depurador com: (gdb) target remote ${listenAddr}`);
+    } catch (err) {
+      addLog('error', 'HOST', `Falha ao iniciar ponte GDB: ${err}`);
+    } finally {
+      setIsGdbStarting(false);
+    }
+  }, [selectedPort, addLog]);
+
+  const stopGdbServer = useCallback(async () => {
+    addLog('warn', 'HOST', 'Finalizando Servidor Ponte GDB RSP...');
+    try {
+      const status = await invokeCommand<GdbBridgeStatus>('stop_gdb_bridge_command');
+      setGdbStatus(status);
+      addLog('info', 'HOST', 'Servidor Ponte GDB desativado.');
+    } catch (err) {
+      addLog('error', 'HOST', `Falha ao parar ponte GDB: ${err}`);
+    }
+  }, [addLog]);
+
   return {
     deviceStatus,
     availablePorts,
@@ -121,6 +175,12 @@ export function usePicoBenchViewModel() {
     eraseResult,
     commandInput,
     setCommandInput,
+    gdbStatus,
+    am34Registers,
+    isGdbStarting,
+    startGdbServer,
+    stopGdbServer,
+    refreshPorts,
     changeBreakinMode,
     toggleConnection,
     injectRamLoaderAndErase,

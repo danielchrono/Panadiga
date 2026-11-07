@@ -38,15 +38,16 @@ Este manual fornece o procedimento cirúrgico passo a passo para realizar a **re
 
 ---
 
-## 2. Padrão Mecânico e Comercial do Conector (JST SH 1.0mm 6-Pin)
+## 2. Padrão Mecânico e Comercial do Conector (JST ZR 1.5mm 6-Pin - B6B-ZR-3R4)
 
-O conector de serviço CN55001 soldado na face superior da placa digital VEP79138 (adjacente ao SoC MN2DS0016 e à memória Flash IC55007) é um conector industrial microminiatura japonês padrão **JST SH de 6 pinos com passo (pitch) de 1.0mm**.
+O conector de serviço `CN55001` / `P7501` soldado na face superior da placa digital VEP79138 (adjacente ao SoC MN2DS0016 e à memória Flash IC55007) é um conector industrial japonês padrão **JST ZR de 6 pinos com passo (pitch) de 1.5mm (Part Number oficial Panasonic: B6B-ZR-3R4)**, entrada superior (*top entry*), identificado no esquemático oficial com a legenda *"TO WRITE JIGU"*.
 
 ### 2.1 Como Comprar o Cabo Correto (Plug-and-Play sem Microsolda)
-Para conectar o Raspberry Pi Pico à placa sem soldar fios microscópicos diretamente nos terminais SMD:
-* **Termo Oficial de Busca Comercial:** Cabo JST SH 1.0mm 6 pinos Fêmea para Dupont 2.54mm Macho (ou Fêmea, dependendo da barra de pinos da sua Pico).
-* **Pitch (Espaçamento entre Pinos):** Exatamente **1.0 mm** (distância centro a centro entre os pinos). **Atenção:** Não compre JST XH (2.54 mm), JST PH (2.0 mm) ou JST ZH (1.5 mm), pois não encaixarão na furação.
-* **Trava Mecânica:** O plugue JST SH possui ranhura guia superior e travas laterais que garantem firmeza e impedem a inversão acidental de polaridade.
+Para conectar o Raspberry Pi Pico à placa sem necessidade de microsolda nos terminais SMD (quando o conector de fábrica estiver populado):
+* **Termo Oficial de Busca Comercial:** `Cabo JST ZR / ZH 1.5mm 6 pinos Fêmea para Dupont 2.54mm Macho` (alojamento conector fêmea `ZHR-6` com terminais `SZH-002T-P0.5`).
+* **Pitch (Espaçamento entre Pinos):** Exatamente **1.5 mm** (distância centro a centro entre os pinos).
+* **Atenção aos Padrões Incompatíveis:** Não adquira **JST SH (1.0 mm - passo menor incompatível)**, **JST PH (2.0 mm)** ou **JST XH (2.54 mm - muito grande)**.
+* **Trava Mecânica:** O plugue JST ZR/ZH possui ranhuras guias e travas mecânicas que garantem firmeza e impedem a inversão acidental de polaridade.
 
 ---
 
@@ -107,7 +108,7 @@ No código de máquina de 80 bytes compilado para a arquitetura **Matsushita AM3
 
 ---
 
-O conector `CN55001` é um conector em linha de 6 pinos (passo de $2.54\text{ mm}$ ou ilhas estanhadas para barra de pinos) localizado na face superior da placa digital `VEP79138`, adjacente ao SoC `MN2DS0016` e à memória Flash `IC55007`.
+O conector `CN55001` / `P7501` é um conector em linha de 6 pinos com passo de $1.5\text{ mm}$ (padrão oficial JST ZR `B6B-ZR-3R4` ou 6 ilhas de teste) localizado na face superior da placa digital `VEP79138`, adjacente ao SoC `MN2DS0016` e à memória Flash `IC55007`.
 
 ```text
          CONECTOR DE DIAGNÓSTICO DWIRE32A / P7501 (VEP79138)
@@ -202,21 +203,21 @@ flowchart LR
         R_ADC["Resistor 1.0kΩ"]
     end
 
-    subgraph TARGET["Conector CN55001 (VEP79138)"]
-        CN_1["Pino 1: GND"]
-        CN_2["Pino 2: SCLK"]
-        CN_3["Pino 3: SDATA"]
-        CN_4["Pino 4: EXTRG"]
-        CN_5["Pino 5: nRESET"]
-        CN_6["Pino 6: VDD (+3.3V)"]
+    subgraph TARGET["Conector CN55001 / P7501 (VEP79138 - Contagem 10V -> 8V)"]
+        CN_1["Pino 1: EXTRG (OCD Trigger)"]
+        CN_2["Pino 2: SCLK (Clock 1.0 MHz)"]
+        CN_3["Pino 3: GND (Chassi 0.0Ω)"]
+        CN_4["Pino 4: SDATA (Half-Duplex)"]
+        CN_5["Pino 5: nRESET (Open-Drain)"]
+        CN_6["Pino 6: VDD (+3.3V Sense)"]
     end
 
-    GND_P === CN_1
+    GND_P === CN_3
     SCLK_P --> R_CLK --> CN_2
     PU_P --- R_PU --- SDATA_P
-    SDATA_P <--> R_DAT <--> CN_3
-    EXTRG_P --> R_TRG --> CN_4
-    RESET_P <--> R_RST <--> CN_5
+    SDATA_P <--> R_DAT <--> CN_4
+    EXTRG_P --> R_TRG --> CN_1
+    RESET_P <--> R_RST --> CN_5
     CN_6 --> R_ADC --> ADC_P
 ```
 
@@ -273,12 +274,12 @@ flowchart LR
 ### Passo 1: Inspeção e Medições a Frio (Aparelho Desconectado da Tomada)
 1. Certifique-se de que o cabo de força AC do Panasonic DMR-EH55 está desconectado.
 2. Com o multímetro na escala de continuidade/resistência:
-   * Meça entre o **Pino 1 do `CN55001`** e o **chassi de metal**: deve registrar curto exato ($0.0\,\Omega$).
-   * Meça entre o **Pino 6 (`VDD`)** e o **Pino 1 (`GND`)**: deve indicar alta impedância ($> 500\,\Omega$). Se acusar $0\,\Omega$, há curto na linha de alimentação; não ligue o aparelho.
+   * Meça entre o **Pino 3 Físico do `CN55001`** e o **chassi de metal**: deve registrar curto exato ($0.0\,\Omega$).
+   * Meça entre o **Pino 6 (`VDD`)** e o **Pino 3 (`GND`)**: deve indicar alta impedância ($> 500\,\Omega$). Se acusar $0\,\Omega$, há curto na linha de alimentação; não ligue o aparelho.
 
 ### Passo 2: Instalação do Chicote de Bancada
-1. Solde barra de pinos macho de $2.54\text{ mm}$ no conector `CN55001` ou solde fios flexíveis 28 AWG diretamente nas ilhas.
-2. Monte a malha de resistores em série ($100\,\Omega$ em `SDATA`, `EXTRG`, `nRESET`, $47\,\Omega$ em `SCLK`, $1\text{ k}\Omega$ em `VDD`) e o resistor de pull-up de $4.7\text{ k}\Omega$ conectado entre `SDATA` e o pino `3V3_OUT` do Pico.
+1. Conecte o chicote fêmea JST ZR-6 ($1.5\text{ mm}$) ao conector `P7501`/`CN55001`, utilize sonda de pinos Pogo ($1.5\text{ mm}$) ou solde fios flexíveis AWG 30 (Kynar) diretamente nas ilhas.
+2. Monte a malha de resistores em série ($100\,\Omega$ em `SDATA`, `EXTRG`, `nRESET`, $47\,\Omega\dots 100\,\Omega$ em `SCLK`, $1\text{ k}\Omega$ em `VDD`) e o resistor de pull-up de $4.7\text{ k}\Omega$ conectado entre `SDATA` e o **Pino 6 (`VDD` Target da própria placa Panasonic)** — **NUNCA ao pino 3V3_OUT do Pico**.
 3. Conecte as saídas dos resistores aos respectivos pinos do Raspberry Pi Pico.
 
 ### Passo 3: Energização do Gravador

@@ -49,10 +49,11 @@ O presente documento constitui o **Blueprint de Engenharia Eletrônica e Hardwar
 
 A interconexão física entre o **Raspberry Pi Pico (RP2040)** e o conector **`CN55001`** da placa digital `VEP79138` deve ser rigidamente condicionada. Como a interface DWire32A opera de forma síncrona com reversão rápida de sentido no barramento `SDATA`, qualquer capacitância parasita excessiva ou falta de resistores de terminação em série provocará *ringing*, falsas bordas de clock e disparos espúrios do supervisor de reset da Panasonic.
 
-### 2.0 Padrão Mecânico do Conector (JST SH 1.0mm) & Compatibilidade RP2040 / RP2350
+### 2.0 Padrão Mecânico do Conector (JST ZR 1.5mm - B6B-ZR-3R4) & Compatibilidade RP2040 / RP2350
 
-* **Padrão Físico do Conector CN55001:** Conector **JST SH de 6 pinos com passo (pitch) microminiatura de 1.0mm**.
-* **Como Comprar o Chicote Pronto:** Procurar comercialmente por Cabo JST SH 1.0mm 6 pinos Fêmea para Dupont 2.54mm. Isso viabiliza conexão direta aos pinos do Raspberry Pi Pico (RP2040 ou RP2350) sem qualquer necessidade de microsolda na placa digital do gravador.
+* **Padrão Físico do Conector CN55001 / P7501:** Conector **JST ZR de 6 pinos com passo (pitch) de 1.5mm**, modelo original Panasonic **`B6B-ZR-3R4`** (Through-hole top entry, legenda *"TO WRITE JIGU"* no esquemático oficial da Panasonic DMR-EH55).
+* **Como Comprar o Chicote Pronto:** Procurar comercialmente por **Cabo JST ZR / ZH 1.5mm 6 pinos Fêmea para Dupont 2.54mm** (alojamento `ZHR-6` com terminais `SZH-002T-P0.5`). Isso viabiliza conexão direta aos pinos do Raspberry Pi Pico (RP2040 ou RP2350) sem qualquer necessidade de solda na placa digital do gravador caso o conector esteja populado, ou via micro-fios Kynar AWG 30 / sonda Pogo-Pin de 1.5mm caso não esteja populado.
+* **Atenção aos Padrões Incompatíveis:** Não confundir com **JST SH (1.0 mm - passo menor)**, **JST PH (2.0 mm)** ou **JST XH (2.54 mm - muito grande)**.
 * **Compatibilidade Pico 1 (RP2040) e Pico 2 (RP2350):** Ambas as placas são 100% suportadas nativamente pela suíte Panadiga. O RP2350 traz a vantagem adicional de 520 KB de SRAM (o dobro do RP2040), permitindo manter em cache local setores inteiros de 64 KB da Spansion S29JL064H (EEMUL) diretamente na memória do microcontrolador.
 * **Alerta Crítico de Barramento (DWire32A vs JTAG Clássico):** O conector CN55001 **não possui pinos TDI/TDO/TMS**. O protocolo é Matsushita DWire32A com **1 única via de dados bidirecional half-duplex (SDATA)** sincronizada por SCLK. Firmwares JTAG tradicionais (como pico-dirtyJtag) não funcionam e provocam colisão de barramento.
 
@@ -438,11 +439,11 @@ O chip `IC55007` possui 48 terminais com espaçamento fino (*pitch* de $0.5\text
 | **1** | 1 | `U_HOST` | Raspberry Pi Pico (RP2040 Dual ARM Cortex-M0+ @ 133MHz) | Standard | Host controlador do barramento DWire32A via PIO |
 | **2** | 3 | `R_DAMP1, R_DAMP3, R_DAMP4` | Resistor de Filme de Metal $100\,\Omega$ $0.25\text{W}$ Through-Hole ou SMD 0805 | $\pm 1\%$ ou $\pm 5\%$ | Amortecimento de reflexões em `EXTRG`, `SDATA` e `nRESET` |
 | **3** | 1 | `R_DAMP2` | Resistor de Filme de Metal $47\,\Omega \text{ a } 68\,\Omega$ $0.25\text{W}$ | $\pm 1\%$ | Amortecimento crítico da linha de clock `SCLK` (1.0 MHz) |
-| **4** | 1 | `R_PU` | Resistor de Filme de Metal $4.7\text{ k}\Omega$ $0.25\text{W}$ | $\pm 1\%$ | Pull-up da linha bidirecional `SDATA` para 3.3V do Pico |
+| **4** | 1 | `R_PU` | Resistor de Filme de Metal $4.7\text{ k}\Omega$ $0.25\text{W}$ | $\pm 1\%$ | Pull-up da linha bidirecional `SDATA` para Target VDD (Pino 6) |
 | **5** | 1 | `R_PROT1` | Resistor de Filme de Metal $1.0\text{ k}\Omega$ $0.25\text{W}$ | $\pm 1\%$ | Proteção e limitação de corrente para ADC0 / VDD Sense |
 | **6** | 1 | `C_DECOUPL` | Capacitor Cerâmico Multicamada (MLCC) $100\text{ nF}$ X7R | $50\text{V} \pm 10\%$ | Desacoplamento local entre 3V3_OUT e GND do Pico |
 | **7** | 1 | `J_HARNESS` | Chicote de 6 condutores flexíveis 28 AWG blindados (< 15 cm) | Standard | Ligação mecânica entre Pico e conector CN55001 |
-| **8** | 1 | `CN_MALE` | Conector Barra de Pinos 2.54mm macho / micro-jumper | Dourado / Baixa R | Conexão firme nas ilhas de teste do conector CN55001 |
+| **8** | 1 | `CN_CONN` | Conector JST ZR 1.5mm fêmea (`ZHR-6`) / micro-fios Kynar AWG 30 | Baixa R | Conexão ao conector original de fábrica `B6B-ZR-3R4` (`CN55001`/`P7501`) |
 | **9** | 1 | `PROG_TSOP` | Gravador Universal SVOD 4 ou XGecu T48 (Original) | USB 2.0/3.0 | Programação externa de alta velocidade da Flash TSOP-48 |
 | **10** | 1 | `ADP_TSOP48`| Adaptador ZIF TSOP-48 para DIP-48 (Soquete Clamshell) | Passo $0.5\text{ mm}$ | Acomodação mecânica da Spansion S29JL064H sem solda |
 | **11** | 1 | `SOLDER_L` | Solda em Fio Sn63/Pb37 0.5mm com fluxo ativado | Ponto $183^\circ\text{C}$ | Alívio térmico para dessoldagem e ressoldagem segura |
@@ -462,15 +463,15 @@ Antes de ligar o aparelho à rede elétrica ou plugar o cabo USB do RP2040 ao co
     ┌────────────────────────────────────────────────────────────────────────┐
     │ 1. TESTE DE CURTO A FRIO (Aparelho Desligado da Tomada)               │
     │    Multímetro na escala de Resistência / Continuidade:                 │
-    │    - Medir entre CN55001 Pino 6 (GND) e Chassi Metálico: Deve dar 0.0Ω │
-    │    - Medir entre CN55001 Pino 1 (VDD) e Pino 6 (GND): Deve dar > 500Ω  │
+    │    - Medir entre CN55001 Pino 3 Físico (GND) e Chassi: Deve dar 0.0Ω   │
+    │    - Medir entre CN55001 Pino 6 Físico (VDD) e Pino 3: Deve dar > 500Ω │
     └───────────────────────────────────┬────────────────────────────────────┘
                                         │ PASSOU (Sem curto VDD-GND)
                                         ▼
     ┌────────────────────────────────────────────────────────────────────────┐
     │ 2. TESTE DE TENSÃO EM STANDBY (Aparelho Conectado na Tomada)           │
     │    Multímetro na escala DC 20V:                                        │
-    │    - Medir tensão no Pino 1 do CN55001: Deve indicar +3.3V ± 0.15V     │
+    │    - Medir tensão no Pino 6 Físico (VDD): Deve indicar +3.3V ± 0.15V   │
     │    - Confirmar que a leitura no GP26 do Pico acusa ~3.3V               │
     └───────────────────────────────────┬────────────────────────────────────┘
                                         │ TENSÃO NOMINAL CONFIRMADA

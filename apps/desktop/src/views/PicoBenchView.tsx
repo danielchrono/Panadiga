@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePicoBenchViewModel } from '@/viewmodels/usePicoBenchViewModel';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -17,9 +17,13 @@ import {
   AlertTriangle,
   RotateCcw,
   Sparkles,
+  Server,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 export const PicoBenchView: React.FC = () => {
+  const [copied, setCopied] = useState<boolean>(false);
   const {
     deviceStatus,
     availablePorts,
@@ -30,6 +34,11 @@ export const PicoBenchView: React.FC = () => {
     eraseResult,
     commandInput,
     setCommandInput,
+    gdbStatus,
+    am34Registers,
+    isGdbStarting,
+    startGdbServer,
+    stopGdbServer,
     changeBreakinMode,
     toggleConnection,
     injectRamLoaderAndErase,
@@ -201,6 +210,129 @@ export const PicoBenchView: React.FC = () => {
           variant="emerald"
           badge={<StatusBadge variant="success" label="RECOMENDADO" />}
         />
+      </div>
+
+      {/* GDB Remote Serial Protocol (RSP) Server & CPU Registers */}
+      <div className="rounded-2xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30">
+              <Server className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-slate-100">
+                  Servidor GDB Remote RSP (Porta TCP 3333)
+                </h3>
+                {gdbStatus?.running ? (
+                  (gdbStatus.connected_clients ?? 0) > 0 ? (
+                    <StatusBadge variant="success" label={`CLIENTE ATIVO (${gdbStatus.connected_clients})`} />
+                  ) : (
+                    <StatusBadge variant="warning" label="OUVINDO (3333)" />
+                  )
+                ) : (
+                  <StatusBadge variant="neutral" label="OFFLINE" />
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Conecte ferramentas de engenharia reversa (Ghidra Debugger, IDA Pro, gdb-multiarch) ao vivo no AM34.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300">
+              <code>(gdb) target remote 127.0.0.1:3333</code>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText('target remote 127.0.0.1:3333');
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="text-slate-400 hover:text-cyan-400 p-1"
+                title="Copiar comando GDB"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            <button
+              onClick={() => (gdbStatus?.running ? stopGdbServer() : startGdbServer())}
+              disabled={isGdbStarting}
+              className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all ${
+                gdbStatus?.running
+                  ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  : 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-950/50'
+              }`}
+            >
+              {isGdbStarting ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Iniciando...</span>
+                </>
+              ) : gdbStatus?.running ? (
+                <span>Parar Servidor GDB</span>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5" />
+                  <span>Iniciar Servidor GDB</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Live AM34 Register Grid */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span className="font-semibold text-slate-300 flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Banco de Registradores Matsushita AM34 (Em Tempo Real)</span>
+            </span>
+            <span className="text-[11px] text-slate-500">
+              {am34Registers?.is_halted ? '● CPU Interceptada (OCD HALT)' : '○ CPU em Execução'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-2 text-center text-xs">
+            <div className="p-2 rounded-lg bg-slate-950 border border-cyan-500/30 col-span-2">
+              <span className="text-[10px] text-cyan-400 block font-bold">PC (Program Counter)</span>
+              <span className="font-mono text-cyan-200 text-xs">
+                {am34Registers ? `0x${am34Registers.pc.toString(16).padStart(8, '0').toUpperCase()}` : '0x80000000'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-950 border border-purple-500/30 col-span-2">
+              <span className="text-[10px] text-purple-400 block font-bold">SP (Stack Pointer)</span>
+              <span className="font-mono text-purple-200 text-xs">
+                {am34Registers ? `0x${am34Registers.sp.toString(16).padStart(8, '0').toUpperCase()}` : '0x0003FFF0'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 col-span-2">
+              <span className="text-[10px] text-slate-400 block font-bold">PSW (Status Word)</span>
+              <span className="font-mono text-slate-300 text-xs">
+                {am34Registers ? `0x${am34Registers.psw.toString(16).padStart(8, '0').toUpperCase()}` : '0x00000100'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 col-span-2">
+              <span className="text-[10px] text-slate-400 block font-bold">MDR (Mult/Div)</span>
+              <span className="font-mono text-slate-300 text-xs">
+                {am34Registers ? `0x${am34Registers.mdr.toString(16).padStart(8, '0').toUpperCase()}` : '0x00000000'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 col-span-2">
+              <span className="text-[10px] text-slate-400 block font-bold">D0 (Data 0)</span>
+              <span className="font-mono text-slate-300 text-xs">
+                {am34Registers ? `0x${am34Registers.d[0].toString(16).padStart(8, '0').toUpperCase()}` : '0x00000000'}
+              </span>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-950 border border-slate-800 col-span-2">
+              <span className="text-[10px] text-slate-400 block font-bold">A0 (Addr 0)</span>
+              <span className="font-mono text-slate-300 text-xs">
+                {am34Registers ? `0x${am34Registers.a[0].toString(16).padStart(8, '0').toUpperCase()}` : '0x00000000'}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Grid: Modes Selector & Live Serial Terminal */}

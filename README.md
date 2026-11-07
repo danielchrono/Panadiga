@@ -786,7 +786,7 @@ Método não invasivo desenvolvido pela engenharia deste projeto para recuperaç
 2. **Verificação do Pino 14 (`WP#`):** Meça a tensão na ilha quadrada adjacente ao pino 14 do `IC55007`. Caso meça `0V`, injete `3.3V` através de um resistor de $1.0\text{ k}\Omega$.
 3. **Compilação e Carga do Firmware Pico:** Compile o firmware em `dwire32a_jtag_research/` utilizando o Pico SDK e carregue o arquivo `.uf2` no RP2040.
 4. **Captura Cold Break-In:** Conecte o terminal serial USB do RP2040 ($115200\text{ bps}$). Ligue a chave de alimentação do DMR-EH55. O RP2040 puxará `nRESET` para nível baixo, emitirá 32 pulsos em `SCLK`, liberará o reset em modo Open-Drain e congelará a CPU AM34 em modo de depuração OCD antes da execução do bootloader corrompido.
-5. **Injeção do RAM Loader:** O RP2040 injeta o código executável compilado de `ram_loader.c` na SRAM interna do SoC (`0x8C000000`).
+5. **Injeção do RAM Loader:** O RP2040 injeta o código executável compilado de `ram_loader.c` na SRAM interna do SoC (`0x00004000`).
 6. **Apagamento JEDEC:** O processador executa nativamente o algoritmo JEDEC em modo palavra no endereço físico sem cache `0x807F0000`, disparando os ciclos de *Sector Erase* nos 8 micro-setores `SA134` a `SA141`.
 7. **Reinicialização:** O comando `pi` de breakpoint sinaliza a conclusão. O RP2040 libera o barramento e o DMR-EH55 inicializa limpo.
 
@@ -852,8 +852,8 @@ Para aprofundamento específico em cada área de engenharia, consulte os dossiê
   *Inventário criptográfico exaustivo de todos os artefatos com hashes SHA-256 fixados, indexação dos 15 manuais de serviço e matriz FMEA completa de riscos e mitigações em bancada.*
 * 🔬 **[Especificação Técnica e Reconstrução da Interface DWire32A / OCD](dwire32a_jtag_research/PANASONIC_DWIRE32A_JTAG_RECONSTRUCTION.md)**  
   *Documento fundacional do protocolo DWire32A, temporizações do barramento síncrono half-duplex, código assembly da máquina PIO do RP2040 e driver JEDEC nativo AM34.*
-* 🪛 **[Guia Prático de Bancada DWire32A Sem Dessolda (Cabo JST SH 1.0mm)](dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)**  
-  *Procedimento completo de conexão plug-and-play no conector CN55001 sem ferro de solda, especificações mecânicas do cabo JST SH 1.0mm de 6 pinos e testes de continuidade.*
+* 🪛 **[Guia Prático de Bancada DWire32A Sem Dessolda (Cabo JST ZR 1.5mm - B6B-ZR-3R4)](dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)**  
+  *Procedimento completo de conexão no conector P7501/CN55001 sem dessolda, especificações mecânicas do conector JST ZR 1.5mm de 6 pinos (B6B-ZR-3R4) e testes de continuidade.*
 * 🐛 **[Guia de Depuração Interativa de Hardware: GDB, Ghidra e IDA Pro](dwire32a_jtag_research/GUIA_DEPURACAO_GDB_GHIDRA_IDA.md)**  
   *Tutorial prático para conectar depuradores interativos (gdb-multiarch, Ghidra Debugger, IDA Pro e OpenOCD) à CPU Matsushita AM34 via ponte TCP 'panadiga pico gdb-bridge', permitindo pausar a CPU, inspecionar registradores e executar passo a passo.*
 

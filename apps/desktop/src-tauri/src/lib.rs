@@ -22,6 +22,10 @@ pub fn run() {
             pico_execute_cold_break_in,
             pico_execute_in_circuit_erase,
             pico_switch_to_gdb_mode,
+            start_gdb_bridge_command,
+            stop_gdb_bridge_command,
+            get_gdb_bridge_status_command,
+            get_am34_registers_command,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

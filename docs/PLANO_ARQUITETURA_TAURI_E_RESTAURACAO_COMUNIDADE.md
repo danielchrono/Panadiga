@@ -277,34 +277,34 @@ A Rota B é a solução de engenharia avançada não-invasiva criada neste proje
 
 ```
 +=============================================================================+
-|        TOPOLOGIA DE CONEXÃO ROTA B (RASPBERRY PI PICO -> CN55001)           |
+|        TOPOLOGIA DE CONEXÃO ROTA B (RASPBERRY PI PICO -> CN55001 / P7501)   |
 +=============================================================================+
 | Raspberry Pi Pico (RP2040)           Placa Digital Panasonic VEP79138       |
 |                                                                             |
-| GP2 (Pin 4)  ──[ 100R ]────────────> CN55001 Pino 2 (EXTRG - Trigger)       |
-| GP3 (Pin 5)  ──[ 47R..100R ]───────> CN55001 Pino 3 (SCLK - Bit Clock)      |
+| GP2 (Pin 4)  ──[ 100R ]────────────> CN55001 Pino 1 (EXTRG - Trigger)       |
+| GP3 (Pin 5)  ──[ 47R..100R ]───────> CN55001 Pino 2 (SCLK - Bit Clock)      |
+| GND (Pin 38) ──────────────────────> CN55001 Pino 3 (GND Comum / Chassi 0Ω) |
 | GP4 (Pin 6)  ──[ 100R ]────────────> CN55001 Pino 4 (SDATA - Half-Duplex)   |
 |                    │                                                        |
 |                 [ 4k7 ] (Pull-up)                                           |
 |                    │                                                        |
-|                   3.3V                                                      |
+|             Pino 6 (VDD Target)                                             |
 | GP5 (Pin 7)  ──[ Open-Drain ]──────> CN55001 Pino 5 (nRESET - Reset Alvo)   |
 | GP26/ADC0    ──[ 1k ]──────────────> CN55001 Pino 6 (VDD 3.3V Sense Rail)   |
-| GND (Pin 38) ──────────────────────> CN55001 Pino 1 (GND Comum)            |
 |                                                                             |
 | [ Alerta Hardware ] 3.3V Rail ─────> TP5504 (Spansion Pino 14: WP#/ACC)     |
 +=============================================================================+
 ```
 
-#### 5.2.1. O Conector CN55001 e o Barramento DWire32A
-O conector CN55001 localiza-se na face superior da PCB VEP79138, próximo ao processador principal MN2DS0016:
-* **Pinagem do Conector CN55001:**
-  1. `GND`: Referência de terra.
-  2. `EXTRG`: Gatilho de parada externa para entrada no On-Chip Debugger (OCD).
-  3. `SCLK`: Clock serial síncrono com frequência nominal de $1\text{ MHz}$.
-  4. `SDATA`: Linha bidirecional de dados half-duplex em dreno aberto com resistor pull-up.
-  5. `nRESET`: Linha de reset do processador (ativo baixo).
-  6. `VDD`: Linha de alimentação de $3,3\text{ V}$ do trilho digital.
+#### 5.2.1. O Conector CN55001 / P7501 e o Barramento DWire32A
+O conector CN55001 (P7501 [B6B-ZR-3R4], passo de 1.5mm) localiza-se na face superior da PCB VEP79138, próximo ao processador principal MN2DS0016:
+* **Pinagem do Conector CN55001 (Contagem Física a partir do flat 10V para o de 8V):**
+  1. `EXTRG`: Gatilho de parada externa para entrada no On-Chip Debugger (OCD).
+  2. `SCLK`: Clock serial síncrono com frequência nominal de $1.0\text{ MHz}$.
+  3. `GND`: Referência de terra comum ($0.0\,\Omega$ para o chassi metálico).
+  4. `SDATA`: Linha bidirecional de dados half-duplex com resistor de pull-up ($4.7\text{ k}\Omega$ para Target VDD).
+  5. `nRESET`: Linha de reset do processador (ativo baixo, controle Open-Drain).
+  6. `VDD`: Linha de alimentação de $+3.3\text{ V}$ do trilho digital (Target Sense).
 
 #### 5.2.2. A Máquina de Estados PIO no RP2040 (Protocolo Half-Duplex)
 O microcontrolador RP2040 (Raspberry Pi Pico) foi escolhido por possuir blocos de hardware programável (**PIO - Programmable I/O**). O DWire32A opera com temporizações estritas de nanossegundos que não podem ser atendidas por bit-banging comum de GPIO sob interrupções de software.

@@ -11,7 +11,7 @@ pub use panadiga::crypto::{
 pub use panadiga::hdd::{ExtractedPartitionReport, HddAnalysisReport, MeihdfsAllocationReport};
 pub use panadiga::manuals::PdfSearchResult as ManualSearchResult;
 pub use panadiga::nvram::NvramCleanReport;
-pub use crate::pico_serial::PicoStatusResponse;
+pub use crate::pico_serial::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
 
 /// Surgically cleans and audits the Spansion S29JL064H flash dump NVRAM emulation partitions.
 #[tauri::command]
@@ -134,4 +134,31 @@ pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String
 #[tauri::command]
 pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
     crate::pico_serial::pico_switch_to_gdb_mode(port_name)
+}
+
+/// Starts the GDB TCP-to-Serial bridge server.
+#[tauri::command]
+pub fn start_gdb_bridge_command(
+    port_name: String,
+    listen_addr: String,
+) -> Result<GdbBridgeStatus, String> {
+    crate::pico_serial::start_gdb_bridge(port_name, listen_addr)
+}
+
+/// Stops the GDB TCP-to-Serial bridge server.
+#[tauri::command]
+pub fn stop_gdb_bridge_command() -> Result<GdbBridgeStatus, String> {
+    crate::pico_serial::stop_gdb_bridge()
+}
+
+/// Retrieves the current status of the GDB bridge server.
+#[tauri::command]
+pub fn get_gdb_bridge_status_command() -> Result<GdbBridgeStatus, String> {
+    crate::pico_serial::get_gdb_bridge_status()
+}
+
+/// Retrieves the current AM34 CPU register file state.
+#[tauri::command]
+pub fn get_am34_registers_command() -> Result<Am34RegisterState, String> {
+    crate::pico_serial::get_am34_registers()
 }

@@ -187,6 +187,56 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
       return generateMockHexDump(offset, count) as unknown as T;
     }
 
+    case 'list_pico_serial_ports': {
+      return [
+        'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]',
+        'MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]',
+        'COM4 [Raspberry Pi Pico (RP2040) DWire32A - VID:2E8A PID:000A]',
+      ] as unknown as T;
+    }
+
+    case 'start_gdb_bridge_command': {
+      return {
+        running: true,
+        port_name: (args?.port_name as string) || 'MOCK_RP2040',
+        listen_addr: (args?.listen_addr as string) || '127.0.0.1:3333',
+        connected_clients: 0,
+        last_event: 'Ouvindo conexões GDB em 127.0.0.1:3333',
+      } as unknown as T;
+    }
+
+    case 'stop_gdb_bridge_command': {
+      return {
+        running: false,
+        port_name: '',
+        listen_addr: '127.0.0.1:3333',
+        connected_clients: 0,
+        last_event: 'Servidor GDB finalizado',
+      } as unknown as T;
+    }
+
+    case 'get_gdb_bridge_status_command': {
+      return {
+        running: false,
+        port_name: 'MOCK_RP2040',
+        listen_addr: '127.0.0.1:3333',
+        connected_clients: 0,
+        last_event: 'Servidor GDB offline',
+      } as unknown as T;
+    }
+
+    case 'get_am34_registers_command': {
+      return {
+        d: [0x00000000, 0x00000000, 0x00000000, 0x00000000],
+        a: [0x00000000, 0x00000000, 0x00000000, 0x0003FFF0],
+        mdr: 0x00000000,
+        psw: 0x00000100,
+        pc: 0x80000000,
+        sp: 0x0003FFF0,
+        is_halted: true,
+      } as unknown as T;
+    }
+
     default:
       console.warn(`[MockIPC] Unhandled command: ${cmd}`);
       return {} as unknown as T;

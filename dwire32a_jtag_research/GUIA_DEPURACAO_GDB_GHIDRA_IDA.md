@@ -4,7 +4,7 @@
 **Subsistema:** Ponte de Comunicação Host-Target e Depuração On-Chip Debug (OCD)  
 **Processador-Alvo:** Matsushita UniPhier `MN2DS0016` (Núcleo RISC de 32 bits `AM34` / `MN103S`)  
 **Hardware de Bancada:** Raspberry Pi Pico (RP2040) / Raspberry Pi Pico 2 (RP2350)  
-**Interface Física:** Conector `CN55001` (JST SH 1.0mm 6 pinos na Digital Board `VEP79138`)  
+**Interface Física:** Conector `CN55001` / `P7501` (JST ZR 1.5mm 6 pinos [`B6B-ZR-3R4`] na Digital Board `VEP79138`)  
 
 ---
 
@@ -67,7 +67,7 @@ flowchart LR
 
     subgraph Target["Placa Panasonic DMR-EH55 (VEP79138)"]
         direction TB
-        CN["Conector CN55001<br/>(JST SH 1.0mm 6 Pinos)<br/>SCLK, SDATA, EXTRG, nRESET, 3.3V"]
+        CN["Conector CN55001 / P7501<br/>(JST ZR 1.5mm 6 Pinos [B6B-ZR-3R4])<br/>SCLK, SDATA, EXTRG, nRESET, 3.3V"]
         AM34["SoC Matsushita MN2DS0016<br/>Núcleo AM34 / MN103S (32-bit RISC)<br/>Unidade On-Chip Debug (OCD)"]
         SPAN["NOR Flash Spansion S29JL064H (8 MB)<br/>SRAM Interna (256 KB)"]
         
@@ -83,7 +83,7 @@ flowchart LR
 
 ### Passo 1: Iniciar a Ponte no Terminal
 
-Com a placa do DMR-EH55 conectada ao Raspberry Pi Pico via cabo JST SH 1.0mm (veja o [Guia de Bancada](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)), abra um terminal no PC e inicie a ponte:
+Com a placa do DMR-EH55 conectada ao Raspberry Pi Pico via cabo JST ZR 1.5mm (alojamento ZHR-6) (veja o [Guia de Bancada](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)), abra um terminal no PC e inicie a ponte:
 
 ```bash
 # Identifique a porta COM do seu Pico (ex: COM3)

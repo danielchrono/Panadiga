@@ -55,3 +55,43 @@ export interface InCircuitNvramEraseResult {
   verification_sha256: string;
   log_lines: string[];
 }
+
+export type PicoArchitecture = 'Rp2040' | 'Rp2350' | 'Bootloader' | 'Unknown';
+
+export interface PicoDeviceInfo {
+  port_name: string;
+  architecture: PicoArchitecture;
+  vid: number;
+  pid: number;
+  description: string;
+}
+
+export interface PicoStatusResponse {
+  connected: boolean;
+  port_name: string;
+  baud_rate: number;
+  vdd_voltage: number;
+  target_powered: boolean;
+  firmware_banner: string;
+  is_mock: boolean;
+  message: string;
+}
+
+export interface GdbBridgeStatus {
+  running: boolean;
+  port_name: string;
+  listen_addr: string;
+  connected_clients: number;
+  last_event: string;
+}
+
+export interface Am34RegisterState {
+  d: [number, number, number, number];
+  a: [number, number, number, number];
+  mdr: number;
+  psw: number;
+  pc: number;
+  sp: number;
+  is_halted: boolean;
+}
+

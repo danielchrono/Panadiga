@@ -86,7 +86,7 @@ bool dwire_hw_is_initialized(void) {
 }
 
 void dwire_hw_write_bits(uint32_t data, uint8_t n_bits) {
-    if (n_bits == 0U || n_bits > 32U) {
+    if (!s_initialized || n_bits == 0U || n_bits > 32U) {
         return;
     }
     const uint32_t header = dwire_make_header(DWIRE_DIR_WRITE, n_bits);
@@ -95,7 +95,7 @@ void dwire_hw_write_bits(uint32_t data, uint8_t n_bits) {
 }
 
 uint32_t dwire_hw_read_bits(uint8_t n_bits) {
-    if (n_bits == 0U || n_bits > 32U) {
+    if (!s_initialized || n_bits == 0U || n_bits > 32U) {
         return 0U;
     }
     const uint32_t header = dwire_make_header(DWIRE_DIR_READ, n_bits);

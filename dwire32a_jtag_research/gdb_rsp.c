@@ -155,6 +155,11 @@ static uint8_t memory_read_byte(uint32_t addr) {
  * @brief Write single byte to target memory.
  */
 static void memory_write_byte(uint32_t addr, uint8_t byte_val) {
+    /* PICO-02: Defense-in-depth hardware air-gap against IPL ROM writes (SA0..SA133) */
+    if (addr >= 0x80000000UL && addr <= 0x807EFFFFUL) {
+        return;
+    }
+
     uint32_t aligned_addr = addr & ~0x03UL;
     uint32_t byte_idx = addr & 0x03UL;
     uint32_t current_word = dwire_hw_read_mem32(aligned_addr);
@@ -361,6 +366,10 @@ static void handle_gdb_command(const char *cmd) {
             }
 
             for (uint32_t i = 0U; i < length; i++) {
+                if (p[0] == '\0' || p[1] == '\0') {
+                    gdb_rsp_send_packet("E04");
+                    return;
+                }
                 int h = hex_char_to_nibble(*p++);
                 int l = hex_char_to_nibble(*p++);
                 if (h >= 0 && l >= 0) {

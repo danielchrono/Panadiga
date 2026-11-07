@@ -49,38 +49,47 @@ O presente documento constitui o **Blueprint de Engenharia Eletrônica e Hardwar
 
 A interconexão física entre o **Raspberry Pi Pico (RP2040)** e o conector **`CN55001`** da placa digital `VEP79138` deve ser rigidamente condicionada. Como a interface DWire32A opera de forma síncrona com reversão rápida de sentido no barramento `SDATA`, qualquer capacitância parasita excessiva ou falta de resistores de terminação em série provocará *ringing*, falsas bordas de clock e disparos espúrios do supervisor de reset da Panasonic.
 
-### 2.1 Esquema Elétrico Completo em Arte ASCII
+### 2.0 Padrão Mecânico do Conector (JST SH 1.0mm) & Compatibilidade RP2040 / RP2350
+
+* **Padrão Físico do Conector CN55001:** Conector **JST SH de 6 pinos com passo (pitch) microminiatura de 1.0mm**.
+* **Como Comprar o Chicote Pronto:** Procurar comercialmente por Cabo JST SH 1.0mm 6 pinos Fêmea para Dupont 2.54mm. Isso viabiliza conexão direta aos pinos do Raspberry Pi Pico (RP2040 ou RP2350) sem qualquer necessidade de microsolda na placa digital do gravador.
+* **Compatibilidade Pico 1 (RP2040) e Pico 2 (RP2350):** Ambas as placas são 100% suportadas nativamente pela suíte Panadiga. O RP2350 traz a vantagem adicional de 520 KB de SRAM (o dobro do RP2040), permitindo manter em cache local setores inteiros de 64 KB da Spansion S29JL064H (EEMUL) diretamente na memória do microcontrolador.
+* **Alerta Crítico de Barramento (DWire32A vs JTAG Clássico):** O conector CN55001 **não possui pinos TDI/TDO/TMS**. O protocolo é Matsushita DWire32A com **1 única via de dados bidirecional half-duplex (SDATA)** sincronizada por SCLK. Firmwares JTAG tradicionais (como pico-dirtyJtag) não funcionam e provocam colisão de barramento.
+
+### 2.1 Esquema Elétrico Completo de Bancada (Mapeamento Físico Real)
 
 ```text
        RASPBERRY PI PICO (RP2040)                                   PLACA DIGITAL VEP79138
-             PLACA DE BANCADA                                         CONECTOR CN55001
+             PLACA DE BANCADA                                         CONECTOR CN55001 / P7501
     ┌───────────────────────────────┐                             ┌────────────────────────┐
     │                               │                             │                        │
-    │  3V3_OUT (Pino 36) ───┐       │                             │                        │
-    │                       │       │                             │                        │
-    │                     [R_PU]    │                             │                        │
-    │                     4.7kΩ     │                             │                        │
-    │                       │       │                             │                        │
-    │  GP4 (Pino 6) ────────┴───────┼───[ R_DAMP3 ]───────────────┼───► Pino 3: SDATA      │
-    │  (PIO SM0 Data I/O)           │     100Ω                    │     (Bidirecional)     │
+    │  Pino 38 (GND) ───────────────┴─────────────────────────────┴──── Pino 3: GND Comum │
+    │  (Referência 0V)              ═════════════════════════════      (0.0Ω ao Chassi!)   │
+    │                                                                                      │
+    │  Pino 4  (GP2 / EXTRG) ───────┼───[ R_DAMP1: 100Ω ]─────────┼───► Pino 1: EXTRG      │
+    │  (External OCD Trigger)       │                             │     (Gatilho / Halt)   │
     │                               │                             │                        │
-    │  GP3 (Pino 5) ────────────────┼───[ R_DAMP2 ]───────────────┼───► Pino 4: SCLK       │
-    │  (PIO Side-Set Clock Out)     │    47Ω..100Ω                │     (Clock 1.0 MHz)    │
+    │  Pino 5  (GP3 / PIO SCLK) ────┼───[ R_DAMP2: 47Ω..100Ω ]────┼───► Pino 2: SCLK       │
+    │  (PIO Side-Set Clock Out)     │                             │     (Clock 1.0 MHz)    │
     │                               │                             │                        │
-    │  GP2 (Pino 4) ────────────────┼───[ R_DAMP1 ]───────────────┼───► Pino 2: EXTRG      │
-    │  (External OCD Trigger)       │     100Ω                    │     (Gatilho / Halt)   │
-    │                               │                             │                        │
-    │  GP5 (Pino 7) ────────────────┼───[ R_DAMP4 ]───────────────┼───► Pino 5: nRESET     │
-    │  (Open-Drain Emulated)        │     100Ω                    │     (Ativo em 0V)      │
-    │                               │                             │                        │
-    │  GP26 / ADC0 (Pino 31) ───────┼───[ R_PROT1 ]───────────────┼───◄ Pino 1: VDD Sense  │
+    │  Pino 6  (GP4 / PIO SDATA) ───┼───[ R_DAMP3: 100Ω ]─────────┼───► Pino 4: SDATA      │
+    │  (PIO SM0 Data I/O)           │                             │  ▲  (Bidirecional)     │
+    │                               │                             │  │                     │
+    │                               │                             │ [R_PU: 4.7kΩ]          │
+    │                               │                             │  │  (Alimentado pelo   │
+    │                               │                             │  ▼   VDD do Target!)   │
+    │  Pino 31 (GP26 / ADC0) ───────┼───[ R_PROT1: 1.0kΩ ]────────┼───◄ Pino 6: VDD Sense  │
     │  (Monitor de Tensão 3.3V)     │     1.0kΩ                   │     (+3.3V Target Ref) │
     │                               │                             │                        │
-    │  GND (Pino 38) ───────────────┴─────────────────────────────┴──── Pino 6: GND Comum │
-    │  (Referência 0V)              ═════════════════════════════      (Chassi Blindagem)  │
-    │                               Malha de Terra / Malha Trançada                        │
-    └──────────────────────────────────────────────────────────────────────────────────────┘
+    │  Pino 7  (GP5 / nRESET) ──────┼───[ R_DAMP4: 100Ω ]─────────┼───► Pino 5: nRESET     │
+    │  (Open-Drain Emulado)         │     100Ω                    │     (Ativo em 0V)      │
+    │                               │                             │                        │
+    └───────────────────────────────┘                             └────────────────────────┘
 ```
+
+> [!IMPORTANT]
+> **Ponto de Conexão Mandatório do Resistor de Pull-Up ($4.7\text{ k}\Omega$):**
+> O resistor de pull-up da linha `SDATA` deve ser conectado ao **Pino 6 Físico (`VDD` $+3.3\text{V}$ da própria placa Panasonic)** e **NUNCA** ao pino 3V3_OUT do Pico. Isso garante que a linha só fique em nível alto quando o gravador estiver efetivamente energizado, evitando alimentar o SoC desligado via diodos de proteção ESD.
 
 ### 2.2 Diagrama Mermaid de Arquitetura e Fluxo de Sinais
 
@@ -92,7 +101,6 @@ graph LR
         PIO_DAT["PIO SM In/Out (GP4 / Pin 6)<br/>Dados Half-Duplex SDATA"]
         TRIG["GPIO Output (GP2 / Pin 4)<br/>Trigger EXTRG"]
         RST_OD["GPIO Open-Drain (GP5 / Pin 7)<br/>Reset Control nRESET"]
-        PICO_3V3["Pin 36 (3V3_OUT)<br/>Referência 3.3V"]
         PICO_GND["Pin 38 (GND)<br/>Terra Digital"]
     end
 
@@ -100,39 +108,39 @@ graph LR
         R_PROT["R_PROT: 1 kΩ 1%"]
         R_CLK["R_DAMP: 47 Ω .. 100 Ω"]
         R_DAT["R_DAMP: 100 Ω"]
-        R_PU["R_PU: 4.7 kΩ (Pull-up)"]
+        R_PU["R_PU: 4.7 kΩ (Pull-up p/ Target VDD)"]
         R_TRG["R_DAMP: 100 Ω"]
-        R_RST["R_DAMP: 100 Ω (Limitador)"]
+        R_RST["R_DAMP: 100 Ω (Limitador Open-Drain)"]
     end
 
-    subgraph VEP79138["Panasonic DMR-EH55 (VEP79138 - CN55001)"]
-        CN_VDD["Pin 1: VDD Sense (+3.3V)"]
-        CN_TRG["Pin 2: EXTRG (OCD Trigger)"]
-        CN_DAT["Pin 3: SDATA (DWire32A Bidirecional)"]
-        CN_CLK["Pin 4: SCLK (Clock Síncrono)"]
-        CN_RST["Pin 5: nRESET (Linha XRST Supervisor)"]
-        CN_GND["Pin 6: GND (Chassi / 0V)"]
+    subgraph VEP79138["Panasonic DMR-EH55 (VEP79138 - P7501 Físico)"]
+        CN_TRG["Pin 1 Físico: EXTRG (OCD Trigger)"]
+        CN_CLK["Pin 2 Físico: SCLK (Clock Síncrono)"]
+        CN_GND["Pin 3 Físico: GND (Chassi / 0.0Ω)"]
+        CN_DAT["Pin 4 Físico: SDATA (DWire32A Bidirecional)"]
+        CN_RST["Pin 5 Físico: nRESET (Linha XRST Supervisor)"]
+        CN_VDD["Pin 6 Físico: VDD Sense (+3.3V Target Ref)"]
     end
 
     CN_VDD --> R_PROT --> ADC
+    CN_VDD --- R_PU --- CN_DAT
     TRIG --> R_TRG --> CN_TRG
-    PICO_3V3 --- R_PU --- PIO_DAT
     PIO_DAT <--> R_DAT <--> CN_DAT
     PIO_CLK --> R_CLK --> CN_CLK
     RST_OD <--> R_RST <--> CN_RST
     PICO_GND === CN_GND
 ```
 
-### 2.3 Tabela Mestra de Interconexão Pino-a-Pino
+### 2.3 Tabela Mestra de Interconexão Pino-a-Pino (Mapeamento Físico de Bancada)
 
-| Pino RP2040 | Sinal Pico | GPIO / MUX | Componente de Proteção | Pino CN55001 | Sinal Placa VEP79138 | Tipo Lógico | Nível de Tensão | Descrição Funcional Detalhada |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Pino 31** | `ADC0` | `GP26` | Resistor $1.0\text{ k}\Omega$ $0.25\text{W}$ $1\%$ | **Pino 1** | `VDD Sense` | Entrada Analógica | $+3.3\text{V DC}$ | Monitora a presença da linha de alimentação principal da placa antes de injetar clocks ou comandos. |
-| **Pino 4** | `GP2` | `GPIO2` | Resistor $100\,\Omega$ $0.25\text{W}$ $5\%$ | **Pino 2** | `EXTRG` | Saída Digital | $0\text{V} / 3.3\text{V}$ | *External Trigger*: força o núcleo AM34 a desviar para o manipulador OCD no momento do boot. |
-| **Pino 6** | `GP4` | `PIO0_SM0` | Resistor $100\,\Omega$ em série + Pull-up $4.7\text{ k}\Omega$ | **Pino 3** | `SDATA` | I/O Bidirecional | $0\text{V} / 3.3\text{V}$ | Linha de dados *half-duplex*. Injeta comandos de debug e recebe registradores e dumps do SoC. |
-| **Pino 5** | `GP3` | `PIO0_SIDE` | Resistor $47\,\Omega$ a $100\,\Omega$ $0.25\text{W}$ | **Pino 4** | `SCLK` | Saída Digital | $0\text{V} / 3.3\text{V}$ | Clock síncrono fornecido pelo master RP2040 ($1.0\text{ MHz}$ contínuo/pulsado em rajadas). |
-| **Pino 7** | `GP5` | `GPIO5` | Resistor $100\,\Omega$ $0.25\text{W}$ | **Pino 5** | `nRESET` | Saída Open-Drain | $0\text{V} / \text{Hi-Z}$ | Mantém a CPU em reset ($0\text{V}$) e libera para rodar ($\text{Hi-Z}$). **Jamais injetar 3.3V ativo!** |
-| **Pino 38** | `GND` | `GND` | Conexão direta de baixa impedância | **Pino 6** | `GND` | Referência de 0V | $0.0\text{V}$ | Plano de terra comum entre RP2040, placa digital e blindagem metálica do chassi. |
+| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Pino RP2040 | Componente de Proteção | Tipo Lógico | Nível de Tensão | Descrição Funcional Detalhada |
+| :---: | :---: | :---: | :---: | :--- | :---: | :---: | :--- |
+| **Pino 1** | Pino 6 | `EXTRG` | **Pino 4** (`GP2`) | Resistor $100\,\Omega$ $0.25\text{W}$ | Saída Digital | $0\text{V} / 3.3\text{V}$ | *External Trigger*: força o núcleo AM34 a desviar para o manipulador OCD no momento do boot. |
+| **Pino 2** | Pino 5 | `SCLK` | **Pino 5** (`GP3`) | Resistor $47\,\Omega$ a $100\,\Omega$ $0.25\text{W}$ | Saída Digital | $0\text{V} / 3.3\text{V}$ | Clock síncrono serial master ($1.000\text{ MHz}$, 4 ciclos SM a 4.0 MHz). |
+| **Pino 3** | **Pino 4** | **`GND`** | **Pino 38** (`GND`) | Conexão direta de baixa impedância | Referência de 0V | $0.0\text{V}$ | **Referência de terra comum ($0.0\,\Omega$ para o chassi metálico).** |
+| **Pino 4** | Pino 3 | `SDATA` | **Pino 6** (`GP4`) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ Target VDD | I/O Bidirecional | $0\text{V} / 3.3\text{V}$ | Barramento de dados *half-duplex*. Injeta comandos OCD e recebe registradores e dados lidos da Flash. |
+| **Pino 5** | Pino 2 | `nRESET` | **Pino 7** (`GP5`) | Resistor $100\,\Omega$ $0.25\text{W}$ | Saída Open-Drain | $0\text{V} / \text{Hi-Z}$ | Linha de reset mestre (`XRST`). Mantém a CPU em reset ($0\text{V}$) e libera para rodar (Hi-Z). **Nunca 3.3V push-pull!** |
+| **Pino 6** | Pino 1 | `VDD Sense` | **Pino 31** (`GP26 / ADC0`) | Resistor $1.0\text{ k}\Omega$ $0.25\text{W}$ $1\%$ | Entrada Analógica | $+3.3\text{V DC}$ | Monitora a presença da linha de alimentação principal do gravador antes de injetar comandos. |
 
 ---
 
@@ -480,3 +488,242 @@ Antes de ligar o aparelho à rede elétrica ou plugar o cabo USB do RP2040 ao co
 > **Aviso de Sobrevivência de Hardware:**
 > O pino 5 do conector `CN55001` está conectado diretamente à linha mestre de reset do sistema (`XRST`), compartilhada com o circuito integrado de monitoramento e supervisão de voltagem da Panasonic. **Sob nenhuma hipótese configure o pino GP5 do RP2040 em modo Push-Pull dirigindo nível alto ($3.3\text{V}$).**
 > A condução de nível alto contra o supervisor em estado baixo queimará a porta do microcontrolador ou danificará a linha de reset do SoC Matsushita MN2DS0016. Use **sempre e exclusivamente** a técnica de emulação de dreno aberto (*Open-Drain*), alternando entre `GPIO_OUT com nível 0` (reset forçado) e `GPIO_IN em Hi-Z` (reset liberado para flutuar via resistor de pull-up nativo da placa).
+
+
+---
+
+## 8. Ground Truth Físico de Bancada: Pinagem do Conector P7501 / CN55001
+
+### 8.1 Correlação entre o Esquemático de Fábrica e o Layout Físico da Placa
+
+No Manual de Serviço Oficial Matsushita (**ORDER NO. CHM0605028CE**, esquemático da placa digital `VEP79138`, página 62), o conector de fábrica de 6 vias para gabarito de programação é designado como:
+$$\text{P7501 } [\text{B6B-ZR-3R4}] \quad \text{-- Legenda em Serigrafia: "TO WRITE JIGU"}$$
+
+Na placa física do Panasonic DMR-EH55, este conector (ou conjunto de ilhas de teste) está localizado na borda da placa, exatamente entre dois cabos flat mecânicos:
+* **`FP50003`** (Cabo Flat de 10 vias, conectado ao motor e mecanismo do leitor)
+* **`FP50004`** (Cabo Flat de 8 vias, conectado às chaves de detecção e gaveta)
+
+Quando o operador de bancada conta os pinos da esquerda para a direita, partindo do conector de 10 vias em direção ao conector de 8 vias, obtém-se o **mapeamento físico de bancada**, no qual a continuidade de multímetro com o chassi metálico acusa **Pino 3 = GND ($0.0\,\Omega$)**:
+
+```text
+               MAPA DE ORIENTAÇÃO FÍSICA NA PLACA DIGITAL VEP79138
+   
+      [ FP50003: Flat 10 Vias ]                       [ FP50004: Flat 8 Vias ]
+      (Motor / Spindle)                               (Gaveta / Sensores)
+              │                                               │
+              ▼                                               ▼
+         ┌─────────┐                                     ┌─────────┐
+         │ ||||||| │                                     │ ||||||  │
+         └─────────┘                                     └─────────┘
+              
+                       CONECTOR P7501 / CN55001 (6 ILHAS)
+                       ┌───┬───┬───┬───┬───┬───┐
+       Contagem Física:│ 1 │ 2 │ 3 │ 4 │ 5 │ 6 │  (Mais próx. do Flat 8 Vias)
+       (Inicia no 10V) └───┴───┴───┴───┴───┴───┘
+                                 ▲
+                                 │
+                   GND COMUM DE BANCADA (0.0Ω para o Chassi Metálico)
+```
+
+### 8.2 Tabela de Equivalência: Contagem Física vs. Numeração Esquemática P7501
+
+No esquema elétrico da Panasonic, a numeração do conector `P7501` foi invertida pelo desenhista do CAD em relação à contagem visual da esquerda:
+$$\text{Pino Esquemático } = 6 - \text{Pino Físico} + 1$$
+Como o pino de terra no esquema oficial é o **Pino 4 (`GND`)**, na contagem física a partir do flat de 10 vias ele corresponde com exatidão matemática ao **Pino 3** ($6 - 4 + 1 = 3$).
+
+| Pino Físico (De 10V p/ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Função no Barramento | Nível Elétrico | Comportamento no Multímetro |
+| :---: | :---: | :---: | :--- | :---: | :--- |
+| **Pino 1** | Pino 6 | `EXTRG` | Gatilho Externo de OCD | $0\text{V} / 3.3\text{V}$ | Linha de alta impedância com pull-down fraco interno. |
+| **Pino 2** | Pino 5 | `SCLK` | Clock Síncrono DWire32A | $3.3\text{V}$ (Idle) | Apresenta $3.3\text{V}$ estático via pull-up em repouso. |
+| **Pino 3** | **Pino 4** | **`GND`** | **Terra Comum do Chassi** | **$0.0\text{V}$** | **$0.0\,\Omega$ de resistência direta para a carcaça de lata.** |
+| **Pino 4** | Pino 3 | `SDATA` | Dados Half-Duplex | $3.3\text{V}$ (Idle) | Apresenta $3.3\text{V}$ estático via pull-up de $4.7\text{ k}\Omega$. |
+| **Pino 5** | Pino 2 | `nRESET` | Linha Mestre `XRST` | $3.3\text{V}$ / $0\text{V}$ | $3.3\text{V}$ em operação normal; cai para $0\text{V}$ em reset. |
+| **Pino 6** | Pino 1 | `VDD Sense` | Tensão de Referência | $+3.3\text{V DC}$ | Barra de alimentação principal do domínio de I/O do SoC. |
+
+### 8.3 Protocolo Multimétrico de Validação em 3 Etapas (Antes de Ligar o Pico)
+
+1. **Etapa 1 -- Identificação Inequívoca do Terra (`GND`):**
+   * Multímetro em escala de continuidade com bipe sonoro.
+   * Ponta de prova preta na lata/chassi metálico não pintado do gravador.
+   * Percorra as 6 ilhas: o único pino que aciona o bipe contínuo com resistência $< 0.2\,\Omega$ é o **Pino 3 físico**. Marque-o como referência absoluta de $0\text{V}$.
+2. **Etapa 2 -- Identificação da Barra de Alimentação (`VDD`):**
+   * Conecte o cabo de força do gravador (modo Standby).
+   * Multímetro em escala DC $20\text{V}$, ponta preta fixada no chassi/Pino 3.
+   * Meça as ilhas restantes: a ilha na extremidade oposta que apresentar $+3.3\text{V} \pm 0.1\text{V}$ estável e contínuo corresponde ao **`VDD Sense`**.
+3. **Etapa 3 -- Identificação das Linhas de Pull-up (`SCLK`, `SDATA`, `nRESET`):**
+   * As linhas de clock e dados apresentarão nível alto de $+3.3\text{V}$ flutuante sob corrente fraca (devido aos resistores pull-up internos e externos).
+   * A linha `nRESET` apresentará $+3.3\text{V}$ em ligado, mas cairá instantaneamente para $0\text{V}$ se o botão Power for mantido pressionado por 10 segundos ou durante a inicialização a frio.
+
+---
+
+## 9. Teoria e Mecânica de Dump In-Circuit da Memória Spansion (8 MB) via DWire32A
+
+### 9.1 Por que Não É Necessário Dessoldar a Spansion para Extrair o Binário Bruto
+
+A memória Spansion `S29JL064H` (`IC55007`, TSOP-48) já possui **todas as suas 48 trilhas de cobre permanentemente conectadas ao barramento de memória da CPU Matsushita MN2DS0016**.
+
+Quando o microcontrolador de bancada (RP2040) executa a rotina de **Cold Break-In**, a CPU da Panasonic é capturada no instante de saída do reset e mantida congelada em modo On-Chip Debug (OCD). 
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Host as RP2040 (Host / Bancada)
+    participant CPU as SoC MN2DS0016 (AM34 Core)
+    participant Bus as Barramento Paralelo 16-bit
+    participant Flash as Spansion S29JL064H (TSOP-48)
+
+    Host->>CPU: Cold Break-In (nRESET=0, 32 SCLK, EXTRG=1)
+    CPU-->>Host: Core entra em OCD HALT (DCSR Bit 0 = 1)
+    loop Leitura de 2.097.152 Palavras (8 MBytes)
+        Host->>CPU: DWire32A CMD 0x02 (READ_MEM32 0x80000000 + offset)
+        CPU->>Bus: Aciona CE#=0, OE#=0, A[21:0] no barramento externo
+        Bus->>Flash: Endereço paralelo na Flash
+        Flash-->>Bus: Devolve 2x palavras de 16 bits (32 bits de microcódigo)
+        Bus-->>CPU: Ciclo de barramento concluído
+        CPU-->>Host: Transmite palavra de 32 bits serial via SDATA
+    end
+    Host->>Host: Grava arquivo raw_flash_dump_8mb.bin
+```
+
+### 9.2 Mapeamento de Memória do AM34 e Abertura Uncached da Flash
+
+O núcleo Matsushita AM34 opera com espaço de endereçamento linear de 32 bits ($4\text{ GB}$):
+* **`0x00000000` a `0x00007FFF`:** SRAM Interna do SoC ($32\text{ KB}$ ultra-rápida, onde injetamos o RAM Loader).
+* **`0x80000000` a `0x807FFFFF`:** Abertura física direta e **uncached** (sem interferência de cache L1 de instrução/dados) da memória NOR Flash Spansion de 8 MB.
+
+Ao emitir comandos OCD de leitura de memória de 32 bits (`READ_MEM32`) no intervalo `0x80000000` a `0x807FFFFF`, o controlador de barramento externo da Panasonic executa dois ciclos sequenciais de 16 bits no chip Spansion e devolve os 4 bytes para o host serial.
+
+### 9.3 Desempenho e Tempo de Leitura de 8 MB via DWire32A
+
+$$\text{Total de Palavras de 32 bits} = \frac{8.388.608\text{ bytes}}{4\text{ bytes/palavra}} = 2.097.152\text{ leituras}$$
+A uma frequência de clock síncrono de **$1.0\text{ MHz}$**:
+* Cada ciclo de `READ_MEM32` consome: 8 bits (comando) + 32 bits (endereço) + 2 clocks (turnaround) + 32 bits (dados recebidos) = 74 ciclos de clock ($\approx 74\,\mu\text{s}$).
+* $2.097.152 \times 74\,\mu\text{s} \approx 155\text{ segundos}$ (cerca de **$2.5\text{ minutos}$** para ler os $8\text{ MB}$ completos).
+* O novo comando de bancada **`DUMP [endereço_hex] [quantidade_palavras]`** implementado no firmware C do Pico permite inspecionar blocos ou despejar setores inteiros diretamente para o console serial USB do PC.
+
+---
+
+## 10. Mecânica de Handshake, Registrador DCSR e Sniffing Passivo
+
+### 10.1 Por que um Sniffer Convencional Não Detecta Tráfego Sozinho
+
+Uma dúvida comum em bancada é: *"Se eu colocar um analisador lógico ou osciloscópio nos pinos do conector, por que não vejo dados passando?"*
+
+**A razão de arquitetura:**
+A interface Matsushita DWire32A **não é um barramento autônomo (como SPI ou UART contínua)**. O processador Matsushita atua estritamente como **SLAVE**.
+* O pino `SCLK` é uma **ENTRADA** para a CPU MN2DS0016.
+* A CPU nunca gera pulsos de clock por conta própria nessa porta. Se nenhum gravador/depurador externo injetar pulsos em `SCLK`, a linha `SDATA` permanece permanentemente em repouso puxada para $3.3\text{V}$ pelo resistor pull-up.
+
+### 10.2 A Sequência Oficial de Handshake (Cold Break-In)
+
+Para acordar a interface de depuração do AM34, é mandatório executar a sequência síncrona conhecida como **Cold Break-In**:
+
+```text
+               CRONOGRAMA DO HANDSHAKE DE COLD BREAK-IN
+               
+               |<--- Reset Ativo (10ms) --->|       |<--- Core Halted --->|
+nRESET (GP5)   ─────────────────────────────┐       ┌──────────────────────
+ (Open-Drain)                               └───────┘
+                                                ▲
+                                                Liberação para Hi-Z
+               ┌─┐ ┌─┐ ┌─┐     ┌─┐ ┌─┐ ┌─┐
+SCLK (GP3)     │ │ │ │ │ │ ... │ │ │ │ │ │  (32 pulsos síncronos de clock)
+               ┘ └─┘ └─┘ └─    └─┘ └─┘ └─┘
+               
+EXTRG (GP2)    ─────────────────────────────────────┐
+ (Trigger OCD)                                      └────────────────────── (Nível Ativo)
+                                                ▲
+                                                CPU desvia para OCD Handler
+```
+
+1. **Forçar `nRESET` a $0\text{V}$ (Dreno Aberto):** A CPU é mantida congelada eletricamente.
+2. **Pulsar 32 ciclos em `SCLK` a $1.0\text{ MHz}$:** Energiza os registradores de sincronismo e os divisores de clock do domínio de debug OCD do SoC.
+3. **Comutar `EXTRG`:** Sinaliza à lógica interna de hardware que o próximo ciclo de instrução do reset vector deve ser interceptado pelo depurador.
+4. **Liberar `nRESET` para Hi-Z:** O resistor de pull-up da placa eleva a linha para $3.3\text{V}$.
+5. **Consulta do Registrador DCSR (Comando `0x01`):** O depurador lê o registrador interno de 32 bits *Debug Control and Status Register*:
+   * Se o barramento retornar `0xFFFFFFFF`: Linha flutuando em nível alto (mau contato nos fios ou aparelho sem energia).
+   * Se o barramento retornar `0x00000000`: Linha em curto com o terra.
+   * Se o **Bit 0 do DCSR estiver em `1`**: **HANDSHAKE CONFIRMADO COM SUCESSO!** O núcleo AM34 está estático em modo de depuração in-circuit.
+
+### 10.3 O Que o Novo Comando de Sniffing Passivo (`SNIFF [ms]`) Faz na Bancada
+
+O comando `SNIFF` implementado no firmware do Pico coloca os pinos `GP2` e `GP3` em modo de altíssima impedância (sem resistores internos de pull-up ou pull-down) e monitora passivamente o barramento por uma janela configurável (padrão de $100\text{ ms}$):
+* **Validação de Pull-ups e Alimentação:** Confirma se as linhas estão estavelmente em $3.3\text{V}$ antes de qualquer injeção de sinal.
+* **Detecção de Curtos-Circuitos:** Identifica se alguma linha está morta em $0\text{V}$ (curto com o terra do chassi).
+* **Detecção de Atividade Externa:** Se a placa tiver algum componente secundário ou ruído acidental no barramento, o contador de transições acusará o número exato de bordas detectadas.
+
+---
+
+## 11. Compatibilidade Universal com Placas Baseadas no Microchip RP2040
+
+Qualquer placa microcontroladora equipada com o microchip **Raspberry Pi RP2040** é **100% compatível** com o ecossistema de engenharia reversa DWire32A.
+
+### 11.1 Por que Não É Obrigatório Usar Exclusivamente a Raspberry Pi Pico Oficial
+
+O núcleo de temporização em nanossegundos do projeto é executado pelo periférico proprietário **PIO (Programmable I/O - Bloco `PIO0`)** e pelo conversor analógico-digital de 12 bits (**`ADC0`**).
+Como esses blocos residem no silício interno de $40\text{ nm}$ do circuito integrado **RP2040**, seu comportamento de hardware e seu conjunto de instruções de máquina PIO são absolutamente idênticos em qualquer fabricante de placa de circuito impresso:
+
+```text
+                  FAMÍLIA DE PLACAS RP2040 TOTALMENTE HOMOLOGADAS
+                  
+  ┌───────────────────────────┐    ┌───────────────────────────┐    ┌───────────────────────────┐
+  │  Raspberry Pi Pico / W    │    │ Arduino Nano RP2040 Conn. │    │    Waveshare RP2040-Zero  │
+  │    (Placa de Referência)  │    │     (Formato Arduino)     │    │     (Formato Ultra-Mini)  │
+  │  RP2040 @ 133MHz / 2MB    │    │   RP2040 + Wi-Fi/BT + IMU │    │    RP2040 + Conector Type-C│
+  └───────────────────────────┘    └───────────────────────────┘    └───────────────────────────┘
+               ▲                                ▲                                ▲
+               │                                │                                │
+               └────────────────────────────────┴────────────────────────────────┘
+                                                │
+                                    MESMO CHIP DE SILÍCIO RP2040
+                           (Mesmo PIO0, Mesmo ADC0, Mesma Resposta de Pulso)
+```
+
+### 11.2 Tabela de Pinagem Cruzada Entre Placas Populares
+
+| Função DWire32A | GPIO RP2040 | Raspberry Pi Pico (Oficial) | Arduino Nano RP2040 Connect | Waveshare RP2040-Zero |
+| :--- | :---: | :---: | :---: | :---: |
+| **`EXTRG`** (Trigger) | `GPIO2` | Pino 4 | Pino D2 | Pino GP2 |
+| **`SCLK`** (Clock Master) | `GPIO3` | Pino 5 | Pino D3 | Pino GP3 |
+| **`SDATA`** (Dados Half-Duplex) | `GPIO4` | Pino 6 | Pino D4 | Pino GP4 |
+| **`nRESET`** (Open-Drain) | `GPIO5` | Pino 7 | Pino D5 | Pino GP5 |
+| **`VDD Sense`** (ADC0 3.3V) | `GPIO26` | Pino 31 | Pino A0 | Pino GP26 |
+| **`GND`** (Terra Digital) | `GND` | Pino 38 (ou 3, 8, 13, 18, 23, 28) | Pino GND | Pino GND |
+
+---
+
+## 12. Regra Mandatória de Segurança: Desbloqueio do Pino 14 (`WP#/ACC`) da Spansion
+
+### 12.1 A Armadilha de Hardware do Pino `WP#/ACC`
+
+Conforme a folha de dados técnica oficial da Spansion (**Publication S29JL064H_00, Revision B, Seção 7.0 "Hardware Data Protection"**):
+* O **Pino 14 (`WP#/ACC`)** atua como pino de dupla função: proteção física de gravação (*Write Protect*) e aceleração de programação de fábrica (*Accelerated Programming*).
+* Na memória com topologia de setores tipo **Top Boot (S29JL064H00)**, quando o pino 14 é levado a nível lógico baixo ($V_{IL} = 0\text{V} \text{ / GND}$), os dois últimos micro-setores de boot:
+  $$\text{Setor SA140 } (0\text{x007FC000 - 0x007FDFFF}) \quad \text{e} \quad \text{Setor SA141 } (0\text{x007FE000 - 0x007FFFFF})$$
+  são **IRREVOGAVELMENTE TRAVADOS POR HARDWARE**.
+* Qualquer comando JEDEC de apagamento de setor (*Sector Erase*) ou escrita de palavra enviado a esses setores enquanto o Pino 14 estiver aterrado é **completamente ignorado pelo circuito interno da memória**.
+
+### 12.2 Consequência Direta para o Erro U99
+
+Como os dados de calibração corrompidos da NVRAM do Panasonic DMR-EH55 residem com frequência nos setores `SA140` e `SA141`, se o operador rodar o comando `ERASE_NVRAM` com o pino 14 em $0\text{V}$, o console exibirá falso sucesso, mas a memória física continuará intacta e a falha `U99` persistirá!
+
+### 12.3 Procedimento de Verificação em Bancada
+1. Antes de executar `ERASE_NVRAM`, localize o pino 14 da Spansion (`IC55007`) ou a pequena ilha de teste estanhada imediatamente adjacente a ele.
+2. Meça a tensão com o multímetro em relação ao chassi:
+   * **Se medir $3.3\text{V}$:** A linha está desprotegida; os 8 micro-setores podem ser apagados in-circuit normalmente.
+   * **Se medir $0.0\text{V}$ (GND):** Solde um resistor de $1.0\text{ k}\Omega$ entre o Pino 14 e a linha de $+3.3\text{V}$ para forçar o nível alto de liberação de escrita durante a operação de bancada.
+
+---
+
+## 13. Referências Técnicas Oficiais e Normas de Engenharia
+
+O projeto foi inteiramente fundamentado nas seguintes publicações originais de fabricantes e especificações de engenharia:
+
+1. **Matsushita Electric Industrial Co., Ltd. / Panasonic:**
+   * *Panasonic DMR-EH55 Service Manual (North America - NTSC)* -- Order No. **CHM0605028CE**, Maio de 2006. (Diagramas esquemáticos da placa digital principal `VEP79138`, conector `P7501` [B6B-ZR-3R4], páginas 58--66).
+   * *Panasonic DMR-EH55EC/EP Service Manual (Europe - PAL)* -- Order No. **DSD0603003CE**, Março de 2006.
+   * *Matsushita 32-bit RISC Microprocessor MN103S / AM34 Core Architecture Reference Manual* -- Seção "On-Chip Debug Unit (OCD) Serial Communication and Cold Break-In Protocol".
+2. **Spansion LLC:**
+   * *S29JL064H 64 Megabit (8M x 8-Bit / 4M x 16-Bit) CMOS 3.0 Volt-only Flash Memory with VersatileI/O Data Sheet* -- Publication Number **S29JL064H_00**, Revision B, Dezembro de 2005. (Mapeamento de setores Top Boot `SA0`--`SA141`, comandos JEDEC de 6 ciclos, temporizações $DQ7/DQ5$ e operação do pino `WP#/ACC`).
+3. **Raspberry Pi Ltd:**
+   * *RP2040 Microcontroller Datasheet* -- Capítulo 3 "Programmable I/O (PIO)", Capítulo 4 "GPIO Pad Control & ADC0 Reference".

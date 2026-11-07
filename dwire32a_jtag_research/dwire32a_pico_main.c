@@ -72,14 +72,17 @@ static void ui_print_help(void) {
     printf("\n--- Panasonic DWire32A Command Interface Help ---\n");
     printf("  PING              - Connection heartbeat. Responds: PONG\n");
     printf("  STATUS | VDD      - Sample target 3.3V reference voltage via ADC0\n");
+    printf("  HANDSHAKE         - Execute Cold Break-In and verify AM34 OCD DCSR status\n");
+    printf("  DUMP [addr] [cnt] - Dump memory words via DWire32A (Default: 0x80000000, 16 words)\n");
+    printf("  SNIFF [ms]        - Passively monitor SCLK and SDATA bus activity (Default: 100ms)\n");
     printf("  BREAK_IN [0..3]   - Execute Cold Break-In (32 SCLK clocks + reset sync)\n");
     printf("                      0: EXTRG High, Pre-Reset Only (Default)\n");
     printf("                      1: EXTRG Low, Pre-Reset Only (Inverted)\n");
     printf("                      2: EXTRG High, Pre + Post Clock Burst\n");
     printf("                      3: EXTRG Low, Pre + Post Clock Burst\n");
     printf("  SCAN              - Full automated sweep across all modes & opcodes\n");
-    printf("  INJECT_LOADER     - Inject AM34 JEDEC RAM loader into SRAM at 0x00004000\n");
-    printf("  ERASE_NVRAM       - Execute RAM loader to erase SA134..SA141 (U99 fix)\n");
+    printf("  INJECT_LOADER CONFIRM - Inject AM34 JEDEC RAM loader into SRAM at 0x00004000\n");
+    printf("  ERASE_NVRAM CONFIRM   - Execute RAM loader to erase SA134..SA141 (U99 fix)\n");
     printf("  HELP              - Display this command reference\n");
     printf("--------------------------------------------------\n\n");
 }
@@ -235,6 +238,117 @@ static void process_serial_command(char *line) {
         const bool powered = (vdd >= DWIRE_VDD_THRESHOLD_V);
         printf("VDD: %.2fV (%s)\n", vdd, powered ? "OK" : "LOW");
     }
+    else if (strcmp(cmd, "HANDSHAKE") == 0) {
+        printf("[HANDSHAKE] Executing Cold Break-In and querying AM34 OCD DCSR...\n");
+        const float vdd = dwire_hw_read_vdd();
+        if (vdd < DWIRE_VDD_THRESHOLD_V) {
+            printf("[HANDSHAKE] ABORT: Target VDD is %.2fV (< %.2fV threshold). Is the recorder powered on?\n",
+                   vdd, DWIRE_VDD_THRESHOLD_V);
+        } else {
+            dwire_hw_cold_break_in(DWIRE_BREAKIN_MODE_EXTRG_HIGH_PRE_ONLY);
+            const uint32_t dcsr = dwire_hw_read_dcsr();
+            const bool halted = (dcsr != DWIRE_BUS_RESP_OPEN_HIGH &&
+                                 dcsr != DWIRE_BUS_RESP_OPEN_LOW &&
+                                 ((dcsr & 0x00000001UL) != 0U));
+            printf("DCSR: 0x%08" PRIX32 "\n", dcsr);
+            if (dcsr == DWIRE_BUS_RESP_OPEN_HIGH) {
+                printf("[HANDSHAKE] FAILED: Bus floating High (0xFFFFFFFF). Check SCLK / SDATA / GND lines.\n");
+            } else if (dcsr == DWIRE_BUS_RESP_OPEN_LOW) {
+                printf("[HANDSHAKE] FAILED: Bus shorted to Ground (0x00000000). Check for wiring short-circuit.\n");
+            } else if (halted) {
+                printf("[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode.\n");
+            } else {
+                printf("[HANDSHAKE] ACTIVE: Bus responded (DCSR=0x%08" PRIX32 ") but CPU halt bit not set.\n", dcsr);
+            }
+        }
+    }
+    else if (strcmp(cmd, "DUMP") == 0) {
+        /* Syntax: DUMP [hex_addr] [count_words] */
+        uint32_t addr = 0x80000000UL; /* Default: Base of uncached Spansion Flash aperture */
+        uint32_t count = 16U;         /* Default: 16 words (64 bytes) */
+
+        if (arg != NULL && *arg != '\0') {
+            char *next = NULL;
+            addr = (uint32_t)strtoul(arg, &next, 16);
+            if (next != NULL && *next != '\0') {
+                char *cnt_str = trim_whitespace(next);
+                if (cnt_str != NULL && *cnt_str != '\0') {
+                    count = (uint32_t)strtoul(cnt_str, NULL, 0);
+                }
+            }
+        }
+        addr &= ~0x03UL; /* Enforce 32-bit word alignment on AM34 bus */
+
+        if (count == 0U) {
+            count = 1U;
+        }
+        if (count > 1024U) {
+            count = 1024U; /* Protect against inadvertent massive dump requests */
+        }
+
+        printf("[DUMP] Reading %" PRIu32 " words (%" PRIu32 " bytes) from 0x%08" PRIX32 "...\n",
+               count, count * 4U, addr);
+
+        for (uint32_t i = 0U; i < count; ++i) {
+            const uint32_t curr_addr = addr + (i * 4U);
+            const uint32_t val = dwire_hw_read_mem32(curr_addr);
+            if ((i % 4U) == 0U) {
+                printf("\n%08" PRIX32 ": ", curr_addr);
+            }
+            printf("%08" PRIX32 " ", val);
+        }
+        printf("\n\nDUMP: OK\n");
+    }
+    else if (strcmp(cmd, "SNIFF") == 0) {
+        uint32_t duration_ms = 100U;
+        if (arg != NULL && *arg != '\0') {
+            duration_ms = (uint32_t)atoi(arg);
+            if (duration_ms == 0U) duration_ms = 100U;
+            if (duration_ms > 10000U) duration_ms = 10000U;
+        }
+
+        printf("[SNIFF] Passively monitoring SDATA (GP4) and SCLK (GP3) for %" PRIu32 " ms...\n", duration_ms);
+        /* Safely detach pins from PIO to SIO as high-impedance inputs with pulls disabled */
+        dwire_hw_detach_pins_for_sniff();
+
+        uint32_t sclk_transitions = 0U;
+        uint32_t sdata_transitions = 0U;
+        bool last_sclk = gpio_get(DWIRE_PIN_SCLK);
+        bool last_sdata = gpio_get(DWIRE_PIN_SDATA);
+
+        absolute_time_t end_time = make_timeout_time_ms(duration_ms);
+        while (get_absolute_time() < end_time) {
+            bool cur_sclk = gpio_get(DWIRE_PIN_SCLK);
+            bool cur_sdata = gpio_get(DWIRE_PIN_SDATA);
+            if (cur_sclk != last_sclk) {
+                sclk_transitions++;
+                last_sclk = cur_sclk;
+            }
+            if (cur_sdata != last_sdata) {
+                sdata_transitions++;
+                last_sdata = cur_sdata;
+            }
+        }
+
+        /* Safely re-attach pins to the PIO state machine */
+        dwire_hw_attach_pins_after_sniff();
+
+        printf("SNIFF RESULT (%" PRIu32 " ms):\n", duration_ms);
+        printf("  SCLK (GP3)  : Initial=%d, Transitions=%" PRIu32 "\n", last_sclk ? 1 : 0, sclk_transitions);
+        printf("  SDATA (GP4) : Initial=%d, Transitions=%" PRIu32 "\n", last_sdata ? 1 : 0, sdata_transitions);
+        if (sclk_transitions == 0U && sdata_transitions == 0U) {
+            if (last_sclk && last_sdata) {
+                printf("  [STATUS] Lines idle HIGH (3.3V). Target is powered and pull-ups are intact.\n");
+            } else if (!last_sclk && !last_sdata) {
+                printf("  [STATUS] Lines steady LOW (0V). Target may be unpowered or lines shorted to GND.\n");
+            } else {
+                printf("  [STATUS] Lines static: SCLK=%d, SDATA=%d.\n", last_sclk ? 1 : 0, last_sdata ? 1 : 0);
+            }
+        } else {
+            printf("  [STATUS] ACTIVE BUS ACTIVITY DETECTED! Clock transitions: %" PRIu32 "\n", sclk_transitions);
+        }
+        printf("SNIFF: OK\n");
+    }
     else if (strcmp(cmd, "BREAK_IN") == 0) {
         uint32_t mode = 0U;
         if (arg != NULL && *arg != '\0') {
@@ -262,6 +376,14 @@ static void process_serial_command(char *line) {
                scan_stats.hits_detected, scan_stats.total_probes);
     }
     else if (strcmp(cmd, "INJECT_LOADER") == 0) {
+        if (arg == NULL || strcmp(arg, "CONFIRM") != 0) {
+            printf("[INJECT_LOADER] SAFETY INTERLOCK ACTIVE!\n");
+            printf("  CRITICAL: Target SRAM code injection requested.\n");
+            printf("  Mandatory protocol: Extract a verified 8MB flash backup (DUMP) first\n");
+            printf("  and verify disassembly before executing code in target SRAM.\n");
+            printf("  To execute, explicitly confirm with: INJECT_LOADER CONFIRM\n");
+            return;
+        }
         printf("[INJECT_LOADER] Initiating SRAM transfer via DWire32A...\n");
         const dwire_status_t status = ram_loader_inject(AM34_SRAM_LOADER_BASE_ADDR, true);
         if (status == DWIRE_OK) {
@@ -272,6 +394,14 @@ static void process_serial_command(char *line) {
         }
     }
     else if (strcmp(cmd, "ERASE_NVRAM") == 0) {
+        if (arg == NULL || strcmp(arg, "CONFIRM") != 0) {
+            printf("[ERASE_NVRAM] SAFETY INTERLOCK ACTIVE!\n");
+            printf("  CRITICAL: Destructive flash sector erasure requested.\n");
+            printf("  Engineering protocol requires a verified full read backup (DUMP)\n");
+            printf("  before performing any write/erase operations.\n");
+            printf("  To execute, explicitly confirm with: ERASE_NVRAM CONFIRM\n");
+            return;
+        }
         printf("[ERASE_NVRAM] Initiating Spansion flash NVRAM sector erasure...\n");
         const dwire_status_t status = ram_loader_execute_erase();
         if (status == DWIRE_OK) {

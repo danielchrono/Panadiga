@@ -230,27 +230,31 @@ Esta rota é **100% homologada**, não depende de temporizações experimentais 
 
 ---
 
-### Fase 3: Rota Operacional B — Recuperação In-Circuit via DWire32A (RP2040)
+### Fase 3: Rota Operacional B — Recuperação e Dump In-Circuit via DWire32A (RP2040)
 
-Esta rota evita a dessoldagem do chip SMD, sendo ideal para bancadas de prototipagem rápida e desenvolvimento de ferramentas de campo.
+Esta rota evita completamente a dessoldagem da memória Flash TSOP-48, utilizando a própria CPU Matsushita MN2DS0016 (AM34) como programador e leitor de barramento via porta OCD/DWire32A.
 
-1. **Soldagem do Chicote no CN55001:**
-   * Solde fios finos tipo AWG 30 (Kynar) ou cabos micro-coaxiais nas ilhas do conector de teste `CN55001`.
-   * Conecte ao Raspberry Pi Pico respeitando os resistores amortecedores:
-     * `Pino 1 (GND)` $\rightarrow$ `GND` do Pico (Pino 38).
-     * `Pino 2 (EXTRG)` $\rightarrow$ `GP2` do Pico (com resistor de $100\,\Omega$ em série).
-     * `Pino 3 (SCLK)` $\rightarrow$ `GP3` do Pico (com resistor de $47\,\Omega$ a $100\,\Omega$ em série).
-     * `Pino 4 (SDATA)` $\rightarrow$ `GP4` do Pico (com resistor de $100\,\Omega$ em série e pull-up de $4.7\text{ k}\Omega$ conectado a $3.3\text{ V}$).
-     * `Pino 5 (VDD)` $\rightarrow$ `GP26 / ADC0` do Pico (via resistor de $1\text{ k}\Omega$).
-     * `Pino 6 (nRESET)` $\rightarrow$ `GP5` do Pico (com resistor de $100\,\Omega$ em série, configurado obrigatoriamente como Open-Drain).
-2. **Verificação de Desbloqueio do Pino 14 (`WP#/ACC`) da Spansion:**
-   * Meça a ilha de teste estanhada imediatamente adjacente ao pino 14 da Spansion (`IC55007`).
-   * Se medir `3.3V`, a proteção de escrita de hardware dos setores finais está inativa. Se medir `0V`, injete temporariamente `3.3V` através de um resistor de $1\text{ k}\Omega$ durante o procedimento de reprogramação.
-3. **Disparo do Firmware do Pico:**
-   * Conecte o Pico ao computador via USB.
-   * Monitore o console serial (`115200 bps`). O firmware do Pico verificará a tensão de VDD e executará a rotina de Cold Break-In.
-   * Assim que a CPU for interceptada no reset, o *RAM Loader* é transferido para a SRAM interna e apaga os 8 micro-setores `SA134` a `SA141`.
-   * Desconecte os fios e reinicie o Panasonic.
+1. **Compatibilidade de Hardware RP2040:**
+   * O código é compatível com qualquer placa baseada no microchip **RP2040** (Raspberry Pi Pico, Pico W, Arduino Nano RP2040 Connect, Waveshare RP2040-Zero, Seeed XIAO RP2040), pois todas compartilham o bloco de silício do periférico de máquina de estados PIO0 e ADC0.
+2. **Soldagem do Chicote no Conector de Fábrica P7501 (CN55001):**
+   * Localize as 6 ilhas de teste entre o cabo flat de 10 vias (`FP50003`) e o cabo flat de 8 vias (`FP50004`).
+   * **Ground Truth Físico de Bancada (Contagem a partir do cabo flat de 10 vias em direção ao de 8 vias):**
+     * **Pino Físico 1:** `EXTRG` $\rightarrow$ Conectar ao `GP2` (com resistor de $100\,\Omega$ em série).
+     * **Pino Físico 2:** `SCLK` $\rightarrow$ Conectar ao `GP3` (com resistor de $47\,\Omega$ a $100\,\Omega$ em série).
+     * **Pino Físico 3 (GND):** `GND` $\rightarrow$ Conectar ao `GND` (Pino 38). **Validar $0.0\,\Omega$ com o multímetro no chassi.**
+     * **Pino Físico 4:** `SDATA` $\rightarrow$ Conectar ao `GP4` (com resistor de $100\,\Omega$ em série e pull-up de $4.7\text{ k}\Omega$ para $3.3\text{V}$).
+     * **Pino Físico 5:** `nRESET` $\rightarrow$ Conectar ao `GP5` (com resistor de $100\,\Omega$ em série, acionado em Dreno Aberto / Open-Drain).
+     * **Pino Físico 6:** `VDD Sense` $\rightarrow$ Conectar ao `GP26 / ADC0` (via resistor protetor de $1\text{ k}\Omega$).
+3. **Verificação Mandatória de Desbloqueio do Pino 14 (`WP#/ACC`) da Spansion S29JL064H:**
+   * Conforme a Seção 7.0 da folha de dados Spansion, se o Pino 14 estiver aterrado ($0\text{V}$), os setores finais `SA140` e `SA141` são travados por hardware.
+   * Meça a ilha de teste estanhada adjacente ao pino 14 de `IC55007`. Deve indicar $+3.3\text{V}$. Se medir $0\text{V}$, injete $+3.3\text{V}$ temporariamente via resistor de $1\text{ k}\Omega$.
+4. **Sequência Operacional no Console Serial do Pico (`115200 bps`):**
+   * **Passo A (`STATUS`):** Verifica a barra VDD da placa (+3.3V).
+   * **Passo B (`SNIFF 100`):** Amostra passivamente o barramento em alta impedância, confirmando se as linhas estão estavelmente em nível alto (3.3V) e sem curtos.
+   * **Passo C (`HANDSHAKE`):** Executa o Cold Break-In (32 clocks + transição de reset) e interroga o registrador DCSR. A confirmação de `Bit 0 = 1` indica que o núcleo AM34 está estático em modo de depuração.
+   * **Passo D (`DUMP 0x80000000 16`):** Extrai in-circuit as primeiras 16 palavras ($64\text{ bytes}$) diretamente da Spansion sem dessoldar, provando a leitura do barramento. Para ler blocos maiores, utilize `DUMP [endereço] [palavras]`.
+   * **Passo E (`ERASE_NVRAM`):** Injeta o payload C na SRAM interna (`0x00004000`) e dispara o apagamento dos 8 micro-setores `SA134` a `SA141`, resetando a partição NVRAM e eliminando o erro `U99`.
+   * Desconecte os fios e reinicie o gravador.
 
 ---
 

@@ -554,28 +554,33 @@ cargo run --release -- manuals --filter dmr-eh55p9 --term U99 --term VEP79138
 
 A interface de diagnóstico localizada no conector SMD de 6 pinos **`CN55001`** na Placa Digital Principal (`VEP79138`) não é uma UART assíncrona comum. Trata-se da porta física do protocolo síncrono proprietário **Matsushita DWire32A / On-Chip Debug (OCD)**, conectado diretamente às linhas de depuração em nível de silício do SoC **MN2DS0016**.
 
-### 5.1 Pinout Elétrico e Tabela de Conexão com RP2040
+### 5.1 Pinout Elétrico, Mapeamento Físico de Bancada e Conexão Universal RP2040
+
+Na placa digital `VEP79138`, o conector de depuração (marcado no esquemático oficial da Panasonic como **`P7501 [B6B-ZR-3R4]`**, legenda *"TO WRITE JIGU"*) situa-se fisicamente entre o cabo flat de 10 vias (`FP50003`) e o de 8 vias (`FP50004`).
 
 ```text
-       CONECTOR CN55001 (VEP79138)
+       ORIENTAÇÃO FÍSICA NA PLACA VEP79138 (CONTAGEM DE 10V PARA 8V)
             ┌───────────┐
-     Pino 1 │ ● GND     │ Ground (0V - Chassi Blindado)
-     Pino 2 │ ● EXTRG   │ External OCD Trigger / Breakpoint Trace
-     Pino 3 │ ● SCLK    │ Serial Synchronous Clock (Gerado pelo Host)
-     Pino 4 │ ● SDATA   │ Serial Data (Linha Bidirecional Half-Duplex)
-     Pino 5 │ ● VDD     │ Target Power Sense (+3.3V Referência)
-     Pino 6 │ ● nRESET  │ Hardware Reset (Ativo em Nível Baixo - D_RESET)
+     Pino 1 │ ● EXTRG   │ Gatilho Externo OCD / Breakpoint
+     Pino 2 │ ● SCLK    │ Clock Síncrono DWire32A (Master 1.0 MHz)
+     Pino 3 │ ● GND     │ Ground Comum (0.0Ω para o Chassi Metálico!)
+     Pino 4 │ ● SDATA   │ Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V)
+     Pino 5 │ ● nRESET  │ Linha de Reset Mestre (Controle Open-Drain)
+     Pino 6 │ ● VDD     │ Target Power Sense (+3.3V Referência)
             └───────────┘
 ```
 
-| Pino CN55001 | Sinal na Placa | Pino RP2040 | Componente de Proteção / Condicionamento | Função Técnica Detalhada |
-| :---: | :---: | :---: | :---: | :--- |
-| **Pino 1** | `GND` | `GND` (Pino 38) | Ligação direta de baixa impedância | Referência comum de 0V (Chassi / Malha de Terra). |
-| **Pino 2** | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo para forçar parada (*Halt Request*) na CPU. |
-| **Pino 3** | `SCLK` | `GP3` (Pino 5) | Resistor $47\,\Omega$ a $100\,\Omega$ em série | Clock serial síncrono master (Operação em $1.0\text{ MHz}$). |
-| **Pino 4** | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ 3.3V | Barramento de dados síncrono half-duplex bidirecional. |
-| **Pino 5** | `VDD` | `GP26 / ADC0` | Resistor $1.0\text{ k}\Omega$ em série | Monitoramento de tensão do target (Validação de +3.3V estável). |
-| **Pino 6** | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ em série (**Modo Open-Drain**) | Linha de Reset mestre do SoC (`XRST` / `D_RESET`). |
+> [!NOTE]
+> **Compatibilidade de Hardware:** Qualquer microcontrolador equipado com o silício **RP2040** (Raspberry Pi Pico, Pico W, Arduino Nano RP2040 Connect, Waveshare RP2040-Zero, Seeed XIAO RP2040) é 100% suportado, pois a temporização crítica é gerada internamente pelas máquinas de estados **PIO0**.
+
+| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Pino RP2040 | Componente de Proteção / Condicionamento | Função Técnica Detalhada |
+| :---: | :---: | :---: | :---: | :---: | :--- |
+| **Pino 1** | Pino 6 | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo para forçar parada (*Halt Request*) na CPU. |
+| **Pino 2** | Pino 5 | `SCLK` | `GP3` (Pino 5) | Resistor $47\,\Omega$ a $100\,\Omega$ em série | Clock serial síncrono master (Operação em $1.0\text{ MHz}$). |
+| **Pino 3** | **Pino 4** | **`GND`** | **`GND` (Pino 38)** | Ligação direta de baixa impedância | **Referência de 0V ($0.0\,\Omega$ com a carcaça/chassi metálico).** |
+| **Pino 4** | Pino 3 | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ 3.3V | Barramento de dados síncrono half-duplex bidirecional. |
+| **Pino 5** | Pino 2 | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ em série (**Modo Open-Drain**) | Linha de Reset mestre do SoC (`XRST` / `D_RESET`). **Nunca 3.3V push-pull!** |
+| **Pino 6** | Pino 1 | `VDD` | `GP26 / ADC0` | Resistor $1.0\text{ k}\Omega$ em série | Monitoramento de tensão do target (Validação de $+3.3\text{V}$ estável). |
 
 ---
 

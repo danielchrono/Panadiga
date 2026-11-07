@@ -13,23 +13,29 @@
 .PARAMETER SdkPath
     Optional explicit path to the Raspberry Pi Pico SDK.
 
+.PARAMETER Board
+    Target board architecture: 'pico' for RP2040 (default) or 'pico2' for RP2350.
+
 .EXAMPLE
     .\build_pico_firmware.ps1
-    .\build_pico_firmware.ps1 -Clean
+    .\build_pico_firmware.ps1 -Board pico2
+    .\build_pico_firmware.ps1 -Clean -Board pico
     .\build_pico_firmware.ps1 -SdkPath "C:\pico-sdk"
 #>
 
 [CmdletBinding()]
 param (
     [switch]$Clean,
-    [string]$SdkPath = ""
+    [string]$SdkPath = "",
+    [ValidateSet("pico", "pico2")]
+    [string]$Board = "pico"
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "====================================================================" -ForegroundColor Cyan
 Write-Host "   PANASONIC DWIRE32A / OCD - RASPBERRY PI PICO BUILD SYSTEM" -ForegroundColor Cyan
-Write-Host "   Firmware Target: panasonic_dwire32a.uf2 (RP2040)" -ForegroundColor Cyan
+Write-Host "   Firmware Target: panasonic_dwire32a.uf2 (Board: $Board)" -ForegroundColor Cyan
 Write-Host "====================================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -105,8 +111,8 @@ if (-not (Test-Path $BuildDir)) {
 }
 
 # 6. Configure Project
-Write-Host "`n[1/2] Configuring project with CMake..." -ForegroundColor Cyan
-& cmake -B build -G $generator -DCMAKE_BUILD_TYPE=Release
+Write-Host "`n[1/2] Configuring project with CMake for target $Board..." -ForegroundColor Cyan
+& cmake -B build -G $generator -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=$Board
 if ($LASTEXITCODE -ne 0) {
     Write-Error "CMake configuration failed. Review errors above."
 }

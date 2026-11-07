@@ -169,6 +169,16 @@ uint32_t dwire_hw_read_dcsr(void);
  */
 bool dwire_hw_is_cpu_halted(void);
 
+/**
+ * @brief Detach SCLK and SDATA pins from PIO and configure as floating inputs for sniffing.
+ */
+void dwire_hw_detach_pins_for_sniff(void);
+
+/**
+ * @brief Re-attach SCLK and SDATA pins to the PIO state machine after sniffing.
+ */
+void dwire_hw_attach_pins_after_sniff(void);
+
 #ifdef __cplusplus
 }
 #endif

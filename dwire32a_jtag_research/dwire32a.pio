@@ -1,38 +1,44 @@
 .program dwire32a
 .side_set 1 opt
 
+; =========================================================================
+; Panasonic DWire32A Synchronous Half-Duplex Bus Transceiver
+; Clock: 1.0 MHz exact (4 SM cycles @ 4.0 MHz, 50% duty cycle)
+; Setup: 250 ns, Hold: 500 ns
+;
 ; Pin mapping:
 ; OUT / IN / SET / PINDIRS base: GP4 (SDATA)
 ; SIDE-SET base: GP3 (SCLK)
 ;
-; Formato do Header na FIFO TX (Shift Right):
-; Bits 7..0 : (n_bits - 1) -> carregado em X
-; Bit 8     : Direcao (1 = TX Escrita, 0 = RX Leitura) -> carregado em Y
+; Header Format in TX FIFO (Shift Right, 32-bit):
+; Bits 7..0 : (bit_count - 1) -> loaded into X
+; Bit 8     : Direction (1 = TX Write, 0 = RX Read) -> loaded into Y
+; =========================================================================
 
 .wrap_target
 public start:
-    pull block          side 0  ; Puxa o Header de 32 bits da FIFO TX para o OSR
-    out x, 8            side 0  ; Carrega (n_bits - 1) nos bits 7..0 para X
-    out y, 1            side 0  ; Carrega a flag de direcao (Bit 8) para Y
-    jmp !y, rx_mode     side 0  ; Se Y == 0, salta para o modo de recepcao
+    pull block          side 0  ; Fetch 32-bit Header from TX FIFO into OSR
+    out x, 8            side 0  ; Load (bit_count - 1) into X
+    out y, 1            side 0  ; Load Direction flag (Bit 8) into Y
+    jmp !y, rx_mode     side 0  ; If Y == 0, jump to receive mode
 
 tx_mode:
-    pull block          side 0  ; Descarta o resto do Header e puxa a palavra DATA
-    set pindirs, 1      side 0  ; Configura SDATA como SAIDA
+    pull block          side 0  ; Fetch 32-bit DATA word into OSR
+    set pindirs, 1      side 0  ; Set SDATA as OUTPUT
 tx_loop:
-    out pins, 1         side 0 [1] ; Coloca 1 bit em SDATA com SCLK=0 (Setup)
-    nop                 side 1 [1] ; Sobe SCLK=1 (Hold / CPU amostra na borda de subida)
-    jmp x--, tx_loop    side 0  ; Repete para todos os bits
-    set pindirs, 0      side 0  ; Fim do TX: devolve SDATA para High-Z (Turnaround)
+    out pins, 1         side 0     ; 1 cycle (250ns): SCLK=0, drive SDATA (Setup window)
+    nop                 side 1 [1] ; 2 cycles (500ns): SCLK=1 (Hold window, target samples on rising edge)
+    jmp x--, tx_loop    side 0     ; 1 cycle (250ns): SCLK=0 (Total SCLK low = 500ns, 50% duty cycle)
+    set pindirs, 0      side 0  ; End of TX: immediately release SDATA to High-Z (no bus contention)
     jmp start           side 0
 
 rx_mode:
-    set pindirs, 0      side 0 [1] ; Garante SDATA como ENTRADA + Turnaround delay
+    set pindirs, 0      side 0 [1] ; Ensure SDATA is INPUT (Hi-Z) + turnaround delay (500ns)
 rx_loop:
-    nop                 side 1 [1] ; Sobe SCLK=1 (CPU coloca o bit na linha SDATA)
-    in pins, 1          side 0 [1] ; Desce SCLK=0 e amostra SDATA no ISR
-    jmp x--, rx_loop    side 0  ; Repete para todos os bits
-    push block          side 0  ; Envia a palavra lida no ISR para a FIFO RX do ARM
+    nop                 side 1 [1] ; 2 cycles (500ns): SCLK=1 (Target drives SDATA)
+    in pins, 1          side 0     ; 1 cycle (250ns): SCLK=0, sample SDATA into ISR on falling edge
+    jmp x--, rx_loop    side 0     ; 1 cycle (250ns): SCLK=0 (Total SCLK low = 500ns, 50% duty cycle)
+    push block          side 0  ; Push received word from ISR to RX FIFO for ARM host
 .wrap
 
 % c-sdk {
@@ -42,28 +48,28 @@ rx_loop:
 static inline void dwire32a_program_init(PIO pio, uint sm, uint offset, uint pin_sdata, uint pin_sclk) {
     pio_sm_config c = dwire32a_program_get_default_config(offset);
 
-    // Mapeia SDATA para OUT, IN, SET e PINDIRS
+    // Map SDATA for OUT, IN, SET and PINDIRS
     sm_config_set_out_pins(&c, pin_sdata, 1);
     sm_config_set_in_pins(&c, pin_sdata);
     sm_config_set_set_pins(&c, pin_sdata, 1);
 
-    // Mapeia SCLK para SIDE-SET
+    // Map SCLK for SIDE-SET
     sm_config_set_sideset_pins(&c, pin_sclk);
 
-    // Shift Right (LSB first), Autopull e Autopush DESATIVADOS (usamos pull/push block explicitos)
+    // Shift Right (LSB first), manual pull/push
     sm_config_set_out_shift(&c, true, false, 32);
     sm_config_set_in_shift(&c, true, false, 32);
 
-    // Clock de 1 MHz (4 ciclos de maquina PIO por bit = 4 MHz na SM)
+    // Clock divider for exact 4.0 MHz SM clock (1 MHz bus clock @ 4 cycles/bit)
     float div = (float)clock_get_hz(clk_sys) / (float)DWIRE_SM_FREQ_HZ;
     sm_config_set_clkdiv(&c, div);
 
-    // Configura os pinos fisicos para o MUX do PIO
+    // Route physical pins to PIO peripheral
     pio_gpio_init(pio, pin_sclk);
     pio_gpio_init(pio, pin_sdata);
     gpio_pull_up(pin_sdata);
 
-    // Estado inicial: SCLK = 0 (Saida), SDATA = High-Z (Entrada)
+    // Initial electrical state: SCLK = 0 (Output Low), SDATA = High-Z (Input with pull-up)
     pio_sm_set_pins_with_mask(pio, sm, 0, (1u << pin_sclk) | (1u << pin_sdata));
     pio_sm_set_pindirs_with_mask(pio, sm, (1u << pin_sclk), (1u << pin_sclk) | (1u << pin_sdata));
 

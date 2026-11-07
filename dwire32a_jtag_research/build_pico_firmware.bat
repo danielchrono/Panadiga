@@ -1,9 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
 
+set "TARGET_BOARD=pico"
+if not "%~1"=="" set "TARGET_BOARD=%~1"
+
 echo ====================================================================
 echo    PANASONIC DWIRE32A / OCD - RASPBERRY PI PICO BUILD SYSTEM
-echo    Firmware Target: panasonic_dwire32a.uf2 (RP2040)
+echo    Firmware Target: panasonic_dwire32a.uf2 (Board: !TARGET_BOARD!)
+echo    Usage: build_pico_firmware.bat [pico|pico2]
 echo ====================================================================
 echo.
 
@@ -69,8 +73,8 @@ cd /d "%~dp0"
 if not exist "build" mkdir "build"
 
 echo.
-echo [1/2] Configuring project with CMake...
-cmake -B build -G "!CMAKE_GEN!" -DCMAKE_BUILD_TYPE=Release
+echo [1/2] Configuring project with CMake for board !TARGET_BOARD!...
+cmake -B build -G "!CMAKE_GEN!" -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=!TARGET_BOARD!
 if errorlevel 1 (
     echo [ERROR] CMake configuration failed!
     echo         Ensure arm-none-eabi-gcc toolchain is installed and on PATH.

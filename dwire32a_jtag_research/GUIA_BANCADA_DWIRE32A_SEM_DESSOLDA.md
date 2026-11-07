@@ -14,16 +14,43 @@ Este manual fornece o procedimento cirúrgico passo a passo para realizar a **re
 
 ---
 
-## 1.1 Compatibilidade Universal com Placas RP2040 (Arduino, Waveshare, etc.)
+## 1.1 Compatibilidade Universal com Placas RP2040 e RP2350 (Pico 1 e Pico 2)
 
 > [!IMPORTANT]
-> **Compatibilidade Universal com Placas RP2040:**
-> Não é obrigatório utilizar o Raspberry Pi Pico original. **Qualquer placa baseada no microcontrolador RP2040** é 100% compatível (por exemplo: **Arduino Nano RP2040 Connect**, **Waveshare RP2040-Zero / RP2040-One / RP2040-Plus**, **Seeed XIAO RP2040**, **Adafruit QT Py RP2040**, **SparkFun Pro Micro RP2040**).
-> O requisito indispensável é o bloco de silício **PIO (Programmable I/O)** nativo do chip RP2040 (Cortex-M0+ dual-core), que implementa o transceptor síncrono half-duplex com precisão de nanossegundos. Caso utilize outra placa RP2040, basta mapear os números de GPIO correspondentes (`GP2`, `GP3`, `GP4`, `GP5`, `GP26`) em `dwire32a_hw.h`.
+> **Compatibilidade Total com Raspberry Pi Pico (RP2040) e Raspberry Pi Pico 2 (RP2350):**
+> O ecossistema Panadiga suporta oficialmente tanto a **Pico 1 (RP2040)** quanto a **Pico 2 (RP2350)**, além de placas compatíveis (Waveshare RP2040/RP2350, Seeed XIAO, Adafruit QT Py).
+> 
+> * **Vantagens do RP2350 na Bancada:**
+>   * **520 KB de SRAM (contra 264 KB do RP2040):** Permite armazenar em buffer na memória RAM do Pico um setor inteiro de 64 KB da Spansion (EEMUL) ou múltiplos microsetores de 8 KB simultâneos, reduzindo latência USB.
+>   * **Clock a 150 MHz e PIO 2.0:** Máquina de estados PIO com timing ainda mais preciso e FIFOs aprimoradas.
+>   * **Nível Lógico Estrito de 3.3V:** Tanto o RP2040 quanto o RP2350 operam nativamente a 3.3V nos pinos GPIO, sendo 100% seguros contra sobretensão na placa VEP79138.
 
 ---
 
-## 2. Pinagem Física do Conector de Diagnóstico (Placa VEP79138)
+## 1.2 Alerta de Engenharia: Matsushita DWire32A vs JTAG Tradicional (TDI/TDO/TMS/TCK)
+
+> [!CAUTION]
+> **Por que firmwares JTAG genéricos (como pico-dirtyJtag ou UrJTAG padrão) NÃO funcionam diretamente no conector CN55001:**
+> 
+> 1. **Topologia Física de Barramento:** O padrão IEEE 1149.1 (JTAG clássico de 4 fios) exige linhas separadas unidirecionais em full-duplex: TDI (entrada de dados na CPU), TDO (saída de dados da CPU), TMS (controle da FSM do TAP) e TCK (clock).
+> 2. **O conector CN55001 é DWire32A:** Na arquitetura Matsushita UniPhier MN2DS0016 (núcleo AM34), a porta On-Chip Debug (OCD) utiliza apenas **uma única linha de dados bidirecional half-duplex (SDATA)** sincronizada pela linha de clock master (SCLK).
+> 3. **Risco de Colisão Elétrica:** Conectar um firmware JTAG padrão e tentar chavear TDI e TDO contra SDATA causará colisão de corrente (*bus contention*) e ausência de resposta. É mandatória a utilização do firmware nativo panasonic_dwire32a com o transceptor síncrono half-duplex em PIO (dwire32a.pio), que chaveia o pino dinamicamente para alta impedância (Hi-Z) nos ciclos exatos de resposta da CPU.
+
+---
+
+## 2. Padrão Mecânico e Comercial do Conector (JST SH 1.0mm 6-Pin)
+
+O conector de serviço CN55001 soldado na face superior da placa digital VEP79138 (adjacente ao SoC MN2DS0016 e à memória Flash IC55007) é um conector industrial microminiatura japonês padrão **JST SH de 6 pinos com passo (pitch) de 1.0mm**.
+
+### 2.1 Como Comprar o Cabo Correto (Plug-and-Play sem Microsolda)
+Para conectar o Raspberry Pi Pico à placa sem soldar fios microscópicos diretamente nos terminais SMD:
+* **Termo Oficial de Busca Comercial:** Cabo JST SH 1.0mm 6 pinos Fêmea para Dupont 2.54mm Macho (ou Fêmea, dependendo da barra de pinos da sua Pico).
+* **Pitch (Espaçamento entre Pinos):** Exatamente **1.0 mm** (distância centro a centro entre os pinos). **Atenção:** Não compre JST XH (2.54 mm), JST PH (2.0 mm) ou JST ZH (1.5 mm), pois não encaixarão na furação.
+* **Trava Mecânica:** O plugue JST SH possui ranhura guia superior e travas laterais que garantem firmeza e impedem a inversão acidental de polaridade.
+
+---
+
+## 2.2 Pinagem Física do Conector de Diagnóstico (Placa VEP79138)
 
 O conector de serviço é um barramento em linha de 6 pinos localizado na face superior da placa digital `VEP79138`, posicionado entre o cabo flat de 10 vias e o cabo flat de 8 vias, adjacente ao SoC `MN2DS0016` e à memória Flash `IC55007`.
 
@@ -83,33 +110,33 @@ No código de máquina de 80 bytes compilado para a arquitetura **Matsushita AM3
 O conector `CN55001` é um conector em linha de 6 pinos (passo de $2.54\text{ mm}$ ou ilhas estanhadas para barra de pinos) localizado na face superior da placa digital `VEP79138`, adjacente ao SoC `MN2DS0016` e à memória Flash `IC55007`.
 
 ```text
-               CONECTOR DE DIAGNÓSTICO DWIRE32A (CN55001)
-                    (Vista Superior da Placa VEP79138)
+         CONECTOR DE DIAGNÓSTICO DWIRE32A / P7501 (VEP79138)
+         (Vista Superior: Contagem Física do Flat 10V para Flat 8V)
                     
                    ┌───────────────────────────────────┐
-      Pino 1 (●)   │  [1] GND      (Referência Terra)  │
-      Pino 2       │  [2] SCLK     (Clock Síncrono)    │
-      Pino 3       │  [3] SDATA    (Dados Half-Duplex) │
-      Pino 4       │  [4] EXTRG    (External Trigger)  │
-      Pino 5       │  [5] nRESET   (Reset Open-Drain)  │
-      Pino 6       │  [6] VDD 3.3V (Sense Alimentação) │
+      Pino 1       │  [1] EXTRG   (External Trigger)   │
+      Pino 2       │  [2] SCLK    (Clock Síncrono)     │
+      Pino 3 (●)   │  [3] GND     (0.0Ω ao Chassi!)    │
+      Pino 4       │  [4] SDATA   (Dados Half-Duplex)  │
+      Pino 5       │  [5] nRESET  (Reset Open-Drain)   │
+      Pino 6       │  [6] VDD 3.3V(Sense Alimentação)  │
                    └───────────────────────────────────┘
 ```
 
-### 2.1 Tabela de Sinais e Identificação de Pinos
+### 2.1 Tabela de Sinais e Identificação de Pinos (Mapeamento Físico de Bancada)
 
-| Pino CN55001 | Nome do Sinal | Nível Lógico | Direção | Função de Engenharia |
-| :---: | :--- | :---: | :---: | :--- |
-| **Pino 1** | **`GND`** | $0.0\text{ V}$ | Referência | Terra comum do sistema, interligado ao chassi e plano de terra do RP2040. |
-| **Pino 2** | **`SCLK`** | $0\text{V} / 3.3\text{V}$ | Entrada (Target) | Clock síncrono serial gerado pelo master RP2040 ($1.0\text{ MHz}$). |
-| **Pino 3** | **`SDATA`** | $0\text{V} / 3.3\text{V}$ | Bidirecional | Linha de dados *half-duplex* (injeção de comandos e leitura de registradores/dados). |
-| **Pino 4** | **`EXTRG`** | $0\text{V} / 3.3\text{V}$ | Entrada (Target) | *External Trigger*: sinal de controle para forçar o desvio da CPU ao manipulador OCD. |
-| **Pino 5** | **`nRESET`** | $0\text{V} / \text{Hi-Z}$ | Bidirecional | Linha mestra de reset do sistema (`XRST`). Ativa em $0\text{V}$. **Controlada em Open-Drain.** |
-| **Pino 6** | **`VDD`** | $+3.3\text{V DC}$ | Saída (Target) | Linha de referência da placa para o sensor ADC0 do Pico validar que o aparelho está ligado. |
+| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Nível Lógico | Direção | Função de Engenharia |
+| :---: | :---: | :--- | :---: | :---: | :--- |
+| **Pino 1** | Pino 6 | **`EXTRG`** | $0\text{V} / 3.3\text{V}$ | Entrada (Target) | *External Trigger*: sinal de controle para forçar o desvio da CPU ao manipulador OCD. |
+| **Pino 2** | Pino 5 | **`SCLK`** | $0\text{V} / 3.3\text{V}$ | Entrada (Target) | Clock síncrono serial gerado pelo master RP2040 ($1.0\text{ MHz}$). |
+| **Pino 3** | **Pino 4** | **`GND`** | $0.0\text{ V}$ | Referência | **Terra comum do sistema ($0.0\,\Omega$ com chassi metálico).** |
+| **Pino 4** | Pino 3 | **`SDATA`** | $0\text{V} / 3.3\text{V}$ | Bidirecional | Linha de dados *half-duplex* (injeção de comandos e leitura de registradores/dados). |
+| **Pino 5** | Pino 2 | **`nRESET`** | $0\text{V} / \text{Hi-Z}$ | Bidirecional | Linha mestra de reset do sistema (`XRST`). Ativa em $0\text{V}$. **Controlada em Open-Drain.** |
+| **Pino 6** | Pino 1 | **`VDD`** | $+3.3\text{V DC}$ | Saída (Target) | Linha de referência da placa para o sensor ADC0 do Pico validar que o aparelho está ligado. |
 
 > [!NOTE]
-> **Identificação da Polaridade de Pinos na Placa:**
-> O Pino 1 possui marcação geométrica diferenciada na serigrafia (ilha quadrada ou triângulo de orientação). Em continuidade com o multímetro desligado, o Pino 1 apresenta resistência zero ($0.0\,\Omega$) em relação ao chassi metálico do gravador.
+> **Identificação Física de Bancada:**
+> Em continuidade com o multímetro desligado, o **Pino 3 físico** apresenta resistência zero ($0.0\,\Omega$) em relação ao chassi metálico do gravador, agindo como barreira de blindagem eletrostática central entre os barramentos de clock e dados.
 
 ---
 
@@ -117,38 +144,40 @@ O conector `CN55001` é um conector em linha de 6 pinos (passo de $2.54\text{ mm
 
 A interconexão requer uma malha passiva de condicionamento para casar impedâncias, atenuar reflexões (*ringing*) em cabos de bancada e proteger contra colisão de corrente (*bus contention*).
 
-### 3.1 Esquema Elétrico Completo
+### 3.1 Esquema Elétrico Completo de Bancada (Condicionamento Seguro)
 
 ```text
        RASPBERRY PI PICO (RP2040)                                   PLACA DIGITAL VEP79138
-             PLACA DE BANCADA                                         CONECTOR CN55001
+             PLACA DE BANCADA                                         CONECTOR CN55001 / P7501
     ┌───────────────────────────────┐                             ┌────────────────────────┐
     │                               │                             │                        │
-    │  Pino 38 (GND) ───────────────┴─────────────────────────────┴──── Pino 1: GND Comum │
+    │  Pino 38 (GND) ───────────────┴─────────────────────────────┴──── Pino 3: GND Comum │
     │  (Referência 0V)              ═════════════════════════════      (Chassi Blindagem)  │
     │                                                                                      │
+    │  Pino 4  (GP2 / EXTRG) ───────┼───[ R_DAMP: 100Ω ]──────────┼───► Pino 1: EXTRG      │
+    │  (Trigger OCD)                │                             │     (Trigger OCD)      │
+    │                               │                             │                        │
     │  Pino 5  (GP3 / PIO SCLK) ────┼───[ R_DAMP: 47Ω..100Ω ]─────┼───► Pino 2: SCLK       │
-    │                               │                             │     (Clock 1.0 MHz)    │
+    │  (Clock Master 1.0 MHz)       │                             │     (Clock 1.0 MHz)    │
     │                               │                             │                        │
-    │  Pino 36 (3V3_OUT) ───┐       │                             │                        │
-    │                       │       │                             │                        │
-    │                    [4.7kΩ]    │                             │                        │
-    │                    Pull-Up    │                             │                        │
-    │                       │       │                             │                        │
-    │  Pino 6  (GP4 / PIO SDATA) ───┴───┼───[ R_DAMP: 100Ω ]──────────┼───► Pino 3: SDATA      │
-    │  (Dados Bidirecionais)        │                             │     (Half-Duplex)      │
-    │                               │                             │                        │
-    │  Pino 4  (GP2 / EXTRG) ───────┼───[ R_DAMP: 100Ω ]──────────┼───► Pino 4: EXTRG      │
-    │  (Trigger OCD)                │                             │     (Gatilho Halt)     │
+    │  Pino 6  (GP4 / PIO SDATA) ───┼───[ R_DAMP: 100Ω ]──────────┼───► Pino 4: SDATA      │
+    │  (Dados Bidirecionais)        │                             │  ▲  (Half-Duplex)      │
+    │                               │                             │  │                     │
+    │                               │                             │ [R_PU: 4.7kΩ]          │
+    │                               │                             │  │  (Alimentado pelo   │
+    │                               │                             │  ▼   VDD do Target!)   │
+    │  Pino 31 (GP26 / ADC0) ───────┼───[ R_PROT: 1.0kΩ ]─────────┼───◄ Pino 6: VDD Sense  │
+    │  (Sense de Tensão 3.3V)       │                             │     (+3.3V Target Ref) │
     │                               │                             │                        │
     │  Pino 7  (GP5 / nRESET) ──────┼───[ R_DAMP: 100Ω ]──────────┼───► Pino 5: nRESET     │
     │  (Open-Drain Emulado)         │                             │     (Ativo em 0V)      │
     │                               │                             │                        │
-    │  Pino 31 (GP26 / ADC0) ───────┼───[ R_PROT: 1.0kΩ ]─────────┼───◄ Pino 6: VDD Sense  │
-    │  (Sense de Tensão 3.3V)       │                             │     (+3.3V Target Ref) │
-    │                               │                             │                        │
     └───────────────────────────────┘                             └────────────────────────┘
 ```
+
+> [!IMPORTANT]
+> **Alimentação Segura do Resistor de Pull-Up ($4.7	ext{ k}\Omega$):**
+> O resistor de pull-up da linha `SDATA` deve ser ligado ao **Pino 6 (`VDD` $+3.3	ext{V}$ da própria placa Panasonic)** e **NÃO** ao pino 3V3_OUT do Pico. Isso impede qualquer injeção de corrente parasita nos diodos ESD do processador Panasonic quando o gravador estiver desligado da tomada.
 
 ### 3.2 Diagrama Mermaid de Interconexão
 

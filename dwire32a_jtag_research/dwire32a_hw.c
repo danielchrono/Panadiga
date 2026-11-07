@@ -38,18 +38,21 @@ dwire_status_t dwire_hw_init(void) {
 
     /* Initialize nRESET as Open-Drain (driven Low, released as High-Z Input) */
     gpio_init(DWIRE_PIN_NRESET);
+    gpio_disable_pulls(DWIRE_PIN_NRESET); /* Disable internal pull-down so line floats to target VDD via board pull-up */
     gpio_put(DWIRE_PIN_NRESET, 0);
     dwire_hw_reset_release();
 
-    /* Load and initialize the DWire32A PIO state machine */
-    if (!pio_can_add_program(s_pio_inst, &dwire32a_program)) {
-        return DWIRE_ERR_PIO_INIT_FAILED;
+    /* Load and initialize the DWire32A PIO state machine (only if not already loaded) */
+    if (!s_initialized) {
+        if (!pio_can_add_program(s_pio_inst, &dwire32a_program)) {
+            return DWIRE_ERR_PIO_INIT_FAILED;
+        }
+
+        s_pio_offset = pio_add_program(s_pio_inst, &dwire32a_program);
+        dwire32a_program_init(s_pio_inst, s_pio_sm, s_pio_offset, DWIRE_PIN_SDATA, DWIRE_PIN_SCLK);
+
+        s_initialized = true;
     }
-
-    s_pio_offset = pio_add_program(s_pio_inst, &dwire32a_program);
-    dwire32a_program_init(s_pio_inst, s_pio_sm, s_pio_offset, DWIRE_PIN_SDATA, DWIRE_PIN_SCLK);
-
-    s_initialized = true;
     return DWIRE_OK;
 }
 
@@ -97,7 +100,12 @@ uint32_t dwire_hw_read_bits(uint8_t n_bits) {
     }
     const uint32_t header = dwire_make_header(DWIRE_DIR_READ, n_bits);
     pio_sm_put_blocking(s_pio_inst, s_pio_sm, header);
-    return pio_sm_get_blocking(s_pio_inst, s_pio_sm);
+    uint32_t val = pio_sm_get_blocking(s_pio_inst, s_pio_sm);
+    /* For right-shift into ISR MSB, right-align if less than 32 bits read */
+    if (n_bits < 32U) {
+        val >>= (32U - n_bits);
+    }
+    return val;
 }
 
 void dwire_hw_cold_break_in(dwire_breakin_mode_t mode) {
@@ -169,4 +177,25 @@ bool dwire_hw_is_cpu_halted(void) {
     }
     /* Bit 0 is the CPU Halt status flag in AM34 DCSR register */
     return ((dcsr & 0x00000001UL) != 0U);
+}
+
+void dwire_hw_detach_pins_for_sniff(void) {
+    /* Route pins away from PIO to SIO as high-impedance inputs with pulls disabled */
+    gpio_set_function(DWIRE_PIN_SCLK, GPIO_FUNC_SIO);
+    gpio_set_dir(DWIRE_PIN_SCLK, GPIO_IN);
+    gpio_disable_pulls(DWIRE_PIN_SCLK);
+
+    gpio_set_function(DWIRE_PIN_SDATA, GPIO_FUNC_SIO);
+    gpio_set_dir(DWIRE_PIN_SDATA, GPIO_IN);
+    gpio_disable_pulls(DWIRE_PIN_SDATA);
+}
+
+void dwire_hw_attach_pins_after_sniff(void) {
+    /* Re-attach SCLK and SDATA to the PIO state machine */
+    pio_gpio_init(s_pio_inst, DWIRE_PIN_SCLK);
+    pio_gpio_init(s_pio_inst, DWIRE_PIN_SDATA);
+    gpio_pull_up(DWIRE_PIN_SDATA);
+
+    pio_sm_set_pins_with_mask(s_pio_inst, s_pio_sm, 0, (1u << DWIRE_PIN_SCLK) | (1u << DWIRE_PIN_SDATA));
+    pio_sm_set_pindirs_with_mask(s_pio_inst, s_pio_sm, (1u << DWIRE_PIN_SCLK), (1u << DWIRE_PIN_SCLK) | (1u << DWIRE_PIN_SDATA));
 }

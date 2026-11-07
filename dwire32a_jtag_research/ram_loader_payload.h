@@ -139,6 +139,18 @@ extern "C" {
  * 0x004E 97 97                     nop, nop                    ; Alignment padding to 80 bytes
  * ========================================================================= */
 
+/* =========================================================================
+ * MANDATORY SAFETY ADVISORY (READ-ONLY FIRST PROTOCOL):
+ *
+ * DO NOT execute or inject this payload until:
+ * 1. A complete 8 MB read-only memory dump has been performed twice via
+ *    the DWire32A OCD 'DUMP' command and verified offline.
+ * 2. The native bootloader disassembly has been analyzed with GNU binutils
+ *    (mn10300-elf-objdump) to confirm exact branch offset conventions and
+ *    opcode semantics for the Matsushita MN2DS0016 / AM34 core.
+ * 3. The exact boundaries of the EEMUL partition have been verified in the dump.
+ * ========================================================================= */
+
 static const uint8_t am34_ram_loader_bin[AM34_RAM_LOADER_SIZE_BYTES] = {
     /* 0x0000: mov 0x80000AAA, a0 */
     0xFC, 0x80, 0xAA, 0x0A, 0x00, 0x80,

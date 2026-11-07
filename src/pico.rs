@@ -497,6 +497,33 @@ pub fn ping_pico(port_name: &str, baud_rate: u32) -> Result<String> {
 // GDB Remote Serial Protocol (RSP) TCP-to-Serial Bridge
 // ============================================================================
 
+fn pump_stream<R: Read, W: Write>(
+    mut reader: R,
+    mut writer: W,
+    flag: Arc<AtomicBool>,
+    on_eof_msg: Option<&str>,
+) {
+    let mut buf = [0u8; 2048];
+    while flag.load(Ordering::Relaxed) {
+        match reader.read(&mut buf) {
+            Ok(0) => {
+                if let Some(msg) = on_eof_msg {
+                    println!("{}", msg);
+                    break;
+                }
+            }
+            Ok(n) => {
+                if writer.write_all(&buf[..n]).is_err() {
+                    break;
+                }
+            }
+            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(_) => break,
+        }
+    }
+    flag.store(false, Ordering::Relaxed);
+}
+
 /// Runs bidirectional TCP-to-Serial GDB Remote Serial Protocol (RSP) bridge
 pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Result<()> {
     println!("====================================================================");
@@ -533,46 +560,22 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
                 let running = Arc::new(AtomicBool::new(true));
 
                 // Thread 1: Serial -> TCP
-                let mut serial_reader = serial_port.try_clone().context("Failed to clone serial port handle")?;
-                let mut tcp_writer = tcp_stream.try_clone().context("Failed to clone TCP stream handle")?;
+                let serial_reader = serial_port.try_clone().context("Failed to clone serial port handle")?;
+                let tcp_writer = tcp_stream.try_clone().context("Failed to clone TCP stream handle")?;
                 let running_clone = running.clone();
 
                 let s2t_handle = thread::spawn(move || {
-                    let mut s_buf = [0u8; 2048];
-                    while running_clone.load(Ordering::Relaxed) {
-                        match serial_reader.read(&mut s_buf) {
-                            Ok(0) => {}
-                            Ok(n) => {
-                                if tcp_writer.write_all(&s_buf[..n]).is_err() {
-                                    break;
-                                }
-                            }
-                            Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
-                            Err(_) => break,
-                        }
-                    }
-                    running_clone.store(false, Ordering::Relaxed);
+                    pump_stream(serial_reader, tcp_writer, running_clone, None);
                 });
 
                 // Thread 2: TCP -> Serial
-                let mut t_buf = [0u8; 2048];
-                while running.load(Ordering::Relaxed) {
-                    match tcp_stream.read(&mut t_buf) {
-                        Ok(0) => {
-                            println!("[Bridge] GDB client disconnected.");
-                            break;
-                        }
-                        Ok(n) => {
-                            if serial_port.write_all(&t_buf[..n]).is_err() {
-                                break;
-                            }
-                        }
-                        Err(ref e) if e.kind() == std::io::ErrorKind::TimedOut => {}
-                        Err(_) => break,
-                    }
-                }
+                pump_stream(
+                    &mut tcp_stream,
+                    &mut serial_port,
+                    running,
+                    Some("[Bridge] GDB client disconnected."),
+                );
 
-                running.store(false, Ordering::Relaxed);
                 let _ = s2t_handle.join();
                 println!("[Bridge] Session finished. Waiting for next GDB connection...");
             }

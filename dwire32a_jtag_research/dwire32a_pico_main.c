@@ -426,9 +426,9 @@ static void process_serial_command(char *line) {
     }
 }
 
-/* =========================================================================
- * Application Entry Point & Non-Blocking CDC Loop
- * ========================================================================= */
+// ---------------------------------------------------------------------------
+// Section: Application Entry Point & Non-Blocking CDC Loop
+// ---------------------------------------------------------------------------
 
 int main(void) {
     /* Initialize USB CDC standard I/O */

@@ -3,9 +3,11 @@
 //! Analyzes encrypted Panasonic container formats (`PANA_DVD.FRM`) and correlates
 //! 64-bit Feistel cipher blocks with HDD partition structures.
 
-use std::collections::HashMap;
-use std::fs::File;
-use std::path::Path;
+use std::{
+    collections::HashMap,
+    fs::File,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{Context, Result};
 use memmap2::Mmap;
@@ -137,7 +139,64 @@ pub fn analyze_toc(data: &[u8]) -> TocReport {
     }
 }
 
-/// Checks cross-correlation of cipher blocks between FRM and HDD partitions.
+fn check_partition_offset(
+    mmap: &[u8],
+    offset: usize,
+    partition_name: &str,
+    null_desc: &str,
+    frm_blocks_map: &HashMap<[u8; CIPHER_BLOCK_SIZE], usize>,
+) -> Option<PartitionCorrelation> {
+    if mmap.len() < offset + CIPHER_BLOCK_SIZE {
+        return None;
+    }
+    let mut arr = [0u8; CIPHER_BLOCK_SIZE];
+    arr.copy_from_slice(&mmap[offset..offset + CIPHER_BLOCK_SIZE]);
+    let frm_count = frm_blocks_map.get(&arr).copied().unwrap_or(0);
+
+    Some(PartitionCorrelation {
+        partition_name: partition_name.to_string(),
+        offset_hex: format!("0x{:08X}", offset),
+        block_hex: hex::encode_upper(&arr),
+        interpretation: if arr == ECB_NULL_BLOCK_8B {
+            null_desc.to_string()
+        } else {
+            "Bloco de Cabecalho".to_string()
+        },
+        found_in_frm: frm_count > 0,
+        frm_occurrences: frm_count,
+    })
+}
+
+fn open_resolved_frm(frm_path: &Path) -> Result<(PathBuf, File, Mmap)> {
+    let resolved_frm = resolve_input_path(frm_path)?;
+    let frm_file = File::open(&resolved_frm)
+        .with_context(|| format!("Failed opening FRM file: {}", resolved_frm.display()))?;
+    let frm_mmap = unsafe { Mmap::map(&frm_file) }
+        .with_context(|| format!("Failed creating mmap on: {}", resolved_frm.display()))?;
+    Ok((resolved_frm, frm_file, frm_mmap))
+}
+
+fn resolve_hdd_candidate(hdd_path: Option<&Path>) -> Option<PathBuf> {
+    match hdd_path {
+        Some(p) => Some(p.to_path_buf()),
+        None => {
+            let def = Path::new("firmware_and_images")
+                .join("panasonic DMR EH-55 Firmware hdd_100.bin");
+            if def.exists() {
+                Some(def)
+            } else {
+                let alt = Path::new("panasonic DMR EH-55 Firmware hdd_100.bin");
+                if alt.exists() {
+                    Some(alt.to_path_buf())
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+/// Correlates .FRM cipher blocks with known LBA offsets in HDD partitions.
 pub fn correlate_hdd_partitions(
     hdd_mmap: Option<&Mmap>,
     frm_blocks_map: &HashMap<[u8; CIPHER_BLOCK_SIZE], usize>,
@@ -149,69 +208,28 @@ pub fn correlate_hdd_partitions(
         None => return correlations,
     };
 
-    // Partition 1 check (offset 0x0200_0038)
-    let p1_check_offset = (LBA_PARTITION_1_OFFSET + 0x38) as usize;
-    if mmap.len() >= p1_check_offset + CIPHER_BLOCK_SIZE {
-        let blk = &mmap[p1_check_offset..p1_check_offset + CIPHER_BLOCK_SIZE];
-        let mut arr = [0u8; CIPHER_BLOCK_SIZE];
-        arr.copy_from_slice(blk);
-        let frm_count = frm_blocks_map.get(&arr).copied().unwrap_or(0);
+    let check_targets = [
+        (
+            (LBA_PARTITION_1_OFFSET + 0x38) as usize,
+            "Particao 1 (32 MB - AM34 DIGA OS)",
+            "Bloco Nulo Identico detectado no Offset 0x38",
+        ),
+        (
+            (LBA_PARTITION_2_OFFSET + 0x30) as usize,
+            "Particao 2 (64 MB - Sub-sistema OSD)",
+            "Bloco Nulo [0] Identico detectado no Offset 0x30",
+        ),
+        (
+            (LBA_PARTITION_2_OFFSET + 0x38) as usize,
+            "Particao 2 (64 MB - Sub-sistema OSD)",
+            "Bloco Nulo [1] Identico detectado no Offset 0x38",
+        ),
+    ];
 
-        correlations.push(PartitionCorrelation {
-            partition_name: "Particao 1 (32 MB - AM34 DIGA OS)".to_string(),
-            offset_hex: format!("0x{:08X}", p1_check_offset),
-            block_hex: hex::encode_upper(&arr),
-            interpretation: if arr == ECB_NULL_BLOCK_8B {
-                "Bloco Nulo Identico detectado no Offset 0x38".to_string()
-            } else {
-                "Bloco de Cabecalho".to_string()
-            },
-            found_in_frm: frm_count > 0,
-            frm_occurrences: frm_count,
-        });
-    }
-
-    // Partition 2 check (offset 0x0400_0030 and 0x0400_0038)
-    let p2_check_1 = (LBA_PARTITION_2_OFFSET + 0x30) as usize;
-    if mmap.len() >= p2_check_1 + CIPHER_BLOCK_SIZE {
-        let blk = &mmap[p2_check_1..p2_check_1 + CIPHER_BLOCK_SIZE];
-        let mut arr = [0u8; CIPHER_BLOCK_SIZE];
-        arr.copy_from_slice(blk);
-        let frm_count = frm_blocks_map.get(&arr).copied().unwrap_or(0);
-
-        correlations.push(PartitionCorrelation {
-            partition_name: "Particao 2 (64 MB - Sub-sistema OSD)".to_string(),
-            offset_hex: format!("0x{:08X}", p2_check_1),
-            block_hex: hex::encode_upper(&arr),
-            interpretation: if arr == ECB_NULL_BLOCK_8B {
-                "Bloco Nulo [0] Identico detectado no Offset 0x30".to_string()
-            } else {
-                "Bloco de Cabecalho".to_string()
-            },
-            found_in_frm: frm_count > 0,
-            frm_occurrences: frm_count,
-        });
-    }
-
-    let p2_check_2 = (LBA_PARTITION_2_OFFSET + 0x38) as usize;
-    if mmap.len() >= p2_check_2 + CIPHER_BLOCK_SIZE {
-        let blk = &mmap[p2_check_2..p2_check_2 + CIPHER_BLOCK_SIZE];
-        let mut arr = [0u8; CIPHER_BLOCK_SIZE];
-        arr.copy_from_slice(blk);
-        let frm_count = frm_blocks_map.get(&arr).copied().unwrap_or(0);
-
-        correlations.push(PartitionCorrelation {
-            partition_name: "Particao 2 (64 MB - Sub-sistema OSD)".to_string(),
-            offset_hex: format!("0x{:08X}", p2_check_2),
-            block_hex: hex::encode_upper(&arr),
-            interpretation: if arr == ECB_NULL_BLOCK_8B {
-                "Bloco Nulo [1] Identico detectado no Offset 0x38".to_string()
-            } else {
-                "Bloco de Cabecalho".to_string()
-            },
-            found_in_frm: frm_count > 0,
-            frm_occurrences: frm_count,
-        });
+    for (offset, part_name, null_desc) in check_targets {
+        if let Some(corr) = check_partition_offset(mmap, offset, part_name, null_desc, frm_blocks_map) {
+            correlations.push(corr);
+        }
     }
 
     correlations
@@ -224,11 +242,7 @@ pub fn analyze_frm_container(
     top_n: usize,
     json_path: Option<&Path>,
 ) -> Result<CryptanalysisReport> {
-    let resolved_frm = resolve_input_path(frm_path)?;
-    let frm_file = File::open(&resolved_frm)
-        .with_context(|| format!("Failed opening FRM file: {}", resolved_frm.display()))?;
-    let frm_mmap = unsafe { Mmap::map(&frm_file) }
-        .with_context(|| format!("Failed creating mmap on: {}", resolved_frm.display()))?;
+    let (resolved_frm, _frm_file, frm_mmap) = open_resolved_frm(frm_path)?;
 
     let file_size = frm_mmap.len();
     let global_entropy = calculate_entropy(&frm_mmap);
@@ -295,23 +309,7 @@ pub fn analyze_frm_container(
     );
 
     // 3. Cross-reference with HDD Image
-    let hdd_candidate = match hdd_path {
-        Some(p) => Some(p.to_path_buf()),
-        None => {
-            let def = Path::new("firmware_and_images")
-                .join("panasonic DMR EH-55 Firmware hdd_100.bin");
-            if def.exists() {
-                Some(def)
-            } else {
-                let alt = Path::new("panasonic DMR EH-55 Firmware hdd_100.bin");
-                if alt.exists() {
-                    Some(alt.to_path_buf())
-                } else {
-                    None
-                }
-            }
-        }
-    };
+    let hdd_candidate = resolve_hdd_candidate(hdd_path);
 
     let mut hdd_correlations = Vec::new();
     if let Some(hpath) = &hdd_candidate {
@@ -435,11 +433,7 @@ pub struct CodebookReport {
 
 /// Dumps and dissects the 16-byte header, 48-byte TOC entries, and 3 payload modules from PANA_DVD.FRM.
 pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpReport> {
-    let resolved_frm = resolve_input_path(frm_path)?;
-    let frm_file = File::open(&resolved_frm)
-        .with_context(|| format!("Failed opening FRM file: {}", resolved_frm.display()))?;
-    let frm_mmap = unsafe { Mmap::map(&frm_file) }
-        .with_context(|| format!("Failed creating mmap on: {}", resolved_frm.display()))?;
+    let (resolved_frm, _frm_file, frm_mmap) = open_resolved_frm(frm_path)?;
 
     let file_size = frm_mmap.len();
     if file_size < PANA_FRM_PAYLOAD_OFFSET {
@@ -658,11 +652,7 @@ pub fn print_codebook(
     hdd_path: Option<&Path>,
     json_path: Option<&Path>,
 ) -> Result<CodebookReport> {
-    let resolved_frm = resolve_input_path(frm_path)?;
-    let frm_file = File::open(&resolved_frm)
-        .with_context(|| format!("Failed opening FRM file: {}", resolved_frm.display()))?;
-    let frm_mmap = unsafe { Mmap::map(&frm_file) }
-        .with_context(|| format!("Failed creating mmap on: {}", resolved_frm.display()))?;
+    let (resolved_frm, _frm_file, frm_mmap) = open_resolved_frm(frm_path)?;
 
     let file_size = frm_mmap.len();
     let num_blocks = file_size / CIPHER_BLOCK_SIZE;
@@ -680,23 +670,7 @@ pub fn print_codebook(
     }
 
     // Attempt HDD memory-mapping for cross-referencing
-    let hdd_candidate = match hdd_path {
-        Some(p) => Some(p.to_path_buf()),
-        None => {
-            let def = Path::new("firmware_and_images")
-                .join("panasonic DMR EH-55 Firmware hdd_100.bin");
-            if def.exists() {
-                Some(def)
-            } else {
-                let alt = Path::new("panasonic DMR EH-55 Firmware hdd_100.bin");
-                if alt.exists() {
-                    Some(alt.to_path_buf())
-                } else {
-                    None
-                }
-            }
-        }
-    };
+    let hdd_candidate = resolve_hdd_candidate(hdd_path);
 
     let mut hdd_counts: HashMap<[u8; CIPHER_BLOCK_SIZE], usize> = HashMap::new();
     let mut resolved_hdd_name = None;

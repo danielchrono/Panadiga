@@ -203,6 +203,23 @@ pub fn open_mmap(path: &Path) -> Result<(File, Mmap)> {
     Ok((file, mmap))
 }
 
+/// Helper function to serialize any report struct to formatted JSON and write to disk.
+pub fn export_report_to_json<T: serde::Serialize>(
+    report: &T,
+    json_path: &Path,
+    report_desc: &str,
+) -> Result<()> {
+    let json_data = serde_json::to_string_pretty(report)
+        .with_context(|| format!("Failed serializing {report_desc} to JSON"))?;
+    fs::write(json_path, json_data)
+        .with_context(|| format!("Failed writing JSON report to {}", json_path.display()))?;
+    println!(
+        "\n[+] Relatorio JSON estruturado exportado: {}",
+        json_path.display()
+    );
+    Ok(())
+}
+
 /// Performs complete structural inspection and outputs rich visual console telemetry.
 pub fn inspect_hdd_image(
     image_path: &Path,
@@ -524,11 +541,7 @@ pub fn inspect_hdd_image(
     };
 
     if let Some(json_path) = json_export_path {
-        let json_data = serde_json::to_string_pretty(&report)
-            .context("Failed serializing HDD analysis report to JSON")?;
-        fs::write(json_path, json_data)
-            .with_context(|| format!("Failed writing JSON report to {}", json_path.display()))?;
-        println!("\n[+] Relatorio JSON estruturado exportado: {}", json_path.display());
+        export_report_to_json(&report, json_path, "HDD analysis report")?;
     }
 
     println!("================================================================================");
@@ -983,11 +996,7 @@ pub fn decode_meihdfs_descriptors(
     };
 
     if let Some(json_path) = json_export_path {
-        let json_data = serde_json::to_string_pretty(&report)
-            .context("Failed serializing MEIHDFS allocation report to JSON")?;
-        fs::write(json_path, json_data)
-            .with_context(|| format!("Failed writing JSON report to {}", json_path.display()))?;
-        println!("\n[+] Relatorio JSON estruturado exportado: {}", json_path.display());
+        export_report_to_json(&report, json_path, "MEIHDFS allocation report")?;
     }
 
     println!("================================================================================");

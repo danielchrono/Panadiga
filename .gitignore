@@ -34,6 +34,7 @@ apps/desktop/playwright-report/
 coverage/
 .nyc_output/
 test_out.txt
+AUDIT_DOSSIER_*.md
 
 # ------------------------------------------------------------------------------
 # 4. Raspberry Pi Pico Firmware & CMake Build Artifacts (RP2040 / RP2350)

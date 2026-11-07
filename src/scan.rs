@@ -66,6 +66,38 @@ pub fn scan_data_strings(
 
     let kw_lower: Vec<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
 
+    let evaluate_candidate = |start: usize, end: usize, total: &mut usize, acc: &mut Vec<StringMatch>| {
+        let len = end - start;
+        if len >= min_length {
+            *total += 1;
+            let slice = &data[start..end];
+            if let Ok(text) = std::str::from_utf8(slice) {
+                let text_lower = text.to_lowercase();
+                let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
+
+                if !kw_lower.is_empty() {
+                    if let Some(kw) = matched_kw {
+                        if limit == 0 || acc.len() < limit {
+                            acc.push(StringMatch {
+                                offset: start,
+                                offset_hex: format!("0x{:08X}", start),
+                                text: text.to_string(),
+                                matched_keyword: Some(kw.clone()),
+                            });
+                        }
+                    }
+                } else if limit == 0 || acc.len() < limit {
+                    acc.push(StringMatch {
+                        offset: start,
+                        offset_hex: format!("0x{:08X}", start),
+                        text: text.to_string(),
+                        matched_keyword: None,
+                    });
+                }
+            }
+        }
+    };
+
     for (i, &b) in data.iter().enumerate() {
         let is_valid_char = b.is_ascii_alphanumeric()
             || b == b'_'
@@ -80,70 +112,14 @@ pub fn scan_data_strings(
                 current_start = Some(i);
             }
         } else if let Some(start) = current_start {
-            let len = i - start;
-            if len >= min_length {
-                total_found += 1;
-                let slice = &data[start..i];
-                if let Ok(text) = std::str::from_utf8(slice) {
-                    let text_lower = text.to_lowercase();
-                    let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
-
-                    if !kw_lower.is_empty() {
-                        if let Some(kw) = matched_kw {
-                            if limit == 0 || matches.len() < limit {
-                                matches.push(StringMatch {
-                                    offset: start,
-                                    offset_hex: format!("0x{:08X}", start),
-                                    text: text.to_string(),
-                                    matched_keyword: Some(kw.clone()),
-                                });
-                            }
-                        }
-                    } else if limit == 0 || matches.len() < limit {
-                        matches.push(StringMatch {
-                            offset: start,
-                            offset_hex: format!("0x{:08X}", start),
-                            text: text.to_string(),
-                            matched_keyword: None,
-                        });
-                    }
-                }
-            }
+            evaluate_candidate(start, i, &mut total_found, &mut matches);
             current_start = None;
         }
     }
 
     // Check tail
     if let Some(start) = current_start {
-        let len = data.len() - start;
-        if len >= min_length {
-            total_found += 1;
-            let slice = &data[start..];
-            if let Ok(text) = std::str::from_utf8(slice) {
-                let text_lower = text.to_lowercase();
-                let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
-
-                if !kw_lower.is_empty() {
-                    if let Some(kw) = matched_kw {
-                        if limit == 0 || matches.len() < limit {
-                            matches.push(StringMatch {
-                                offset: start,
-                                offset_hex: format!("0x{:08X}", start),
-                                text: text.to_string(),
-                                matched_keyword: Some(kw.clone()),
-                            });
-                        }
-                    }
-                } else if limit == 0 || matches.len() < limit {
-                    matches.push(StringMatch {
-                        offset: start,
-                        offset_hex: format!("0x{:08X}", start),
-                        text: text.to_string(),
-                        matched_keyword: None,
-                    });
-                }
-            }
-        }
+        evaluate_candidate(start, data.len(), &mut total_found, &mut matches);
     }
 
     (total_found, matches)

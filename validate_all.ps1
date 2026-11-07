@@ -62,16 +62,16 @@ try {
     Set-Location "$ScriptRoot/apps/desktop"
     npm test
     Assert-LastExitCode "Vitest Suite"
-    Write-Success "All Vitest frontend and ViewModel unit tests passed (20/20)!"
+    Write-Success "All Vitest frontend and ViewModel unit tests passed (24/24)!"
 
     # -------------------------------------------------------------------------
     # 4. Copy/Paste Code Duplication Gate (jscpd)
     # -------------------------------------------------------------------------
-    Write-Step "4/8. Running Copy/Paste Detector (jscpd threshold <= 5%)"
+    Write-Step "4/8. Running Copy/Paste Detector (jscpd threshold 0% / 0 clones)"
     Set-Location $ScriptRoot
     npx --prefix apps/desktop jscpd --config .jscpd.json
     Assert-LastExitCode "jscpd Duplication Scan"
-    Write-Success "Code duplication check verified within safety limits (< 5%)!"
+    Write-Success "Code duplication check verified at 0% duplication (0 clones found)!"
 
     # -------------------------------------------------------------------------
     # 5. UI/UX Completeness Linter (uxlint)

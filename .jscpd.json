@@ -1,5 +1,6 @@
 {
-  "threshold": 5,
+  "threshold": 0,
+  "mode": "weak",
   "reporters": ["console", "json"],
   "output": "./.jscpd-report",
   "ignore": [

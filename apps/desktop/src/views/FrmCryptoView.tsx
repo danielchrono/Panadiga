@@ -163,37 +163,43 @@ export const FrmCryptoView: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {cryptReport.top_blocks.map((blk, idx) => (
-                <div
-                  key={blk.hex}
-                  className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-xs">
-                      #{idx + 1}
-                    </span>
-                    <div>
-                      <span className="text-purple-300 font-bold text-sm tracking-wider">
-                        {blk.hex}
-                      </span>
-                      <p className="text-slate-400 text-[11px] mt-0.5">{blk.interpretation}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs font-mono shrink-0">
-                    <div className="text-right">
-                      <span className="text-slate-200 font-bold">{blk.count.toLocaleString()} ocorrências</span>
-                      <span className="text-slate-500 block text-[10px]">
-                        ({blk.total_bytes.toLocaleString()} bytes totais)
-                      </span>
-                    </div>
-                    <StatusBadge
-                      variant={blk.count > 1000 ? 'warning' : 'neutral'}
-                      label={blk.count > 1000 ? 'ALTA REPETIÇÃO' : 'FREQUENTE'}
-                    />
-                  </div>
+              {cryptReport.top_blocks.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-500 font-mono rounded-xl bg-slate-950 border border-slate-800">
+                  Nenhum bloco cifrado detectado na análise
                 </div>
-              ))}
+              ) : (
+                cryptReport.top_blocks.map((blk, idx) => (
+                  <div
+                    key={blk.hex}
+                    className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-lg bg-slate-800 text-slate-400 font-bold flex items-center justify-center text-xs">
+                        #{idx + 1}
+                      </span>
+                      <div>
+                        <span className="text-purple-300 font-bold text-sm tracking-wider">
+                          {blk.hex}
+                        </span>
+                        <p className="text-slate-400 text-[11px] mt-0.5">{blk.interpretation}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-xs font-mono shrink-0">
+                      <div className="text-right">
+                        <span className="text-slate-200 font-bold">{blk.count.toLocaleString()} ocorrências</span>
+                        <span className="text-slate-500 block text-[10px]">
+                          ({blk.total_bytes.toLocaleString()} bytes totais)
+                        </span>
+                      </div>
+                      <StatusBadge
+                        variant={blk.count > 1000 ? 'warning' : 'neutral'}
+                        label={blk.count > 1000 ? 'ALTA REPETIÇÃO' : 'FREQUENTE'}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

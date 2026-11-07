@@ -1,35 +1,77 @@
-# Rust build artifacts
-/target/
-/dist_bin/
-.jscpd-report/
-crates/**/target/
-apps/desktop/src-tauri/target/
-**/*.rs.bk
-Cargo.lock.orig
+# ==============================================================================
+# Panadiga Engineering Ecosystem - Universal .gitignore
+# ==============================================================================
 
-# Web & Node dependencies / build artifacts
+# ------------------------------------------------------------------------------
+# 1. Rust & Cargo Build Artifacts
+# ------------------------------------------------------------------------------
+/target/
+Cargo.lock.orig
+**/*.rs.bk
+
+# ------------------------------------------------------------------------------
+# 2. Desktop Application (Tauri v2 + Vite + React + TypeScript)
+# ------------------------------------------------------------------------------
 **/node_modules/
 **/dist/
 .vite/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/gen/
+
+# ------------------------------------------------------------------------------
+# 3. Test Runners, Coverage & Quality Reports
+# ------------------------------------------------------------------------------
 apps/desktop/test-results/
 apps/desktop/playwright-report/
+.jscpd-report/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+coverage/
+.nyc_output/
+test_out.txt
 
-# Python bytecode and caches
+# ------------------------------------------------------------------------------
+# 4. Raspberry Pi Pico Firmware & CMake Build Artifacts (RP2040 / RP2350)
+# ------------------------------------------------------------------------------
+dwire32a_jtag_research/build*/
+dwire32a_jtag_research/*.uf2
+dwire32a_jtag_research/*.elf
+dwire32a_jtag_research/*.bin
+dwire32a_jtag_research/*.hex
+dwire32a_jtag_research/*.map
+dwire32a_jtag_research/*.dis
+compile_commands.json
+.ninja_*
+CMakeCache.txt
+CMakeFiles/
+
+# ------------------------------------------------------------------------------
+# 5. Python Bytecode, Caches & Virtual Environments
+# ------------------------------------------------------------------------------
 **/__pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
-.mypy_cache/
+*.pyo
+.venv/
+venv/
+env/
 
-# Third-party precompiled binaries
-tools/HxD/app/
+# ------------------------------------------------------------------------------
+# 6. Local Binaries, Deployments & Third-Party Portable Tools
+# ------------------------------------------------------------------------------
+/dist_bin/
 *.exe
 !apps/desktop/src-tauri/icons/*.ico
+tools/HxD/app/
 
-# Proprietary and large binary dumps (>100MB exceeds GitHub push limits)
+# ------------------------------------------------------------------------------
+# 7. Proprietary & Large Binary Dumps (>100MB exceeds GitHub limits)
+# ------------------------------------------------------------------------------
 firmware_and_images/*.bin
 firmware_and_images/*.zip
 firmware_and_images/*.FRM
@@ -37,13 +79,19 @@ firmware_and_images/*.frm
 firmware_and_images/extracted_partitions/
 !firmware_and_images/README.md
 
-# Operating System files
+# ------------------------------------------------------------------------------
+# 8. Operating System & Temporary Files
+# ------------------------------------------------------------------------------
 .DS_Store
 Thumbs.db
+ehthumbs.db
 desktop.ini
 *.tmp
+*.bak
 
-# IDE and Editor configurations
+# ------------------------------------------------------------------------------
+# 9. IDE & Code Editors
+# ------------------------------------------------------------------------------
 .vscode/
 .idea/
 *.sublime-project

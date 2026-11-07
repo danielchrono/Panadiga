@@ -22,8 +22,9 @@ export const HexInspectorView: React.FC = () => {
     jumpInput,
     setJumpInput,
     loading,
+    feedbackMessage,
     selectBookmark,
-    handleJumpSubmit,
+    jumpToInputOffset,
     nextPage,
     prevPage,
   } = useHexInspectorViewModel();
@@ -57,18 +58,24 @@ export const HexInspectorView: React.FC = () => {
               placeholder="0x00000000..."
               value={jumpInput}
               onChange={e => setJumpInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleJumpSubmit()}
+              onKeyDown={e => e.key === 'Enter' && jumpToInputOffset()}
               className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-cyan-400 focus:outline-none focus:border-cyan-500 w-36 font-bold"
             />
           </div>
           <button
-            onClick={handleJumpSubmit}
+            onClick={jumpToInputOffset}
             className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
           >
             Ir para Offset
           </button>
         </div>
       </div>
+
+      {feedbackMessage && (
+        <div className="p-3 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center justify-between animate-in fade-in duration-200">
+          <span>{feedbackMessage}</span>
+        </div>
+      )}
 
       {/* Telemetry Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -110,32 +117,38 @@ export const HexInspectorView: React.FC = () => {
             </h3>
 
             <div className="space-y-2">
-              {bookmarks.map(bm => {
-                const isSelected = selectedBookmark?.id === bm.id;
-                return (
-                  <div
-                    key={bm.id}
-                    onClick={() => selectBookmark(bm)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-cyan-500/10 border-cyan-500/50 shadow-md shadow-cyan-950/20'
-                        : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-xs font-bold ${isSelected ? 'text-cyan-400' : 'text-slate-200'}`}>
-                        {bm.label}
-                      </span>
-                      <span className="text-[10px] text-slate-500 font-mono">
-                        {bm.offset_hex}
-                      </span>
+              {bookmarks.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-500 font-mono">
+                  Nenhum marcador registrado
+                </div>
+              ) : (
+                bookmarks.map(bm => {
+                  const isSelected = selectedBookmark?.id === bm.id;
+                  return (
+                    <div
+                      key={bm.id}
+                      onClick={() => selectBookmark(bm)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-cyan-500/10 border-cyan-500/50 shadow-md shadow-cyan-950/20'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={`text-xs font-bold ${isSelected ? 'text-cyan-400' : 'text-slate-200'}`}>
+                          {bm.label}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">
+                          {bm.offset_hex}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 font-sans">
+                        {bm.description}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-slate-400 font-sans">
-                      {bm.description}
-                    </p>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

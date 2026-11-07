@@ -118,47 +118,53 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Navigation Items */}
         <nav className="p-3 space-y-1">
-          {navItems.map(item => {
-            const isActive = currentView === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => onSelectView(item.key)}
-                className={cn(
-                  'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150',
-                  isActive
-                    ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-950/20'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
-                )}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={cn(
-                      isActive ? 'text-cyan-400' : 'text-slate-500'
-                    )}
-                  >
-                    {item.icon}
-                  </div>
-                  <div className="truncate">
-                    <div className="text-xs font-semibold leading-tight font-mono">
-                      {item.label}
+          {navItems.length === 0 ? (
+            <div className="p-4 text-center text-xs text-slate-500 font-mono">
+              Nenhum módulo de bancada disponível
+            </div>
+          ) : (
+            navItems.map(item => {
+              const isActive = currentView === item.key;
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => onSelectView(item.key)}
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150',
+                    isActive
+                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-950/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+                  )}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={cn(
+                        isActive ? 'text-cyan-400' : 'text-slate-500'
+                      )}
+                    >
+                      {item.icon}
                     </div>
-                    <div className="text-[10px] text-slate-500 truncate leading-tight font-sans">
-                      {item.sublabel}
+                    <div className="truncate">
+                      <div className="text-xs font-semibold leading-tight font-mono">
+                        {item.label}
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate leading-tight font-sans">
+                        {item.sublabel}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {item.badge && (
-                  <span
-                    className={`ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded font-medium ${item.badgeColor}`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+                  {item.badge && (
+                    <span
+                      className={`ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded font-medium ${item.badgeColor}`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
         </nav>
       </div>
 

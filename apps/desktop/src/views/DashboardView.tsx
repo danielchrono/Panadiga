@@ -253,42 +253,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {overview.binaries.map(bin => (
-                  <tr key={bin.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="py-2.5 px-3">
-                      <div className="font-semibold text-slate-200 flex items-center gap-2">
-                        {bin.exists ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                        ) : (
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        )}
-                        <span className="truncate max-w-[220px]" title={bin.name}>
-                          {bin.name}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-500 truncate block">
-                        {bin.path}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-300">
-                      {bin.formatted_size ?? '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400 max-w-[240px] truncate text-[11px]">
-                      {bin.expected_role}
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      {bin.status === 'ready' && (
-                        <StatusBadge variant="success" label="PRONTO" />
-                      )}
-                      {bin.status === 'warning' && (
-                        <StatusBadge variant="warning" label="U99 DUMP" />
-                      )}
-                      {bin.status === 'missing' && (
-                        <StatusBadge variant="error" label="AUSENTE" />
-                      )}
+                {overview.binaries.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-xs text-slate-500 font-mono">
+                      Nenhum binário indexado no repositório de firmware
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  overview.binaries.map(bin => (
+                    <tr key={bin.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="font-semibold text-slate-200 flex items-center gap-2">
+                          {bin.exists ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          ) : (
+                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                          )}
+                          <span className="truncate max-w-[220px]" title={bin.name}>
+                            {bin.name}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-500 truncate block">
+                          {bin.path}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-300">
+                        {bin.formatted_size ?? '-'}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-400 max-w-[240px] truncate text-[11px]">
+                        {bin.expected_role}
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {bin.status === 'ready' && (
+                          <StatusBadge variant="success" label="PRONTO" />
+                        )}
+                        {bin.status === 'warning' && (
+                          <StatusBadge variant="warning" label="U99 DUMP" />
+                        )}
+                        {bin.status === 'missing' && (
+                          <StatusBadge variant="error" label="AUSENTE" />
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

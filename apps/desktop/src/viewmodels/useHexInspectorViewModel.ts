@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { HexDumpRow, HexBookmark } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { mockHexBookmarks } from '@/services/mockData';
+import { useToast } from '../context/ToastContext';
 
 export function useHexInspectorViewModel() {
+  const { showToast } = useToast();
   const [currentOffset, setCurrentOffset] = useState<number>(0);
   const [hexRows, setHexRows] = useState<HexDumpRow[]>([]);
   const [bookmarks] = useState<HexBookmark[]>(mockHexBookmarks);
   const [selectedBookmark, setSelectedBookmark] = useState<HexBookmark | null>(mockHexBookmarks[0]);
   const [jumpInput, setJumpInput] = useState<string>('0x00000000');
   const [loading, setLoading] = useState<boolean>(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const rowsPerPage = 24;
 
   const fetchRows = useCallback(async (offset: number) => {
@@ -55,7 +58,7 @@ export function useHexInspectorViewModel() {
     jumpToOffset(Math.max(0, currentOffset - rowsPerPage * 16));
   }, [currentOffset, rowsPerPage, jumpToOffset]);
 
-  const handleJumpSubmit = useCallback(() => {
+  const jumpToInputOffset = useCallback(() => {
     let parsed = 0;
     const trimmed = jumpInput.trim();
     if (trimmed.toLowerCase().startsWith('0x')) {
@@ -65,8 +68,16 @@ export function useHexInspectorViewModel() {
     }
     if (!isNaN(parsed)) {
       jumpToOffset(parsed);
+      const msg = `Saltado com sucesso para o offset 0x${parsed.toString(16).toUpperCase()}`;
+      setFeedbackMessage(msg);
+      showToast({
+        type: 'success',
+        title: 'Navegação de Offset',
+        message: msg,
+      });
+      setTimeout(() => setFeedbackMessage(null), 3000);
     }
-  }, [jumpInput, jumpToOffset]);
+  }, [jumpInput, jumpToOffset, showToast]);
 
   return {
     currentOffset,
@@ -77,10 +88,11 @@ export function useHexInspectorViewModel() {
     jumpInput,
     setJumpInput,
     loading,
+    feedbackMessage,
     selectBookmark,
     jumpToOffset,
     jumpToLba,
-    handleJumpSubmit,
+    jumpToInputOffset,
     nextPage,
     prevPage,
     refresh: () => fetchRows(currentOffset),

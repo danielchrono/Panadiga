@@ -74,33 +74,39 @@ export const NvramSectorMap: React.FC<NvramSectorMapProps> = ({
       </div>
 
       <div className="grid grid-cols-12 sm:grid-cols-24 md:grid-cols-36 lg:grid-cols-71 gap-1">
-        {sectorMap.map(sector => {
-          const isSelected = selectedSector?.name === sector.name;
-          let bg = 'bg-slate-800 hover:bg-slate-700 text-slate-300';
+        {sectorMap.length === 0 ? (
+          <div className="col-span-full py-8 text-center text-xs text-slate-500 font-mono">
+            Nenhum setor da Flash NOR mapeado
+          </div>
+        ) : (
+          sectorMap.map(sector => {
+            const isSelected = selectedSector?.name === sector.name;
+            let bg = 'bg-slate-800 hover:bg-slate-700 text-slate-300';
 
-          if (sector.is_corrupted_area) {
-            bg = cleanSuccess
-              ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold'
-              : 'bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold animate-pulse';
-          } else if (sector.sector_type === 'bootloader') {
-            bg = 'bg-cyan-900/60 hover:bg-cyan-800/80 text-cyan-200';
-          }
+            if (sector.is_corrupted_area) {
+              bg = cleanSuccess
+                ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold'
+                : 'bg-rose-500 hover:bg-rose-400 text-slate-950 font-bold animate-pulse';
+            } else if (sector.sector_type === 'bootloader') {
+              bg = 'bg-cyan-900/60 hover:bg-cyan-800/80 text-cyan-200';
+            }
 
-          return (
-            <button
-              key={sector.name}
-              onClick={() => onSelectSector(sector)}
-              title={`${sector.name} (0x${sector.start_offset.toString(16).toUpperCase()}) - ${sector.size_bytes / 1024} KB`}
-              className={cn(
-                'h-7 rounded text-[9px] font-bold flex items-center justify-center transition-all',
-                bg,
-                isSelected && 'ring-2 ring-cyan-400 scale-110 z-10'
-              )}
-            >
-              {sector.index}
-            </button>
-          );
-        })}
+            return (
+              <button
+                key={sector.name}
+                onClick={() => onSelectSector(sector)}
+                title={`${sector.name} (0x${sector.start_offset.toString(16).toUpperCase()}) - ${sector.size_bytes / 1024} KB`}
+                className={cn(
+                  'h-7 rounded text-[9px] font-bold flex items-center justify-center transition-all',
+                  bg,
+                  isSelected && 'ring-2 ring-cyan-400 scale-110 z-10'
+                )}
+              >
+                {sector.index}
+              </button>
+            );
+          })
+        )}
       </div>
 
       {/* Grid Legend */}

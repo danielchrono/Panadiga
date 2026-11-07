@@ -54,5 +54,9 @@ pub fn extract_port_name(input: &str) -> String {
     if trimmed.to_uppercase().contains("MOCK") {
         return "MOCK".to_string();
     }
-    trimmed.split_whitespace().next().unwrap_or(trimmed).to_string()
+    trimmed
+        .split_whitespace()
+        .next()
+        .unwrap_or(trimmed)
+        .to_string()
 }

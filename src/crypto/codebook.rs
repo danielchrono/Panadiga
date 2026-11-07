@@ -7,10 +7,10 @@ use std::{
 use anyhow::{Context, Result};
 use memmap2::Mmap;
 
+use super::types::{CodebookEntry, CodebookReport, PartitionCorrelation};
 use crate::constants::*;
 use crate::hdd::open_mmap;
 use crate::nvram::resolve_input_path;
-use super::types::{CodebookEntry, CodebookReport, PartitionCorrelation};
 
 pub(crate) fn check_partition_offset(
     mmap: &[u8],
@@ -53,8 +53,8 @@ pub(crate) fn resolve_hdd_candidate(hdd_path: Option<&Path>) -> Option<PathBuf> 
     match hdd_path {
         Some(p) => Some(p.to_path_buf()),
         None => {
-            let def = Path::new("firmware_and_images")
-                .join("panasonic DMR EH-55 Firmware hdd_100.bin");
+            let def =
+                Path::new("firmware_and_images").join("panasonic DMR EH-55 Firmware hdd_100.bin");
             if def.exists() {
                 Some(def)
             } else {
@@ -100,7 +100,9 @@ pub fn correlate_hdd_partitions(
     ];
 
     for (offset, part_name, null_desc) in check_targets {
-        if let Some(corr) = check_partition_offset(mmap, offset, part_name, null_desc, frm_blocks_map) {
+        if let Some(corr) =
+            check_partition_offset(mmap, offset, part_name, null_desc, frm_blocks_map)
+        {
             correlations.push(corr);
         }
     }
@@ -150,26 +152,42 @@ pub fn print_codebook(
         }
     }
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" PANASONIC 64-BIT ECB CODEBOOK — KNOWN-PLAINTEXT ATTACK (KPA) DICTIONARY       ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Arquivo Analisado : {}", resolved_frm.display());
     log_println!(
         " Arquivo HDD       : {}",
-        resolved_hdd_name.as_deref().unwrap_or("Não fornecido / Não encontrado")
+        resolved_hdd_name
+            .as_deref()
+            .unwrap_or("Não fornecido / Não encontrado")
     );
     log_println!(
         " Total de Blocos   : {} blocos de 64 bits (8 bytes cada)",
         num_blocks
     );
     log_println!(" Blocos Únicos     : {}", frm_counts.len());
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
     log_println!(" FUNDAMENTO FORENSE DO CODEBOOK ECB (FEISTEL DE 64 BITS):");
     log_println!(" Em modo Electronic Codebook (ECB): C_i = E_K(P_i).");
-    log_println!(" Blocos idênticos de texto-plano produzem invariavelmente blocos cifrados idênticos.");
-    log_println!(" Ao correlacionar preenchimentos conhecidos da eletrônica (Flash virgem e zeros nulos),");
-    log_println!(" constrói-se o dicionário determinístico de tradução direta sem necessidade da chave.");
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        " Blocos idênticos de texto-plano produzem invariavelmente blocos cifrados idênticos."
+    );
+    log_println!(
+        " Ao correlacionar preenchimentos conhecidos da eletrônica (Flash virgem e zeros nulos),"
+    );
+    log_println!(
+        " constrói-se o dicionário determinístico de tradução direta sem necessidade da chave."
+    );
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     log_println!("\n[+] DICIONÁRIO DE TEXTO-PLANO CONHECIDO (KNOWN-PLAINTEXT PAIRS):");
     log_println!("    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+");
@@ -247,7 +265,9 @@ pub fn print_codebook(
 
     // Add top frequent ciphertext blocks from Module 2 (Drive Servo DSP)
     log_println!("\n[+] BLOCOS CIFRADOS DE ALTA FREQUÊNCIA NO MÓDULO 2 (DRIVE SERVO DSP):");
-    log_println!("    Estes blocos vazam devido a tabelas de firmware e instruções repetidas no MN102:");
+    log_println!(
+        "    Estes blocos vazam devido a tabelas de firmware e instruções repetidas no MN102:"
+    );
     log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
     log_println!("    | #  | Bloco Cifrado (Hex)     | Ocorr. FRM | 1º Offset  | Localização & Comportamento Criptográfico                    |");
     log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
@@ -257,18 +277,20 @@ pub fn print_codebook(
 
     let mut extra_rank = 1;
     for (blk, count) in sorted_blocks.iter().take(20) {
-        if *blk == ECB_VIRGIN_FLASH_8B || *blk == ECB_COMMON_STRUCT_8B || *blk == ECB_NULL_BLOCK_8B {
+        if *blk == ECB_VIRGIN_FLASH_8B || *blk == ECB_COMMON_STRUCT_8B || *blk == ECB_NULL_BLOCK_8B
+        {
             continue;
         }
         if *count >= 20 {
             let first_off = frm_first_loc.get(blk).copied().unwrap_or(0);
-            let loc_str = if (PANA_FRM_MOD2_START_OFFSET..PANA_FRM_MOD2_BOUNDARY).contains(&first_off) {
-                "Módulo 2 (Drive Servo DSP / MN102 Code Section)"
-            } else if first_off < PANA_FRM_MOD1_BOUNDARY {
-                "Módulo 1 (Sub-sistema / OSD Font Section)"
-            } else {
-                "Módulo 3 (Main CPU OS / AM34 Core Section)"
-            };
+            let loc_str =
+                if (PANA_FRM_MOD2_START_OFFSET..PANA_FRM_MOD2_BOUNDARY).contains(&first_off) {
+                    "Módulo 2 (Drive Servo DSP / MN102 Code Section)"
+                } else if first_off < PANA_FRM_MOD1_BOUNDARY {
+                    "Módulo 1 (Sub-sistema / OSD Font Section)"
+                } else {
+                    "Módulo 3 (Main CPU OS / AM34 Core Section)"
+                };
 
             log_println!(
                 "    | {:<2} | {:<23} | {:>10} | 0x{:06X}   | {:<60} |",
@@ -297,7 +319,9 @@ pub fn print_codebook(
     log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
 
     let is_ecb_leak = dictionary.iter().any(|e| e.frm_occurrences >= 100);
-    let cross_proven = dictionary.iter().any(|e| e.frm_occurrences > 0 && e.hdd_occurrences > 0);
+    let cross_proven = dictionary
+        .iter()
+        .any(|e| e.frm_occurrences > 0 && e.hdd_occurrences > 0);
 
     log_println!("\n[+] SÍNTESE FORENSE E PROVAS MATEMÁTICAS:");
     log_println!("  1. [CONFIRMADO] Vazamento Estrutural ECB: O arquivo óptico PANA_DVD.FRM e o HD IDE utilizam");
@@ -327,9 +351,13 @@ pub fn print_codebook(
         log_println!("\n[+] Relatório JSON exportado: {}", jpath.display());
     }
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" CONSULTA AO CODEBOOK CONCLUÍDA COM SUCESSO                                    ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(report)
 }

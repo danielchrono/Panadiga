@@ -1,9 +1,9 @@
-use std::path::Path;
 use anyhow::{Context, Result};
+use std::path::Path;
 
-use crate::constants::*;
-use super::types::{FrmModuleInfo, FrmTocDumpReport, TocEntry, TocReport};
 use super::codebook::open_resolved_frm;
+use super::types::{FrmModuleInfo, FrmTocDumpReport, TocEntry, TocReport};
+use crate::constants::*;
 
 /// Dissects the first 512 bytes of PANA_DVD.FRM to verify the 48-byte TOC entries.
 pub fn analyze_toc(data: &[u8]) -> TocReport {
@@ -49,9 +49,13 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     let global_header = &frm_mmap[0..PANA_FRM_GLOBAL_HEADER_SIZE];
     let global_header_hex = hex::encode_upper(global_header);
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" PANASONIC PANA_DVD.FRM TOC DUMP & 3-MODULE CONTAINER DECONSTRUCTION           ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Arquivo Analisado : {}", resolved_frm.display());
     log_println!(
         " Tamanho Total     : {:>10} bytes ({:.2} MB)",
@@ -59,7 +63,9 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
         file_size as f64 / (1024.0 * 1024.0)
     );
     log_println!(" Cabeçalho Global  : {} (16 bytes)", global_header_hex);
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     log_println!("\n[+] TABELA DE CONTEÚDOS (TOC) — 3 ENTRADAS PERIÓDICAS DE 48 BYTES (0x30):");
     log_println!("    Offset Base da TOC: 0x0010 (após cabeçalho global de 16 bytes)");
@@ -117,10 +123,7 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
         );
         log_println!("    - Destino de Hardware : {}", target_name);
         log_println!("    - Arquitetura Alvo    : {}", arch);
-        log_println!(
-            "    - Família Matsushita  : {} (Bloco 0)",
-            fam_id
-        );
+        log_println!("    - Família Matsushita  : {} (Bloco 0)", fam_id);
         log_println!(
             "    - Seletor de Core     : {} (Bloco 1) {}",
             core_id,
@@ -141,7 +144,13 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
                 5 => "-> Parâmetro Metadados 4 / Hash",
                 _ => "",
             };
-            log_println!("      [{}] 0x{:04X}: {}  {}", b_idx, base_off + b_idx * 8, sb_hex, note);
+            log_println!(
+                "      [{}] 0x{:04X}: {}  {}",
+                b_idx,
+                base_off + b_idx * 8,
+                sb_hex,
+                note
+            );
         }
 
         toc_entries.push(TocEntry {
@@ -223,7 +232,9 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     log_println!("  1. A Partição 2 do HD (704 KB) termina com exatamente 1.280 blocos (10.240 B) de Flash Virgem");
     log_println!("     (0x035065C87BB8E090 em 0x040AD7D0..0x040AFFD0), idênticos aos blocos de padding do .FRM!");
     log_println!("  2. Os blocos nulos (E5D1F34A518B2690) aparecem no cabeçalho das Partições 1 e 2 do HD e em");
-    log_println!("     todas as tabelas zero-fill do Módulo 2 do .FRM, provando a mesmíssima chave e cifra.");
+    log_println!(
+        "     todas as tabelas zero-fill do Módulo 2 do .FRM, provando a mesmíssima chave e cifra."
+    );
 
     let report = FrmTocDumpReport {
         frm_file: resolved_frm.to_string_lossy().to_string(),
@@ -242,9 +253,15 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
         log_println!("\n[+] Relatório JSON exportado: {}", jpath.display());
     }
 
-    log_println!("================================================================================");
-    log_println!(" DUMP DE TOC E ANÁLISE DE MÓDULOS CONCLUÍDOS COM SUCESSO                        ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " DUMP DE TOC E ANÁLISE DE MÓDULOS CONCLUÍDOS COM SUCESSO                        "
+    );
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(report)
 }

@@ -15,8 +15,7 @@ static MV_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static RKM_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(\d+)[vV](\d+)(?:_[a-zA-Z0-9_]+|\b)")
-        .expect("Invalid regex: RKM_PATTERN")
+    Regex::new(r"(?i)\b(\d+)[vV](\d+)(?:_[a-zA-Z0-9_]+|\b)").expect("Invalid regex: RKM_PATTERN")
 });
 
 static STD_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
@@ -24,9 +23,8 @@ static STD_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .expect("Invalid regex: STD_PATTERN")
 });
 
-static HEX_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[0-9A-Fa-f]+\b").expect("Invalid regex: HEX_PATTERN")
-});
+static HEX_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b0x[0-9A-Fa-f]+\b").expect("Invalid regex: HEX_PATTERN"));
 
 static IPL_ERASE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:erase|erasing|wipe|wiping|clear|clearing|destroy|overwrite|program|write|writing)\s+(?:the\s+)?(?:flash\s+)?(?:sectors?\s+)?(?:sa0|sa133|ipl)\b")
@@ -61,14 +59,22 @@ fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
 
 /// Returns a UTF-8 character-boundary-safe slice of `lower_text` around `[match_start, match_end]`
 /// bounded by `radius` bytes and truncated at sentence boundaries (`.`, `;`, `!`, `\n`).
-fn sentence_context_window(lower_text: &str, match_start: usize, match_end: usize, radius: usize) -> &str {
+fn sentence_context_window(
+    lower_text: &str,
+    match_start: usize,
+    match_end: usize,
+    radius: usize,
+) -> &str {
     let safe_start = floor_char_boundary(lower_text, match_start);
     let safe_end = ceil_char_boundary(lower_text, match_end).max(safe_start);
 
     let mut start_ctx = floor_char_boundary(lower_text, safe_start.saturating_sub(radius));
     for p in ['.', ';', '!', '\n'] {
         if let Some(idx) = lower_text[start_ctx..safe_start].rfind(p) {
-            start_ctx = start_ctx.max(ceil_char_boundary(lower_text, start_ctx + idx + p.len_utf8()));
+            start_ctx = start_ctx.max(ceil_char_boundary(
+                lower_text,
+                start_ctx + idx + p.len_utf8(),
+            ));
         }
     }
 
@@ -99,7 +105,12 @@ pub fn extract_voltages_volts(text: &str) -> Vec<(f64, usize, usize, String)> {
             if let Some(num_match) = cap.get(1) {
                 let num_str = num_match.as_str().replace(',', ".");
                 if let Ok(num) = num_str.parse::<f64>() {
-                    results.push((num / 1000.0, m.start(), m.end(), m.as_str().trim().to_string()));
+                    results.push((
+                        num / 1000.0,
+                        m.start(),
+                        m.end(),
+                        m.as_str().trim().to_string(),
+                    ));
                 }
             }
         }
@@ -183,7 +194,10 @@ impl HardwareSafetyValidator {
         // ----------------------------------------------------------------------
         for m in HEX_PATTERN.find_iter(&lower_text) {
             let raw_hex = m.as_str();
-            let addr = match u64::from_str_radix(raw_hex.trim_start_matches("0x").trim_start_matches("0X"), 16) {
+            let addr = match u64::from_str_radix(
+                raw_hex.trim_start_matches("0x").trim_start_matches("0X"),
+                16,
+            ) {
                 Ok(v) => v,
                 Err(_) => continue,
             };
@@ -196,7 +210,15 @@ impl HardwareSafetyValidator {
             }
 
             let address_keywords = [
-                "address", "offset", "flash", "starting at", "from 0x", "sector", "sa0", "sa133", "range",
+                "address",
+                "offset",
+                "flash",
+                "starting at",
+                "from 0x",
+                "sector",
+                "sa0",
+                "sa133",
+                "range",
             ];
             let is_address = raw_hex.len() >= 6
                 || addr >= 0x1000
@@ -221,7 +243,8 @@ impl HardwareSafetyValidator {
             }
 
             let is_ipl_address = (addr <= (FORBIDDEN_FLASH_WRITE_END as u64))
-                || (addr >= (FORBIDDEN_FLASH_BUS_START as u64) && addr <= (FORBIDDEN_FLASH_BUS_END as u64));
+                || (addr >= (FORBIDDEN_FLASH_BUS_START as u64)
+                    && addr <= (FORBIDDEN_FLASH_BUS_END as u64));
 
             if is_ipl_address {
                 let has_local_write = WRITE_ACTION_REGEX.is_match(context_window);
@@ -289,12 +312,19 @@ impl HardwareSafetyValidator {
         // 4. Storage Invariant: MEIHDFS Hard Drive Structure Protection
         // ----------------------------------------------------------------------
         let pc_disk_utils = [
-            "diskpart", "mkfs", "fdisk", "format c:", "format d:", "format e:",
-            "format /fs:ntfs", "format /fs:fat32",
+            "diskpart",
+            "mkfs",
+            "fdisk",
+            "format c:",
+            "format d:",
+            "format e:",
+            "format /fs:ntfs",
+            "format /fs:fat32",
         ];
         for util in pc_disk_utils {
             if let Some(pos) = lower_text.find(util) {
-                let context_window = sentence_context_window(&lower_text, pos, pos + util.len(), 80);
+                let context_window =
+                    sentence_context_window(&lower_text, pos, pos + util.len(), 80);
                 let has_warning = NEGATION_REGEX.is_match(context_window);
                 if is_query || !has_warning {
                     violations.push(format!(

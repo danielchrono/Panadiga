@@ -3,9 +3,9 @@
 //! Manages low-level USB CDC communication, device enumeration, Cold Break-In
 //! sequencing, and in-circuit NVRAM erasure with the Raspberry Pi Pico (RP2040 / RP2350).
 
+use serialport::SerialPortType;
 use std::io::{Read, Write};
 use std::time::Duration;
-use serialport::SerialPortType;
 
 use super::types::{extract_port_name, PicoStatusResponse};
 
@@ -17,8 +17,15 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
         for p in available {
             let mut label = p.port_name.clone();
             if let SerialPortType::UsbPort(info) = &p.port_type {
-                let (_plat, desc) = panadiga::pico::classify_usb_device(info.vid, info.pid, info.product.as_deref());
-                label = format!("{} [{} - VID:{:04X} PID:{:04X}]", p.port_name, desc, info.vid, info.pid);
+                let (_plat, desc) = panadiga::pico::classify_usb_device(
+                    info.vid,
+                    info.pid,
+                    info.product.as_deref(),
+                );
+                label = format!(
+                    "{} [{} - VID:{:04X} PID:{:04X}]",
+                    p.port_name, desc, info.vid, info.pid
+                );
             }
             ports.push(label);
         }
@@ -26,22 +33,35 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
     // Multi-platform bench simulator options for development and headless verification
     ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
     ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
-    ports.push("MOCK_RP2350_RISCV [RP2350 Hazard3 RISC-V Bench Simulator - 520KB SRAM]".to_string());
+    ports
+        .push("MOCK_RP2350_RISCV [RP2350 Hazard3 RISC-V Bench Simulator - 520KB SRAM]".to_string());
     Ok(ports)
 }
 
 /// Connects to a serial port (or initializes mock simulator) and retrieves device telemetry.
-pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoStatusResponse, String> {
+pub fn pico_connect_and_test(
+    port_name: String,
+    baud_rate: u32,
+) -> Result<PicoStatusResponse, String> {
     let clean = extract_port_name(&port_name);
     if clean.starts_with("MOCK") {
         let is_riscv = clean.contains("RISCV") || port_name.contains("RISCV");
         let is_rp2350 = clean.contains("2350") || port_name.contains("2350");
         let (soc_name, sram_desc) = if is_riscv {
-            ("RP2350 (Pico 2 RISC-V Hazard3)", "520 KB SRAM / 64 KB Cache Setor")
+            (
+                "RP2350 (Pico 2 RISC-V Hazard3)",
+                "520 KB SRAM / 64 KB Cache Setor",
+            )
         } else if is_rp2350 {
-            ("RP2350 (Pico 2 ARM Cortex-M33)", "520 KB SRAM / 64 KB Cache Setor")
+            (
+                "RP2350 (Pico 2 ARM Cortex-M33)",
+                "520 KB SRAM / 64 KB Cache Setor",
+            )
         } else {
-            ("RP2040 (Pico 1 Dual Cortex-M0+)", "264 KB SRAM / 8 KB Cache Microsetor")
+            (
+                "RP2040 (Pico 1 Dual Cortex-M0+)",
+                "264 KB SRAM / 8 KB Cache Microsetor",
+            )
         };
 
         return Ok(PicoStatusResponse {
@@ -81,14 +101,22 @@ pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoSt
 
     let mut vdd_volts = 3.30f32;
     for token in vdd_text.split_whitespace() {
-        if let Ok(v) = token.trim_end_matches('V').trim_end_matches('v').parse::<f32>() {
+        if let Ok(v) = token
+            .trim_end_matches('V')
+            .trim_end_matches('v')
+            .parse::<f32>()
+        {
             vdd_volts = v;
             break;
         }
     }
 
     let is_pico2 = response_text.contains("RP2350") || response_text.contains("Pico 2");
-    let dev_label = if is_pico2 { "Raspberry Pi Pico 2 (RP2350)" } else { "Raspberry Pi Pico (RP2040)" };
+    let dev_label = if is_pico2 {
+        "Raspberry Pi Pico 2 (RP2350)"
+    } else {
+        "Raspberry Pi Pico (RP2040)"
+    };
 
     let banner = if response_text.is_empty() {
         format!("{} Conectado em {}", dev_label, clean)
@@ -104,7 +132,10 @@ pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoSt
         target_powered: vdd_volts >= 2.8,
         firmware_banner: banner,
         is_mock: false,
-        message: format!("{} operacional na porta. VDD detectado: {:.2}V.", dev_label, vdd_volts),
+        message: format!(
+            "{} operacional na porta. VDD detectado: {:.2}V.",
+            dev_label, vdd_volts
+        ),
     })
 }
 
@@ -120,7 +151,7 @@ pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String,
             _ => ("Mode Custom", "HIGH"),
         };
         let log = format!(
-r#"[Cold Break-In] Executando rotina de captura de inicialização ({mode_name})...
+            r#"[Cold Break-In] Executando rotina de captura de inicialização ({mode_name})...
 [Hardware] nRESET colocado em nível BAIXO (D_RESET assertado no barramento AM34).
 [Hardware] Amostragem de VDD via ADC0 (GP26): 3.32 V (Tensão da Digital Board nominal).
 [Hardware] Linha EXTRG (GP2) configurada em {extrg_state}. Habilitando PIO0 SM0.
@@ -144,7 +175,8 @@ r#"[Cold Break-In] Executando rotina de captura de inicialização ({mode_name})
         .map_err(|e| format!("Falha ao enviar comando BREAK_IN: {}", e))?;
 
     let mut buffer = [0u8; 4096];
-    let bytes_read = port.read(&mut buffer)
+    let bytes_read = port
+        .read(&mut buffer)
         .map_err(|e| format!("Falha aguardando resposta do Pico: {}", e))?;
 
     Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
@@ -186,7 +218,8 @@ pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String
         .map_err(|e| format!("Falha ao enviar comando ERASE_NVRAM: {}", e))?;
 
     let mut buffer = [0u8; 8192];
-    let bytes_read = port.read(&mut buffer)
+    let bytes_read = port
+        .read(&mut buffer)
         .map_err(|e| format!("Falha aguardando conclusão do erase no Pico: {}", e))?;
 
     Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
@@ -208,7 +241,8 @@ pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
         .map_err(|e| format!("Falha ao enviar comando GDB: {}", e))?;
 
     let mut buffer = [0u8; 1024];
-    let bytes_read = port.read(&mut buffer)
+    let bytes_read = port
+        .read(&mut buffer)
         .map_err(|e| format!("Falha aguardando confirmação do modo GDB: {}", e))?;
 
     Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())

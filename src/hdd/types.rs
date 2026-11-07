@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// MBR structure inspection report.
 #[derive(Debug, Clone, Serialize, Deserialize)]

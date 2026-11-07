@@ -81,7 +81,11 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                 l
             }
             Err(e) => {
-                panadiga::log_warn!("[GDB Bridge] Falha ao vincular porta TCP {}: {}", thread_addr, e);
+                panadiga::log_warn!(
+                    "[GDB Bridge] Falha ao vincular porta TCP {}: {}",
+                    thread_addr,
+                    e
+                );
                 running_flag.store(false, Ordering::Relaxed);
                 return;
             }
@@ -98,7 +102,9 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                         let _ = tcp_stream.set_read_timeout(Some(Duration::from_millis(200)));
 
                         let mut buf = [0u8; 1024];
-                        while running_flag.load(Ordering::Relaxed) && connected_flag.load(Ordering::Relaxed) {
+                        while running_flag.load(Ordering::Relaxed)
+                            && connected_flag.load(Ordering::Relaxed)
+                        {
                             match tcp_stream.read(&mut buf) {
                                 Ok(0) => break,
                                 Ok(n) => {
@@ -110,7 +116,9 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                                         .unwrap_or(&packet)
                                         .trim_start_matches('+');
                                     if cmd.starts_with("qSupported") {
-                                        let _ = tcp_stream.write_all(b"+$PacketSize=800;qXfer:memory-map:read+#3f");
+                                        let _ = tcp_stream.write_all(
+                                            b"+$PacketSize=800;qXfer:memory-map:read+#3f",
+                                        );
                                     } else if cmd.starts_with('?') {
                                         let _ = tcp_stream.write_all(b"+$S05#b8");
                                     } else if cmd == "g" {
@@ -125,7 +133,10 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                                         let _ = tcp_stream.write_all(b"+$#00");
                                     }
                                 }
-                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {
+                                Err(ref e)
+                                    if e.kind() == std::io::ErrorKind::WouldBlock
+                                        || e.kind() == std::io::ErrorKind::TimedOut =>
+                                {
                                     thread::sleep(Duration::from_millis(10));
                                 }
                                 Err(_) => break,
@@ -147,7 +158,11 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
             {
                 Ok(p) => p,
                 Err(e) => {
-                    panadiga::log_warn!("[GDB Bridge] Falha ao abrir porta serial {}: {}", thread_port, e);
+                    panadiga::log_warn!(
+                        "[GDB Bridge] Falha ao abrir porta serial {}: {}",
+                        thread_port,
+                        e
+                    );
                     running_flag.store(false, Ordering::Relaxed);
                     return;
                 }
@@ -166,14 +181,18 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                         let mut s_buf = [0u8; 1024];
                         let mut t_buf = [0u8; 1024];
 
-                        while running_flag.load(Ordering::Relaxed) && connected_flag.load(Ordering::Relaxed) {
+                        while running_flag.load(Ordering::Relaxed)
+                            && connected_flag.load(Ordering::Relaxed)
+                        {
                             // Read TCP -> Write Serial
                             match tcp_stream.read(&mut t_buf) {
                                 Ok(0) => break,
                                 Ok(n) => {
                                     let _ = serial_port.write_all(&t_buf[..n]);
                                 }
-                                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {}
+                                Err(ref e)
+                                    if e.kind() == std::io::ErrorKind::WouldBlock
+                                        || e.kind() == std::io::ErrorKind::TimedOut => {}
                                 Err(_) => break,
                             }
 
@@ -216,7 +235,10 @@ pub fn stop_gdb_bridge() -> Result<GdbBridgeStatus, String> {
 
     // Wake up listener if blocking
     let addr = ctrl.listen_addr.lock().unwrap().clone();
-    let _ = TcpStream::connect_timeout(&addr.parse().unwrap_or("127.0.0.1:3333".parse().unwrap()), Duration::from_millis(100));
+    let _ = TcpStream::connect_timeout(
+        &addr.parse().unwrap_or("127.0.0.1:3333".parse().unwrap()),
+        Duration::from_millis(100),
+    );
 
     if let Some(h) = ctrl.thread_handle.lock().unwrap().take() {
         let _ = h.join();

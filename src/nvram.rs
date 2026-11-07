@@ -76,7 +76,10 @@ pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
 }
 
 /// Executes the complete NVRAM clean, backup, audit, and verification workflow.
-pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Result<NvramCleanReport> {
+pub fn clean_flash_nvram(
+    input_path: &Path,
+    output_path: Option<&Path>,
+) -> Result<NvramCleanReport> {
     let resolved_input = resolve_input_path(input_path)?;
 
     // Determine output file path
@@ -158,7 +161,12 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
 
     let (orig_md5, orig_sha256) = calculate_hashes(&flash_bytes);
     let size_mb = flash_len as f64 / (1024.0 * 1024.0);
-    log_println!("  Dump Size    : {} bytes ({:.2} MB / {} Mbit)", flash_len, size_mb, (flash_len * 8) / (1024 * 1024));
+    log_println!(
+        "  Dump Size    : {} bytes ({:.2} MB / {} Mbit)",
+        flash_len,
+        size_mb,
+        (flash_len * 8) / (1024 * 1024)
+    );
     log_println!("  Original MD5 : {}", orig_md5);
     log_println!("  Orig SHA-256 : {}", orig_sha256);
     log_println!("----------------------------------------------------------------------");
@@ -177,18 +185,39 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         nvram_base_offset,
         nvram_end_offset - 1
     );
-    log_println!("     -> {} ({} bytes)", backup_nvram_path.display(), nvram_slice.len());
+    log_println!(
+        "     -> {} ({} bytes)",
+        backup_nvram_path.display(),
+        nvram_slice.len()
+    );
 
     // Perform deep content audit on the NVRAM block
-    let non_ff = nvram_slice.iter().filter(|&&b| b != FLASH_ERASED_BYTE).count();
+    let non_ff = nvram_slice
+        .iter()
+        .filter(|&&b| b != FLASH_ERASED_BYTE)
+        .count();
     let non_zero = nvram_slice.iter().filter(|&&b| b != 0x00).count();
     let pct_non_ff = (non_ff as f64 / SPANSION_NVRAM_SIZE_BYTES as f64) * 100.0;
     let pct_non_zero = (non_zero as f64 / SPANSION_NVRAM_SIZE_BYTES as f64) * 100.0;
 
     log_println!("\n[+] ANALISE ESTRUTURAL DA NVRAM CORROMPIDA:");
-    log_println!("    * Bytes nao-FF (dados gravados) : {:6} / {} ({:.2}%)", non_ff, SPANSION_NVRAM_SIZE_BYTES, pct_non_ff);
-    log_println!("    * Bytes nao-zero                : {:6} / {} ({:.2}%)", non_zero, SPANSION_NVRAM_SIZE_BYTES, pct_non_zero);
-    log_println!("\n    * Auditoria Detalhada dos 8 Micro-Setores (SA{} a SA{} - 8 KB cada):", base_sector_idx, base_sector_idx + 7);
+    log_println!(
+        "    * Bytes nao-FF (dados gravados) : {:6} / {} ({:.2}%)",
+        non_ff,
+        SPANSION_NVRAM_SIZE_BYTES,
+        pct_non_ff
+    );
+    log_println!(
+        "    * Bytes nao-zero                : {:6} / {} ({:.2}%)",
+        non_zero,
+        SPANSION_NVRAM_SIZE_BYTES,
+        pct_non_zero
+    );
+    log_println!(
+        "\n    * Auditoria Detalhada dos 8 Micro-Setores (SA{} a SA{} - 8 KB cada):",
+        base_sector_idx,
+        base_sector_idx + 7
+    );
     log_println!("    +-------+----------+--------------------+-------------------------+");
     log_println!("    | Setor |  Offset  | Ativos (Nao-0xFF)  | Header (Primeiros 8B)   |");
     log_println!("    +-------+----------+--------------------+-------------------------+");
@@ -197,7 +226,10 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     for idx in 0..SPANSION_MICROSECTOR_COUNT {
         let sec_offset = idx * SPANSION_MICROSECTOR_SIZE;
         let sec_slice = &nvram_slice[sec_offset..sec_offset + SPANSION_MICROSECTOR_SIZE];
-        let used = sec_slice.iter().filter(|&&b| b != FLASH_ERASED_BYTE).count();
+        let used = sec_slice
+            .iter()
+            .filter(|&&b| b != FLASH_ERASED_BYTE)
+            .count();
         let header_hex = hex::encode_upper(&sec_slice[..8]);
         let sec_name = format!("SA{}", base_sector_idx + idx);
         let abs_offset = nvram_base_offset + sec_offset;
@@ -234,12 +266,19 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     if flash_bytes[..bootloader_size] != original_os_bytes[..] {
         bail!("[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x{:08X}) was modified during clean! Aborting.", bootloader_size);
     }
-    log_println!("\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)", bootloader_size);
+    log_println!(
+        "\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)",
+        bootloader_size
+    );
     log_println!("     Bit-a-bit 100% IDENTICA E IMUTAVEL.");
 
     // Write clean binary
-    fs::write(&resolved_output, &flash_bytes)
-        .with_context(|| format!("Failed writing clean binary to {}", resolved_output.display()))?;
+    fs::write(&resolved_output, &flash_bytes).with_context(|| {
+        format!(
+            "Failed writing clean binary to {}",
+            resolved_output.display()
+        )
+    })?;
 
     let (clean_md5, clean_sha256) = calculate_hashes(&flash_bytes);
     log_println!("----------------------------------------------------------------------");

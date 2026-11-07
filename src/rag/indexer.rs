@@ -12,33 +12,41 @@ use super::models::{Chunk, ChunkMetadata, SubsystemType};
 
 pub const STOPWORDS: &[&str] = &[
     "a", "about", "above", "after", "again", "against", "all", "am", "an", "and", "any", "are",
-    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but", "by",
-    "can", "cannot", "could", "did", "do", "does", "doing", "down", "during", "each", "few", "for",
-    "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "him", "his",
-    "how", "i", "if", "in", "into", "is", "it", "its", "itself", "me", "more", "most", "my", "myself",
-    "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "our", "ours", "out", "over",
-    "own", "same", "she", "should", "so", "some", "such", "than", "that", "the", "their", "theirs",
-    "them", "then", "there", "these", "they", "this", "those", "through", "to", "too", "under",
-    "until", "up", "very", "was", "we", "were", "what", "when", "where", "which", "while", "who",
-    "whom", "why", "with", "would", "you", "your", "yours",
-    "da", "de", "do", "das", "dos", "em", "no", "na", "nos", "nas", "para", "por", "com", "um", "uma",
+    "as", "at", "be", "because", "been", "before", "being", "below", "between", "both", "but",
+    "by", "can", "cannot", "could", "did", "do", "does", "doing", "down", "during", "each", "few",
+    "for", "from", "further", "had", "has", "have", "having", "he", "her", "here", "hers", "him",
+    "his", "how", "i", "if", "in", "into", "is", "it", "its", "itself", "me", "more", "most", "my",
+    "myself", "no", "nor", "not", "of", "off", "on", "once", "only", "or", "other", "our", "ours",
+    "out", "over", "own", "same", "she", "should", "so", "some", "such", "than", "that", "the",
+    "their", "theirs", "them", "then", "there", "these", "they", "this", "those", "through", "to",
+    "too", "under", "until", "up", "very", "was", "we", "were", "what", "when", "where", "which",
+    "while", "who", "whom", "why", "with", "would", "you", "your", "yours", "da", "de", "do",
+    "das", "dos", "em", "no", "na", "nos", "nas", "para", "por", "com", "um", "uma",
 ];
 
-static TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[0-9A-Fa-f]+\b|[A-Za-z0-9_#/]+").unwrap()
-});
+static TOKEN_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b0x[0-9A-Fa-f]+\b|[A-Za-z0-9_#/]+").unwrap());
 
-static STOPWORDS_SET: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    STOPWORDS.iter().copied().collect()
-});
+static STOPWORDS_SET: LazyLock<HashSet<&'static str>> =
+    LazyLock::new(|| STOPWORDS.iter().copied().collect());
 
 /// Tokenizes text preserving hexadecimal values, IC numbers, pins, and error codes.
 pub fn technical_tokenize(text: &str, filter_stopwords: bool) -> Vec<String> {
     let mut tokens = Vec::new();
     for m in TOKEN_REGEX.find_iter(text) {
         let tok = m.as_str().trim_matches(|c: char| {
-            c == '.' || c == ',' || c == ';' || c == ':' || c == '(' || c == ')'
-                || c == '[' || c == ']' || c == '{' || c == '}' || c == '\'' || c == '"'
+            c == '.'
+                || c == ','
+                || c == ';'
+                || c == ':'
+                || c == '('
+                || c == ')'
+                || c == '['
+                || c == ']'
+                || c == '{'
+                || c == '}'
+                || c == '\''
+                || c == '"'
         });
         if tok.is_empty() {
             continue;
@@ -205,7 +213,8 @@ impl VectorIndex {
 
             for (term, count) in counts {
                 if let Some(&term_id) = self.vocab.get(term) {
-                    let weight = (1.0 + (count as f64).ln()) * self.idf.get(term).copied().unwrap_or(1.0);
+                    let weight =
+                        (1.0 + (count as f64).ln()) * self.idf.get(term).copied().unwrap_or(1.0);
                     vec.insert(term_id, weight);
                     norm_sq += weight * weight;
                 }
@@ -239,7 +248,11 @@ impl VectorIndex {
             }
         }
 
-        let q_norm = if q_norm_sq > 0.0 { q_norm_sq.sqrt() } else { 1.0 };
+        let q_norm = if q_norm_sq > 0.0 {
+            q_norm_sq.sqrt()
+        } else {
+            1.0
+        };
         if q_norm == 0.0 {
             return vec![0.0; corpus_size];
         }
@@ -297,7 +310,10 @@ fn flush_chunk(
 
     if text_block.len() >= 30 {
         let start_line = lines_buf[0].0;
-        let stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("doc");
+        let stem = file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("doc");
         let cid = format!("{}::L{}-L{}", stem, start_line, end_line);
 
         let meta_query = guard.process(&text_block);
@@ -342,15 +358,30 @@ impl HierarchicalIndexer {
             .to_lowercase();
         let content_lower = content.to_lowercase();
 
-        if filename_lower.contains("dwire") || filename_lower.contains("hardware") || filename_lower.contains("esquema") {
+        if filename_lower.contains("dwire")
+            || filename_lower.contains("hardware")
+            || filename_lower.contains("esquema")
+        {
             SubsystemType::Hardware
-        } else if filename_lower.contains("meihdfs") || filename_lower.contains("hdd") || filename_lower.contains("alocacao") {
+        } else if filename_lower.contains("meihdfs")
+            || filename_lower.contains("hdd")
+            || filename_lower.contains("alocacao")
+        {
             SubsystemType::Storage
-        } else if filename_lower.contains("frm") || filename_lower.contains("crypto") || filename_lower.contains("aes") {
+        } else if filename_lower.contains("frm")
+            || filename_lower.contains("crypto")
+            || filename_lower.contains("aes")
+        {
             SubsystemType::Crypto
-        } else if filename_lower.contains("ghidra") || filename_lower.contains("gdb") || filename_lower.contains("reverse") {
+        } else if filename_lower.contains("ghidra")
+            || filename_lower.contains("gdb")
+            || filename_lower.contains("reverse")
+        {
             SubsystemType::ReverseEngineering
-        } else if content_lower.contains("boot") || content_lower.contains("ipl") || content_lower.contains("flash") {
+        } else if content_lower.contains("boot")
+            || content_lower.contains("ipl")
+            || content_lower.contains("flash")
+        {
             SubsystemType::Firmware
         } else {
             SubsystemType::General
@@ -403,10 +434,17 @@ impl HierarchicalIndexer {
                 if level == 1 {
                     current_hierarchy = vec![heading_text];
                 } else if level == 2 {
-                    let first = current_hierarchy.first().cloned().unwrap_or_else(|| doc_title.clone());
+                    let first = current_hierarchy
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| doc_title.clone());
                     current_hierarchy = vec![first, heading_text];
                 } else if current_hierarchy.len() >= 2 {
-                    current_hierarchy = vec![current_hierarchy[0].clone(), current_hierarchy[1].clone(), heading_text];
+                    current_hierarchy = vec![
+                        current_hierarchy[0].clone(),
+                        current_hierarchy[1].clone(),
+                        heading_text,
+                    ];
                 } else {
                     current_hierarchy.push(heading_text);
                 }

@@ -22,8 +22,7 @@ pub const SPANSION_NVRAM_BASE_OFFSET: usize = 0x007F_0000;
 pub const SPANSION_NVRAM_SIZE_BYTES: usize = 64 * 1024; // 65,536 bytes
 
 /// End memory offset of the NVRAM area (must equal `SPANSION_FLASH_SIZE_BYTES`).
-pub const SPANSION_NVRAM_END_OFFSET: usize =
-    SPANSION_NVRAM_BASE_OFFSET + SPANSION_NVRAM_SIZE_BYTES;
+pub const SPANSION_NVRAM_END_OFFSET: usize = SPANSION_NVRAM_BASE_OFFSET + SPANSION_NVRAM_SIZE_BYTES;
 
 /// Size of each individual hardware micro-sector within the top 64 KB bank.
 /// In the Spansion top-boot architecture (Model S29JL064H), the top 64 KB sector
@@ -51,14 +50,11 @@ pub const LBA_SECTOR_SIZE_BYTES: usize = 512;
 /// Bytes 0x00-0x03: 0x00000000 (Reserved)
 /// Bytes 0x04-0x05: 0x0100 (Format Revision 1.0, little-endian)
 /// Bytes 0x06-0x07: 0x53, 0x48 ("SH" in ASCII -> System Storage Header)
-pub const PANASONIC_HDD_MBR_SIGNATURE: [u8; 8] = [
-    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x53, 0x48,
-];
+pub const PANASONIC_HDD_MBR_SIGNATURE: [u8; 8] = [0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x53, 0x48];
 
 /// Full 16-byte header seen on DMR-EH55 LBA 0 (including Disk Volume GUID).
 pub const PANASONIC_HDD_MBR_FULL_SIGNATURE: [u8; 16] = [
-    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x53, 0x48,
-    0x62, 0x8C, 0x6E, 0xF5, 0x1B, 0x2C, 0x36, 0x66,
+    0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x53, 0x48, 0x62, 0x8C, 0x6E, 0xF5, 0x1B, 0x2C, 0x36, 0x66,
 ];
 
 /// Standard IBM PC MBR boot signature (0x55AA at offsets 510..512).
@@ -67,9 +63,7 @@ pub const STANDARD_MBR_BOOT_SIGNATURE: [u8; 2] = [0x55, 0xAA];
 
 /// Proprietary Panasonic Partition Header Magic (8 bytes).
 /// Marks the starting boundary of embedded firmware images and system containers.
-pub const PANASONIC_HDD_PARTITION_MAGIC: [u8; 8] = [
-    0x51, 0x87, 0x13, 0x8D, 0x5B, 0x0A, 0xFB, 0x22,
-];
+pub const PANASONIC_HDD_PARTITION_MAGIC: [u8; 8] = [0x51, 0x87, 0x13, 0x8D, 0x5B, 0x0A, 0xFB, 0x22];
 
 // ============================================================================
 // 3. Disk Layout Offsets, Mirror Tables & Partition Dimensions
@@ -129,39 +123,28 @@ pub const CIPHER_BLOCK_SIZE: usize = 8;
 
 /// ECB Ciphertext Leak Pattern: 8 zero-bytes (`00 00 00 00 00 00 00 00`).
 /// Appears in padding regions of encrypted partitions and in PANA_DVD.FRM (196 occurrences).
-pub const ECB_NULL_BLOCK_8B: [u8; 8] = [
-    0xE5, 0xD1, 0xF3, 0x4A, 0x51, 0x8B, 0x26, 0x90,
-];
+pub const ECB_NULL_BLOCK_8B: [u8; 8] = [0xE5, 0xD1, 0xF3, 0x4A, 0x51, 0x8B, 0x26, 0x90];
 
 /// ECB Ciphertext Leak Pattern: 8 virgin flash bytes (`FF FF FF FF FF FF FF FF`).
 /// Appears 3,812 times in PANA_DVD.FRM (over 30 KB of unprogrammed flash padding).
-pub const ECB_VIRGIN_FLASH_8B: [u8; 8] = [
-    0x03, 0x50, 0x65, 0xC8, 0x7B, 0xB8, 0xE0, 0x90,
-];
+pub const ECB_VIRGIN_FLASH_8B: [u8; 8] = [0x03, 0x50, 0x65, 0xC8, 0x7B, 0xB8, 0xE0, 0x90];
 
 /// ECB Ciphertext Leak Pattern: Common partition header repeated structure.
 /// Appears 1,280 times in PANA_DVD.FRM.
-pub const ECB_COMMON_STRUCT_8B: [u8; 8] = [
-    0x4D, 0x3C, 0x5D, 0xBB, 0x0C, 0x35, 0x77, 0x77,
-];
+pub const ECB_COMMON_STRUCT_8B: [u8; 8] = [0x4D, 0x3C, 0x5D, 0xBB, 0x0C, 0x35, 0x77, 0x77];
 
 /// Size of each Table of Contents (TOC) entry descriptor in PANA_DVD.FRM (48 bytes).
 pub const PANA_FRM_TOC_ENTRY_SIZE: usize = 0x30; // 48 bytes
 
 /// Repeated 8-byte sub-block at TOC offsets 0x0010, 0x0040, 0x0070.
-pub const PANA_FRM_TOC_SUBBLOCK_1: [u8; 8] = [
-    0xEF, 0xDC, 0x1C, 0xDA, 0x13, 0x88, 0x1B, 0xAB,
-];
+pub const PANA_FRM_TOC_SUBBLOCK_1: [u8; 8] = [0xEF, 0xDC, 0x1C, 0xDA, 0x13, 0x88, 0x1B, 0xAB];
 
 /// Repeated 8-byte sub-block at TOC offsets 0x0018 and 0x0078.
-pub const PANA_FRM_TOC_SUBBLOCK_2: [u8; 8] = [
-    0x74, 0xA7, 0x8A, 0xCD, 0x78, 0x9B, 0x84, 0xFF,
-];
+pub const PANA_FRM_TOC_SUBBLOCK_2: [u8; 8] = [0x74, 0xA7, 0x8A, 0xCD, 0x78, 0x9B, 0x84, 0xFF];
 
 /// Global 16-byte container header for PANA_DVD.FRM.
 pub const PANA_FRM_GLOBAL_HEADER: [u8; 16] = [
-    0x49, 0x2F, 0x05, 0x60, 0xCE, 0xDE, 0x50, 0x8C,
-    0xE3, 0xC0, 0x8A, 0xFD, 0x49, 0xB6, 0x4A, 0x9A,
+    0x49, 0x2F, 0x05, 0x60, 0xCE, 0xDE, 0x50, 0x8C, 0xE3, 0xC0, 0x8A, 0xFD, 0x49, 0xB6, 0x4A, 0x9A,
 ];
 
 /// Global container header size in PANA_DVD.FRM (16 bytes = 0x10).
@@ -174,14 +157,10 @@ pub const PANA_FRM_TOC_ENTRY_COUNT: usize = 3;
 pub const PANA_FRM_TOC_TOTAL_SIZE: usize = PANA_FRM_TOC_ENTRY_COUNT * PANA_FRM_TOC_ENTRY_SIZE;
 
 /// Target descriptor for Optical Drive Servo MN102/DSP at TOC Entry 1 (offset 0x0048).
-pub const PANA_FRM_TOC_DRIVE_TARGET_8B: [u8; 8] = [
-    0x3B, 0x7E, 0x7E, 0xDB, 0xB6, 0xC5, 0x7A, 0x53,
-];
+pub const PANA_FRM_TOC_DRIVE_TARGET_8B: [u8; 8] = [0x3B, 0x7E, 0x7E, 0xDB, 0xB6, 0xC5, 0x7A, 0x53];
 
 /// Target descriptor for AM34 / MN103x RISC at TOC Entries 0 and 2 (offsets 0x0018, 0x0078).
-pub const PANA_FRM_TOC_AM34_TARGET_8B: [u8; 8] = [
-    0x74, 0xA7, 0x8A, 0xCD, 0x78, 0x9B, 0x84, 0xFF,
-];
+pub const PANA_FRM_TOC_AM34_TARGET_8B: [u8; 8] = [0x74, 0xA7, 0x8A, 0xCD, 0x78, 0x9B, 0x84, 0xFF];
 
 /// Offset where the encrypted payload begins in PANA_DVD.FRM (0x00A0).
 pub const PANA_FRM_PAYLOAD_OFFSET: usize = 0x00A0;
@@ -312,5 +291,3 @@ pub const AM34_ASIC_MMIO_SIZE: u32 = 0x0001_0000;
 pub const AM34_PATA_MMIO_BASE: u32 = 0xD400_0000;
 /// PATA / IDE Controller Space Size (4 Kilobytes).
 pub const AM34_PATA_MMIO_SIZE: u32 = 0x0000_1000;
-
-

@@ -66,37 +66,38 @@ pub fn scan_data_strings(
 
     let kw_lower: Vec<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
 
-    let evaluate_candidate = |start: usize, end: usize, total: &mut usize, acc: &mut Vec<StringMatch>| {
-        let len = end - start;
-        if len >= min_length {
-            *total += 1;
-            let slice = &data[start..end];
-            if let Ok(text) = std::str::from_utf8(slice) {
-                let text_lower = text.to_lowercase();
-                let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
+    let evaluate_candidate =
+        |start: usize, end: usize, total: &mut usize, acc: &mut Vec<StringMatch>| {
+            let len = end - start;
+            if len >= min_length {
+                *total += 1;
+                let slice = &data[start..end];
+                if let Ok(text) = std::str::from_utf8(slice) {
+                    let text_lower = text.to_lowercase();
+                    let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
 
-                if !kw_lower.is_empty() {
-                    if let Some(kw) = matched_kw {
-                        if limit == 0 || acc.len() < limit {
-                            acc.push(StringMatch {
-                                offset: start,
-                                offset_hex: format!("0x{:08X}", start),
-                                text: text.to_string(),
-                                matched_keyword: Some(kw.clone()),
-                            });
+                    if !kw_lower.is_empty() {
+                        if let Some(kw) = matched_kw {
+                            if limit == 0 || acc.len() < limit {
+                                acc.push(StringMatch {
+                                    offset: start,
+                                    offset_hex: format!("0x{:08X}", start),
+                                    text: text.to_string(),
+                                    matched_keyword: Some(kw.clone()),
+                                });
+                            }
                         }
+                    } else if limit == 0 || acc.len() < limit {
+                        acc.push(StringMatch {
+                            offset: start,
+                            offset_hex: format!("0x{:08X}", start),
+                            text: text.to_string(),
+                            matched_keyword: None,
+                        });
                     }
-                } else if limit == 0 || acc.len() < limit {
-                    acc.push(StringMatch {
-                        offset: start,
-                        offset_hex: format!("0x{:08X}", start),
-                        text: text.to_string(),
-                        matched_keyword: None,
-                    });
                 }
             }
-        }
-    };
+        };
 
     for (i, &b) in data.iter().enumerate() {
         let is_valid_char = b.is_ascii_alphanumeric()
@@ -146,9 +147,13 @@ pub fn run_deep_scan(
             .collect(),
     };
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" PANASONIC FORENSIC ZERO-COPY BINARY SCANNER");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Target File     : {}", resolved.display());
     log_println!(" File Size       : {} bytes", mmap.len());
     log_println!(" Min String Len  : {} chars", min_length);
@@ -160,7 +165,9 @@ pub fn run_deep_scan(
             keywords.join(", ")
         }
     );
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     let (total_strings, matches) = scan_data_strings(&mmap, min_length, &keywords, limit);
 
@@ -179,10 +186,15 @@ pub fn run_deep_scan(
     }
 
     if limit > 0 && matches.len() >= limit {
-        log_println!("  ... [Output limited to {} matches. Use --limit 0 for all] ...", limit);
+        log_println!(
+            "  ... [Output limited to {} matches. Use --limit 0 for all] ...",
+            limit
+        );
     }
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
 
     let report = ScanReport {
         file_path: resolved.to_string_lossy().to_string(),

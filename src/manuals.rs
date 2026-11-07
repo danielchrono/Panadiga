@@ -56,12 +56,18 @@ pub fn search_manuals(
             .collect(),
     };
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" PANASONIC DMR-EH55 SERVICE MANUALS & SCHEMATICS INDEXER");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Directory : {}", manuals_dir.display());
     log_println!(" Terms     : {}", terms.join(", "));
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     if !manuals_dir.exists() {
         anyhow::bail!("Manuals directory not found: {}", manuals_dir.display());
@@ -75,7 +81,13 @@ pub fn search_manuals(
             if let Some(ext) = p.extension() {
                 if ext.to_string_lossy().eq_ignore_ascii_case("pdf") {
                     if let Some(filt) = filter_filename {
-                        if !p.file_name().unwrap().to_string_lossy().to_lowercase().contains(&filt.to_lowercase()) {
+                        if !p
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .to_lowercase()
+                            .contains(&filt.to_lowercase())
+                        {
                             continue;
                         }
                     }
@@ -88,7 +100,10 @@ pub fn search_manuals(
     pdf_files.sort();
 
     if pdf_files.is_empty() {
-        log_println!("[!] No PDF documents matched the criteria in {}", manuals_dir.display());
+        log_println!(
+            "[!] No PDF documents matched the criteria in {}",
+            manuals_dir.display()
+        );
         return Ok(Vec::new());
     }
 
@@ -131,7 +146,8 @@ pub fn search_manuals(
         for (t, pages_found) in &term_matches {
             if !pages_found.is_empty() {
                 found_count += 1;
-                let preview: Vec<String> = pages_found.iter().take(10).map(|p| p.to_string()).collect();
+                let preview: Vec<String> =
+                    pages_found.iter().take(10).map(|p| p.to_string()).collect();
                 let more = if pages_found.len() > 10 { "..." } else { "" };
                 log_println!(
                     "    [{}] {} occurrences on pages: {}{}",
@@ -155,6 +171,8 @@ pub fn search_manuals(
         });
     }
 
-    log_println!("\n================================================================================");
+    log_println!(
+        "\n================================================================================"
+    );
     Ok(all_results)
 }

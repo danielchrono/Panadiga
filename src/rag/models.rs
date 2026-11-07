@@ -177,13 +177,33 @@ impl RagAnswer {
                 })
                 .collect(),
             safety: RagSafetyDto {
-                is_safe: self.safety_report.as_ref().map(|s| s.is_safe).unwrap_or(true),
-                violations: self.safety_report.as_ref().map(|s| s.violations.clone()).unwrap_or_default(),
-                alerts: self.safety_report.as_ref().map(|s| s.critical_alerts.clone()).unwrap_or_default(),
+                is_safe: self
+                    .safety_report
+                    .as_ref()
+                    .map(|s| s.is_safe)
+                    .unwrap_or(true),
+                violations: self
+                    .safety_report
+                    .as_ref()
+                    .map(|s| s.violations.clone())
+                    .unwrap_or_default(),
+                alerts: self
+                    .safety_report
+                    .as_ref()
+                    .map(|s| s.critical_alerts.clone())
+                    .unwrap_or_default(),
             },
             critic: RagCriticDto {
-                is_faithful: self.critic_report.as_ref().map(|c| c.is_faithful).unwrap_or(true),
-                ungrounded_entities: self.critic_report.as_ref().map(|c| c.ungrounded_entities.clone()).unwrap_or_default(),
+                is_faithful: self
+                    .critic_report
+                    .as_ref()
+                    .map(|c| c.is_faithful)
+                    .unwrap_or(true),
+                ungrounded_entities: self
+                    .critic_report
+                    .as_ref()
+                    .map(|c| c.ungrounded_entities.clone())
+                    .unwrap_or_default(),
             },
             retrieved_chunks_count: self.retrieved_chunks_count,
             execution_time_ms: (self.execution_time_ms * 100.0).round() / 100.0,

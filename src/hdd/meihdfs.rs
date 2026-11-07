@@ -206,7 +206,8 @@ pub fn decode_meihdfs_descriptors(
     }
 
     // Group Extents
-    let mut extents_map: BTreeMap<u16, (Option<usize>, Vec<MeihdfsExtentSegment>)> = BTreeMap::new();
+    let mut extents_map: BTreeMap<u16, (Option<usize>, Vec<MeihdfsExtentSegment>)> =
+        BTreeMap::new();
     for rec in &records {
         if let Some(id) = rec.extent_id {
             let entry = extents_map.entry(id).or_insert((None, Vec::new()));
@@ -282,9 +283,15 @@ pub fn decode_meihdfs_descriptors(
     }
 
     // Print Rich Console Telemetry
-    log_println!("================================================================================");
-    log_println!(" PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER             ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER             "
+    );
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Arquivo Analisado : {}", resolved.display());
     log_println!(
         " Modo de Origem    : {}",
@@ -309,16 +316,27 @@ pub fn decode_meihdfs_descriptors(
         " Total de Registros: {} registros (16 bytes cada, decodificados via NOT/XOR 0xFF)",
         records.len()
     );
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
     log_println!(" DISTRIBUICAO DE TAGS DECRIPTO-FORENSES (ONE'S COMPLEMENT):");
     for (tag_name, count) in &tag_distribution {
         let pct = (*count as f64 / records.len() as f64) * 100.0;
-        log_println!("   * {:<24} : {:>3} registros ({:5.2}%)", tag_name, count, pct);
+        log_println!(
+            "   * {:<24} : {:>3} registros ({:5.2}%)",
+            tag_name,
+            count,
+            pct
+        );
     }
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
     log_println!(" MAPEAMENTO CONSOLIDADO DE EXTENTS & ARMAZENAMENTO MEIHDFS:");
     log_println!("   ID Extent | Segmentos | Total Setores | Tamanho Util | Status / Descricao");
-    log_println!("   ----------+-----------+---------------+--------------+-------------------------------");
+    log_println!(
+        "   ----------+-----------+---------------+--------------+-------------------------------"
+    );
     for ext in extents
         .iter()
         .filter(|e| e.segments_count > 0 || e.header_record_index.is_some())
@@ -338,7 +356,9 @@ pub fn decode_meihdfs_descriptors(
     }
 
     if !journal_blocks.is_empty() {
-        log_println!("--------------------------------------------------------------------------------");
+        log_println!(
+            "--------------------------------------------------------------------------------"
+        );
         log_println!(" AUDITORIA DO POOL DE JOURNAL TRANSACIONAL DE 10 BLOCOS (LBA 16640..19199):");
         log_println!(
             "   Bloco | LBA Base | Offset     | Header Ativo | Seq ID | Pool | Checksum CRC | Payload"
@@ -381,9 +401,15 @@ pub fn decode_meihdfs_descriptors(
         export_report_to_json(&report, json_path, "MEIHDFS allocation report")?;
     }
 
-    log_println!("================================================================================");
-    log_println!(" DECODIFICACAO DE METADADOS MEIHDFS CONCLUIDA COM TOTAL FIDELIDADE              ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " DECODIFICACAO DE METADADOS MEIHDFS CONCLUIDA COM TOTAL FIDELIDADE              "
+    );
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(report)
 }

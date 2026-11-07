@@ -23,12 +23,20 @@ pub fn extract_hdd_partitions(
     fs::create_dir_all(output_dir)
         .with_context(|| format!("Failed creating output directory: {}", output_dir.display()))?;
 
-    log_println!("================================================================================");
-    log_println!(" PANASONIC DMR-EH55 PARTITION & DESCRIPTOR SURGICAL EXTRACTOR                   ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " PANASONIC DMR-EH55 PARTITION & DESCRIPTOR SURGICAL EXTRACTOR                   "
+    );
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Imagem Fonte : {}", resolved_path.display());
     log_println!(" Destino      : {}", output_dir.display());
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     let mut manifest_entries: Vec<(String, String)> = Vec::new();
     let mut extracted_reports: Vec<ExtractedPartitionReport> = Vec::new();
@@ -54,7 +62,10 @@ pub fn extract_hdd_partitions(
     let mirror_file = output_dir.join("hdd_mbr_mirror_lba57344.bin");
     fs::write(&mirror_file, mirror_data)?;
     let (_, mirror_sha256) = calculate_hashes(mirror_data);
-    manifest_entries.push(("hdd_mbr_mirror_lba57344.bin".to_string(), mirror_sha256.clone()));
+    manifest_entries.push((
+        "hdd_mbr_mirror_lba57344.bin".to_string(),
+        mirror_sha256.clone(),
+    ));
     extracted_reports.push(ExtractedPartitionReport {
         name: "Mirror MBR (LBA 57344)".to_string(),
         filename: "hdd_mbr_mirror_lba57344.bin".to_string(),
@@ -174,20 +185,23 @@ pub fn extract_hdd_partitions(
     for (filename, sha) in &manifest_entries {
         writeln!(manifest_file, "{}  {}", sha, filename)?;
     }
-    log_println!("--------------------------------------------------------------------------------");
     log_println!(
-        "  [+] Manifesto Criptografico: {}",
-        manifest_path.display()
+        "--------------------------------------------------------------------------------"
     );
+    log_println!("  [+] Manifesto Criptografico: {}", manifest_path.display());
 
     // Also run inspect to generate json report if requested
     if let Some(jpath) = json_export_path {
         let _ = inspect_hdd_image(&resolved_path, false, Some(jpath))?;
     }
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" EXTRAÇÃO CIRÚRGICA CONCLUÍDA COM TOTAL FIDELIDADE                             ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(extracted_reports)
 }

@@ -3,15 +3,16 @@ use std::path::Path;
 
 use panadiga::constants::*;
 use panadiga::crypto::{analyze_frm_container, dump_toc, print_codebook};
-use panadiga::hdd::{calculate_entropy, decode_descriptors, decode_meihdfs_descriptors, inspect_hdd_image};
+use panadiga::hdd::{
+    calculate_entropy, decode_descriptors, decode_meihdfs_descriptors, inspect_hdd_image,
+};
 use panadiga::headers::{hex_dump, inspect_firmware_headers};
 use panadiga::manuals::search_manuals;
 use panadiga::nvram::clean_flash_nvram;
 use panadiga::pico::{
     classify_usb_device, list_pico_devices, HostControllerPlatform, PicoArchitecture,
     ARDUINO_NANO_RP2040_CONNECT_PID, ARDUINO_VID, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
-    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID, SEEED_VID, SEEED_XIAO_RP2040_PID,
-    SEEED_XIAO_RP2350_PID,
+    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID, SEEED_VID, SEEED_XIAO_RP2040_PID, SEEED_XIAO_RP2350_PID,
 };
 use panadiga::scan::scan_data_strings;
 
@@ -107,9 +108,11 @@ fn test_nvram_clean_lifecycle() {
     );
 
     // NVRAM must be all 0xFF
-    assert!(clean_data[SPANSION_NVRAM_BASE_OFFSET..SPANSION_NVRAM_END_OFFSET]
-        .iter()
-        .all(|&b| b == 0xFF));
+    assert!(
+        clean_data[SPANSION_NVRAM_BASE_OFFSET..SPANSION_NVRAM_END_OFFSET]
+            .iter()
+            .all(|&b| b == 0xFF)
+    );
 
     // 4. Verify backup was created
     let backup_path = temp_dir.join("nvram_corrupt_backup.bin");
@@ -181,7 +184,10 @@ fn test_real_frm_cryptanalysis() {
     assert_eq!(report.top_blocks[0].count, 3812);
 
     // Verify null block is present
-    let null_blk = report.top_blocks.iter().find(|b| b.hex == "E5D1F34A518B2690");
+    let null_blk = report
+        .top_blocks
+        .iter()
+        .find(|b| b.hex == "E5D1F34A518B2690");
     assert!(null_blk.is_some());
     assert_eq!(null_blk.unwrap().count, 196);
 }
@@ -214,18 +220,36 @@ fn test_real_frm_dump_toc_and_codebook() {
 
     // Entry 0 checks
     assert_eq!(toc_report.toc_entries[0].offset_hex, "0x0010");
-    assert_eq!(toc_report.toc_entries[0].processor_family_id, "EFDC1CDA13881BAB");
-    assert_eq!(toc_report.toc_entries[0].target_descriptor_id, "74A78ACD789B84FF");
+    assert_eq!(
+        toc_report.toc_entries[0].processor_family_id,
+        "EFDC1CDA13881BAB"
+    );
+    assert_eq!(
+        toc_report.toc_entries[0].target_descriptor_id,
+        "74A78ACD789B84FF"
+    );
 
     // Entry 1 checks
     assert_eq!(toc_report.toc_entries[1].offset_hex, "0x0040");
-    assert_eq!(toc_report.toc_entries[1].processor_family_id, "EFDC1CDA13881BAB");
-    assert_eq!(toc_report.toc_entries[1].target_descriptor_id, "3B7E7EDBB6C57A53");
+    assert_eq!(
+        toc_report.toc_entries[1].processor_family_id,
+        "EFDC1CDA13881BAB"
+    );
+    assert_eq!(
+        toc_report.toc_entries[1].target_descriptor_id,
+        "3B7E7EDBB6C57A53"
+    );
 
     // Entry 2 checks
     assert_eq!(toc_report.toc_entries[2].offset_hex, "0x0070");
-    assert_eq!(toc_report.toc_entries[2].processor_family_id, "EFDC1CDA13881BAB");
-    assert_eq!(toc_report.toc_entries[2].target_descriptor_id, "74A78ACD789B84FF");
+    assert_eq!(
+        toc_report.toc_entries[2].processor_family_id,
+        "EFDC1CDA13881BAB"
+    );
+    assert_eq!(
+        toc_report.toc_entries[2].target_descriptor_id,
+        "74A78ACD789B84FF"
+    );
 
     // Modules verification
     assert_eq!(toc_report.modules.len(), 3);
@@ -297,7 +321,8 @@ fn test_manuals_search_pdf() {
 
     // Search for U99 with filter for dmreh55.pdf or eh55
     let terms = vec!["U99".to_string(), "FIRMWARE".to_string()];
-    let res = search_manuals(manuals_dir, Some(terms), Some("dmr-eh55p9")).expect("Manual search failed");
+    let res =
+        search_manuals(manuals_dir, Some(terms), Some("dmr-eh55p9")).expect("Manual search failed");
 
     assert!(!res.is_empty());
     let r = &res[0];
@@ -306,7 +331,9 @@ fn test_manuals_search_pdf() {
 
 #[test]
 fn test_decode_meihdfs_descriptors_standalone() {
-    let desc_path = Path::new("firmware_and_images/extracted_partitions/hdd_allocation_descriptors_0x00003000.bin");
+    let desc_path = Path::new(
+        "firmware_and_images/extracted_partitions/hdd_allocation_descriptors_0x00003000.bin",
+    );
     if !desc_path.exists() {
         return;
     }
@@ -325,7 +352,10 @@ fn test_decode_meihdfs_descriptors_standalone() {
     let dist = &report.tag_distribution;
     assert_eq!(dist.get("0x5D (ExtentHeader)").copied().unwrap_or(0), 65);
     assert_eq!(dist.get("0x55 (ExtentPointer)").copied().unwrap_or(0), 64);
-    assert_eq!(dist.get("0x57 (ExtentContinuation)").copied().unwrap_or(0), 47);
+    assert_eq!(
+        dist.get("0x57 (ExtentContinuation)").copied().unwrap_or(0),
+        47
+    );
     assert_eq!(dist.get("0x5F (ExtentBoundary)").copied().unwrap_or(0), 12);
     assert_eq!(dist.get("0xE0 (VNodeEntry)").copied().unwrap_or(0), 42);
     assert_eq!(dist.get("0xE1 (VInodeLink)").copied().unwrap_or(0), 26);
@@ -423,7 +453,9 @@ fn test_entropy_mathematical_boundaries() {
     // 2-symbol equal distribution (0x00 and 0xFF): exactly 1.0 bit of entropy
     let mut binary = vec![0u8; 1024];
     for (i, b) in binary.iter_mut().enumerate() {
-        if i % 2 == 1 { *b = 0xFF; }
+        if i % 2 == 1 {
+            *b = 0xFF;
+        }
     }
     let ent_bin = calculate_entropy(&binary);
     assert!((ent_bin - 1.0).abs() < 1e-4);
@@ -475,7 +507,11 @@ fn test_all_host_controller_platforms_matrix() {
     assert_eq!(plat_wave.architecture(), PicoArchitecture::Rp2040);
 
     // Custom DWire32A probe with banner string
-    let (plat_custom, _) = classify_usb_device(0x9999, 0x0001, Some("Panasonic DWire32A OCD Host Bridge [DW32A]"));
+    let (plat_custom, _) = classify_usb_device(
+        0x9999,
+        0x0001,
+        Some("Panasonic DWire32A OCD Host Bridge [DW32A]"),
+    );
     assert_eq!(plat_custom, HostControllerPlatform::GenericCompatibleCdc);
     assert_eq!(plat_custom.architecture(), PicoArchitecture::Unknown);
 }

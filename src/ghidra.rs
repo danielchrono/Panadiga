@@ -4,15 +4,15 @@
 //! scripts directly from Rust constants (`constants.rs`), guaranteeing that Rust
 //! is the Single Source of Truth (SSOT) across all reverse engineering environments.
 
+use crate::constants::*;
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
-use anyhow::{Context, Result};
-use crate::constants::*;
 
 /// Generates the Ghidra Memory Map setup Python script.
 pub fn generate_ghidra_memory_map() -> String {
     format!(
-r#"# Ghidra Script: Panasonic DMR-EH55 Memory Map & Symbols Setup
+        r#"# Ghidra Script: Panasonic DMR-EH55 Memory Map & Symbols Setup
 # @category Forensics.Panasonic
 # @author Panadiga Engineering Team (Generated from native Rust SSOT)
 #
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 /// Generates the Ghidra Symbols and Peripheral importer script.
 pub fn generate_ghidra_symbols() -> String {
     format!(
-r#"# Ghidra Script: Panasonic DMR-EH55 Symbol & Peripheral Importer
+        r#"# Ghidra Script: Panasonic DMR-EH55 Symbol & Peripheral Importer
 # @category Forensics.Panasonic
 # @author Panadiga Engineering Team (Generated from native Rust SSOT)
 

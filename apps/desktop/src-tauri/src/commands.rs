@@ -6,13 +6,13 @@
 use std::path::Path;
 use std::process::Command;
 
+pub use crate::pico::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
 pub use panadiga::crypto::{
     CodebookReport, CryptanalysisReport as FrmEntropyReport, FrmTocDumpReport,
 };
 pub use panadiga::hdd::{ExtractedPartitionReport, HddAnalysisReport, MeihdfsAllocationReport};
 pub use panadiga::manuals::PdfSearchResult as ManualSearchResult;
 pub use panadiga::nvram::NvramCleanReport;
-pub use crate::pico::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
 
 /// Surgically cleans and audits the Spansion S29JL064H flash dump NVRAM emulation partitions.
 #[tauri::command]
@@ -83,8 +83,7 @@ pub fn get_frm_codebook_command(
     hdd_path: Option<String>,
 ) -> Result<CodebookReport, String> {
     let hdd_p = hdd_path.as_deref().map(Path::new);
-    panadiga::crypto::print_codebook(Path::new(&frm_path), hdd_p, None)
-        .map_err(|e| e.to_string())
+    panadiga::crypto::print_codebook(Path::new(&frm_path), hdd_p, None).map_err(|e| e.to_string())
 }
 
 /// Searches official Panasonic DMR-EH55 service manuals and schematics for technical terms.

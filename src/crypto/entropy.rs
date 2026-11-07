@@ -1,12 +1,12 @@
-use std::{collections::HashMap, path::Path};
 use anyhow::{Context, Result};
+use std::{collections::HashMap, path::Path};
 
+use super::codebook::{correlate_hdd_partitions, open_resolved_frm, resolve_hdd_candidate};
+use super::toc::analyze_toc;
+use super::types::{BlockFrequency, CryptanalysisReport};
 use crate::constants::*;
 use crate::hdd::{calculate_entropy, open_mmap};
 use crate::nvram::calculate_hashes;
-use super::types::{BlockFrequency, CryptanalysisReport};
-use super::codebook::{correlate_hdd_partitions, open_resolved_frm, resolve_hdd_candidate};
-use super::toc::analyze_toc;
 
 /// Analyzes 64-bit (8-byte) block frequencies in an aligned byte slice.
 pub fn analyze_8byte_frequencies(data: &[u8], top_n: usize) -> Vec<BlockFrequency> {
@@ -29,15 +29,9 @@ pub fn analyze_8byte_frequencies(data: &[u8], top_n: usize) -> Vec<BlockFrequenc
         .map(|(blk, count)| {
             let hex_str = hex::encode_upper(blk);
             let interp = match blk {
-                ECB_VIRGIN_FLASH_8B => {
-                    "Preenchimento Virgem Flash ROM (0xFF * 8)".to_string()
-                }
-                ECB_NULL_BLOCK_8B => {
-                    "Bloco de Zeros Nulos / Padding (0x00 * 8)".to_string()
-                }
-                ECB_COMMON_STRUCT_8B => {
-                    "Estrutura Fixa de Cabecalho / Tabela Alinhada".to_string()
-                }
+                ECB_VIRGIN_FLASH_8B => "Preenchimento Virgem Flash ROM (0xFF * 8)".to_string(),
+                ECB_NULL_BLOCK_8B => "Bloco de Zeros Nulos / Padding (0x00 * 8)".to_string(),
+                ECB_COMMON_STRUCT_8B => "Estrutura Fixa de Cabecalho / Tabela Alinhada".to_string(),
                 _ => {
                     if count >= 30 {
                         "Padrao ECB Cifrado de Alta Repeticao".to_string()
@@ -69,19 +63,28 @@ pub fn analyze_frm_container(
     let global_entropy = calculate_entropy(&frm_mmap);
     let (md5_str, sha256_str) = calculate_hashes(&frm_mmap);
 
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" PANASONIC PANA_DVD.FRM CRIPTOMÉTRICA & DETECÇÃO FORENSE DE VAZAMENTO ECB      ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Arquivo Analisado : {}", resolved_frm.display());
     log_println!(
         " Tamanho Total     : {:>10} bytes ({:.2} MB)",
         file_size,
         file_size as f64 / (1024.0 * 1024.0)
     );
-    log_println!(" Entropia Shannon  : {:.8} bits/byte (Max Teórico: 8.00000000)", global_entropy);
+    log_println!(
+        " Entropia Shannon  : {:.8} bits/byte (Max Teórico: 8.00000000)",
+        global_entropy
+    );
     log_println!(" MD5               : {}", md5_str);
     log_println!(" SHA-256           : {}", sha256_str);
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     // 1. Frequency Analysis of 64-bit blocks
     let top_blocks = analyze_8byte_frequencies(&frm_mmap, top_n);
@@ -96,7 +99,10 @@ pub fn analyze_frm_container(
         *all_blocks_map.entry(blk).or_insert(0) += 1;
     }
 
-    log_println!("\n[+] ANÁLISE DE FREQUÊNCIA DE BLOCOS DE 64-BITS (8 BYTES) - TOP {}:", top_n);
+    log_println!(
+        "\n[+] ANÁLISE DE FREQUÊNCIA DE BLOCOS DE 64-BITS (8 BYTES) - TOP {}:",
+        top_n
+    );
     log_println!("    +----+-------------------------+------------+---------------+-----------------------------------------------+");
     log_println!("    | #  | Bloco Cifrado (Hex)     | Ocorrencias| Total Bytes   | Interpretacao Criptografica                   |");
     log_println!("    +----+-------------------------+------------+---------------+-----------------------------------------------+");
@@ -115,18 +121,23 @@ pub fn analyze_frm_container(
 
     // 2. TOC Descriptors Analysis
     let toc_analysis = analyze_toc(&frm_mmap);
-    log_println!("\n[+] ESTRUTURA DA TABELA DE CONTEUDOS (TOC) - REGISTROS DE {} BYTES (0x30):", toc_analysis.entry_size_bytes);
+    log_println!(
+        "\n[+] ESTRUTURA DA TABELA DE CONTEUDOS (TOC) - REGISTROS DE {} BYTES (0x30):",
+        toc_analysis.entry_size_bytes
+    );
     log_println!(
         "  * Total de Registros Primarios Mapeados : {}",
         toc_analysis.total_examined_records
     );
     log_println!(
         "  * Sub-bloco Comum 1 ({})   : Repetido em {} descritores (Offsets 0x10, 0x40, 0x70)",
-        toc_analysis.common_subblock_1_hex, toc_analysis.common_subblock_1_matches
+        toc_analysis.common_subblock_1_hex,
+        toc_analysis.common_subblock_1_matches
     );
     log_println!(
         "  * Sub-bloco Comum 2 ({})   : Repetido em {} descritores (Offsets 0x18, 0x78)",
-        toc_analysis.common_subblock_2_hex, toc_analysis.common_subblock_2_matches
+        toc_analysis.common_subblock_2_hex,
+        toc_analysis.common_subblock_2_matches
     );
 
     // 3. Cross-reference with HDD Image
@@ -157,9 +168,15 @@ pub fn analyze_frm_container(
     log_println!("\n[+] DIAGNOSTICO CRIPTOGRAFICO FINAL:");
     if is_ecb_leak_confirmed {
         log_println!("  [CONFIRMADO] Vazamento Estrutural ECB Detectado!");
-        log_println!("  1. O arquivo PANA_DVD.FRM e cifrado por blocos de 64 bits (8 bytes) sem CBC.");
-        log_println!("  2. As particoes no disco rigido compartilham o MESMO algoritmo e a MESMA chave.");
-        log_println!("  3. O bloco nulo E5D1F34A518B2690 comprova a identidade de cifragem entre CD e HDD.");
+        log_println!(
+            "  1. O arquivo PANA_DVD.FRM e cifrado por blocos de 64 bits (8 bytes) sem CBC."
+        );
+        log_println!(
+            "  2. As particoes no disco rigido compartilham o MESMO algoritmo e a MESMA chave."
+        );
+        log_println!(
+            "  3. O bloco nulo E5D1F34A518B2690 comprova a identidade de cifragem entre CD e HDD."
+        );
     }
 
     let report = CryptanalysisReport {
@@ -182,9 +199,15 @@ pub fn analyze_frm_container(
         log_println!("\n[+] Relatorio JSON exportado: {}", jpath.display());
     }
 
-    log_println!("================================================================================");
-    log_println!(" CRIPTOANÁLISE CONCLUÍDA COM SUCESSO                                            ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " CRIPTOANÁLISE CONCLUÍDA COM SUCESSO                                            "
+    );
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(report)
 }

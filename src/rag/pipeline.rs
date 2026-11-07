@@ -111,8 +111,9 @@ impl ZeroErrorRagEngine {
         // ----------------------------------------------------------------------
         // Layer 3: RetrievalCritic (Corrective RAG - CRAG)
         // ----------------------------------------------------------------------
-        let (is_grounded, valid_results, reason) =
-            self.retrieval_critic.evaluate_retrieval(&q, &retrieval_results);
+        let (is_grounded, valid_results, reason) = self
+            .retrieval_critic
+            .evaluate_retrieval(&q, &retrieval_results);
 
         if !is_grounded {
             let elapsed = t0.elapsed().as_secs_f64() * 1000.0;
@@ -177,7 +178,10 @@ impl ZeroErrorRagEngine {
 
         if !post_safety.is_safe {
             is_abstained = true;
-            abstention_reason = Some("Generated recommendations violated physical hardware safety invariants.".to_string());
+            abstention_reason = Some(
+                "Generated recommendations violated physical hardware safety invariants."
+                    .to_string(),
+            );
             let violations_str = post_safety
                 .violations
                 .iter()

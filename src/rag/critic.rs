@@ -10,13 +10,9 @@ use super::indexer::technical_tokenize;
 use super::models::{Chunk, CriticReport, EntityType, Query, RetrievalResult};
 use super::safety::extract_voltages_volts;
 
-static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[0-9A-Fa-f]+\b").unwrap()
-});
+static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b0x[0-9A-Fa-f]+\b").unwrap());
 
-static WORD_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b[A-Za-z0-9_#/]+").unwrap()
-});
+static WORD_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b[A-Za-z0-9_#/]+").unwrap());
 
 pub struct RetrievalCritic {
     pub threshold: f64,
@@ -66,7 +62,10 @@ impl RetrievalCritic {
 
         if !query_tokens.is_empty() {
             let top_matched: HashSet<&String> = results[0].matched_tokens.iter().collect();
-            let matched_count = query_tokens.iter().filter(|w| top_matched.contains(w)).count();
+            let matched_count = query_tokens
+                .iter()
+                .filter(|w| top_matched.contains(w))
+                .count();
             let coverage = matched_count as f64 / query_tokens.len() as f64;
 
             let chunk_upper = results[0].chunk.text.to_uppercase();
@@ -107,7 +106,11 @@ impl RetrievalCritic {
             );
         }
 
-        (true, filtered, "Retrieval grounded and sufficient.".to_string())
+        (
+            true,
+            filtered,
+            "Retrieval grounded and sufficient.".to_string(),
+        )
     }
 }
 
@@ -216,7 +219,8 @@ impl FactCritic {
             verified_entities.len() as f64 / total_entities as f64
         };
 
-        let is_faithful = groundedness_score >= MIN_GROUNDEDNESS_RATIO && ungrounded_entities.is_empty();
+        let is_faithful =
+            groundedness_score >= MIN_GROUNDEDNESS_RATIO && ungrounded_entities.is_empty();
 
         let mut notes = Vec::new();
         if !ungrounded_entities.is_empty() {

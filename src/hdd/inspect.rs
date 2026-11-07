@@ -1,11 +1,17 @@
-use std::path::Path;
-use anyhow::{bail, Result};
-use byteorder::{ByteOrder as _, LittleEndian};
-use crate::{constants::*, nvram::{calculate_hashes, resolve_input_path}};
 use super::{
-    types::{AllocationJournalReport, ChunkDensityReport, HddAnalysisReport, MbrTableReport, PartitionReport},
+    types::{
+        AllocationJournalReport, ChunkDensityReport, HddAnalysisReport, MbrTableReport,
+        PartitionReport,
+    },
     utils::{calculate_entropy, export_report_to_json, open_mmap},
 };
+use crate::{
+    constants::*,
+    nvram::{calculate_hashes, resolve_input_path},
+};
+use anyhow::{bail, Result};
+use byteorder::{ByteOrder as _, LittleEndian};
+use std::path::Path;
 
 /// Performs complete structural inspection and outputs rich visual console telemetry.
 pub fn inspect_hdd_image(
@@ -20,9 +26,15 @@ pub fn inspect_hdd_image(
 
     let (global_md5, global_sha256) = calculate_hashes(&mmap);
 
-    log_println!("================================================================================");
-    log_println!(" PANASONIC DMR-EH55 HDD FORENSIC PARSER & STORAGE ARCHITECTURE AUDITOR          ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " PANASONIC DMR-EH55 HDD FORENSIC PARSER & STORAGE ARCHITECTURE AUDITOR          "
+    );
+    log_println!(
+        "================================================================================"
+    );
     log_println!(" Arquivo da Imagem : {}", resolved_path.display());
     log_println!(
         " Tamanho Total     : {:>11} bytes ({:.2} MB)",
@@ -36,7 +48,9 @@ pub fn inspect_hdd_image(
     );
     log_println!(" MD5 Global        : {}", global_md5);
     log_println!(" SHA-256 Global    : {}", global_sha256);
-    log_println!("--------------------------------------------------------------------------------");
+    log_println!(
+        "--------------------------------------------------------------------------------"
+    );
 
     // 1. Inspect MBR (LBA 0)
     if mmap.len() < LBA_SECTOR_SIZE_BYTES {
@@ -83,7 +97,10 @@ pub fn inspect_hdd_image(
 
     log_println!("\n[+] ESTRUTURA DO MASTER BOOT RECORD & TABELA ESPELHO (LBA 0 & LBA 57344)");
     log_println!("  * LBA 0 (Offset 0x00000000):");
-    log_println!("    - Assinatura Bruta  : {}", hex::encode_upper(&lba0[..16]));
+    log_println!(
+        "    - Assinatura Bruta  : {}",
+        hex::encode_upper(&lba0[..16])
+    );
     log_println!(
         "    - Versao de Formato : Rev {}.0 (0x{:04X})",
         format_version,
@@ -285,14 +302,16 @@ pub fn inspect_hdd_image(
         });
     }
 
-    log_println!(
-        "\n[+] PARTICÕES DE FIRMWARE PROPRIETÁRIAS (Magic: 51 87 13 8D 5B 0A FB 22)"
-    );
+    log_println!("\n[+] PARTICÕES DE FIRMWARE PROPRIETÁRIAS (Magic: 51 87 13 8D 5B 0A FB 22)");
     for p in &partitions {
         log_println!("  ------------------------------------------------------------------------");
         log_println!("  PARTICAO {}: {}", p.partition_id, p.name);
         log_println!("  ------------------------------------------------------------------------");
-        log_println!("  Offset Inicial    : {} (LBA {})", p.offset_hex, p.lba_start);
+        log_println!(
+            "  Offset Inicial    : {} (LBA {})",
+            p.offset_hex,
+            p.lba_start
+        );
         log_println!(
             "  Tamanho Util      : {:>10} bytes ({:.3} MB / 0x{:X})",
             p.exact_payload_size,
@@ -370,9 +389,15 @@ pub fn inspect_hdd_image(
         export_report_to_json(&report, json_path, "HDD analysis report")?;
     }
 
-    log_println!("================================================================================");
-    log_println!(" ANALISE ESTRUTURAL DE HDD CONCLUIDA COM SUCESSO                                ");
-    log_println!("================================================================================");
+    log_println!(
+        "================================================================================"
+    );
+    log_println!(
+        " ANALISE ESTRUTURAL DE HDD CONCLUIDA COM SUCESSO                                "
+    );
+    log_println!(
+        "================================================================================"
+    );
 
     Ok(report)
 }

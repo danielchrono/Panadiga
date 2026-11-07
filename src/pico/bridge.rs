@@ -56,7 +56,10 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
     let listener = TcpListener::bind(listen_addr)
         .with_context(|| format!("Failed to bind TCP listener on '{}'", listen_addr))?;
 
-    log_println!("[Bridge] Listening for GDB debugger connections on {}...", listen_addr);
+    log_println!(
+        "[Bridge] Listening for GDB debugger connections on {}...",
+        listen_addr
+    );
     log_println!("[Bridge] In your debugger terminal, run:");
     log_println!("         (gdb) target remote {}", listen_addr);
     log_println!("--------------------------------------------------------------------");

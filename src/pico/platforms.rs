@@ -160,8 +160,8 @@ impl HostControllerPlatform {
     /// Flash sector cache capacity allocated in firmware for DWire32A operations
     pub fn sector_cache_capacity_bytes(&self) -> u32 {
         match self.architecture() {
-            PicoArchitecture::Rp2040 => 8 * 1024,   // 8 KB microsector cache
-            PicoArchitecture::Rp2350 => 64 * 1024,  // 64 KB full sector cache
+            PicoArchitecture::Rp2040 => 8 * 1024,  // 8 KB microsector cache
+            PicoArchitecture::Rp2350 => 64 * 1024, // 64 KB full sector cache
             _ => 4 * 1024,
         }
     }
@@ -239,7 +239,11 @@ impl PicoDeviceInfo {
 // ============================================================================
 
 /// Classifies a USB device based on its VID, PID, and product description
-pub fn classify_usb_device(vid: u16, pid: u16, product_desc: Option<&str>) -> (HostControllerPlatform, String) {
+pub fn classify_usb_device(
+    vid: u16,
+    pid: u16,
+    product_desc: Option<&str>,
+) -> (HostControllerPlatform, String) {
     let desc_hint = product_desc.unwrap_or("").to_lowercase();
 
     match vid {

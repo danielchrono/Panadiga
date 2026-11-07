@@ -33,7 +33,10 @@ pub fn open_mmap(path: &Path) -> Result<(File, Mmap)> {
         .with_context(|| format!("Failed opening HDD image: {}", resolved.display()))?;
     let file_len = file.metadata()?.len();
     if file_len == 0 {
-        anyhow::bail!("Cannot memory map empty file (0 bytes): {}", resolved.display());
+        anyhow::bail!(
+            "Cannot memory map empty file (0 bytes): {}",
+            resolved.display()
+        );
     }
     let mmap = unsafe { Mmap::map(&file) }
         .with_context(|| format!("Failed creating mmap on: {}", resolved.display()))?;

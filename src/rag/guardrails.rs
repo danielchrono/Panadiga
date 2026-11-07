@@ -20,21 +20,14 @@ static INJECTION_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     ]
 });
 
-static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[0-9A-Fa-f]{1,16}\b").unwrap()
-});
+static HEX_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\b0x[0-9A-Fa-f]{1,16}\b").unwrap());
 
-static ERROR_CODE_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\bU\d{2}\b").unwrap()
-});
+static ERROR_CODE_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bU\d{2}\b").unwrap());
 
-static LBA_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\bLBA\s*\d+\b").unwrap()
-});
+static LBA_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\bLBA\s*\d+\b").unwrap());
 
-static WORD_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b[A-Za-z0-9_#/]+").unwrap()
-});
+static WORD_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b[A-Za-z0-9_#/]+").unwrap());
 
 pub const KNOWN_COMPONENTS: &[&str] = &[
     "MN2DS0016",
@@ -50,14 +43,29 @@ pub const KNOWN_COMPONENTS: &[&str] = &[
 ];
 
 pub const KNOWN_PINS_AND_SIGNALS: &[&str] = &[
-    "SDATA", "SCLK", "EXTRG", "NRESET", "RESET", "GND", "WP#", "ACC", "RY/BY#",
-    "BYTE#", "TDI", "TDO", "TMS", "TCK", "TRST",
+    "SDATA", "SCLK", "EXTRG", "NRESET", "RESET", "GND", "WP#", "ACC", "RY/BY#", "BYTE#", "TDI",
+    "TDO", "TMS", "TCK", "TRST",
 ];
 
 const HIGH_RISK_KEYWORDS: &[&str] = &[
-    "erase", "write", "flash", "eeprom", "nvram", "u99", "voltage", "vcc",
-    "overvoltage", "short", "jtag", "dwire", "dwire32a", "cn55001", "format",
-    "diskpart", "partition", "meihdfs",
+    "erase",
+    "write",
+    "flash",
+    "eeprom",
+    "nvram",
+    "u99",
+    "voltage",
+    "vcc",
+    "overvoltage",
+    "short",
+    "jtag",
+    "dwire",
+    "dwire32a",
+    "cn55001",
+    "format",
+    "diskpart",
+    "partition",
+    "meihdfs",
 ];
 
 pub struct QueryGuard;
@@ -75,7 +83,8 @@ impl QueryGuard {
         for pat in INJECTION_PATTERNS.iter() {
             if pat.is_match(&sanitized) {
                 is_injection = true;
-                val_error = Some("Prompt injection or safety override attempt detected.".to_string());
+                val_error =
+                    Some("Prompt injection or safety override attempt detected.".to_string());
                 break;
             }
         }

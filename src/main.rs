@@ -130,7 +130,12 @@ enum HddActions {
         image: Option<PathBuf>,
 
         /// Output directory for extracted partition binaries
-        #[arg(short, long, default_value = "extracted_partitions", value_name = "DIR")]
+        #[arg(
+            short,
+            long,
+            default_value = "extracted_partitions",
+            value_name = "DIR"
+        )]
         outdir: PathBuf,
 
         /// Exports structured JSON report to specified file
@@ -369,7 +374,11 @@ enum GhidraActions {
     /// Export AM34 vector, peripheral, and NVRAM symbols Python script for Ghidra
     Symbols {
         /// Target Python script file path
-        #[arg(short, long, default_value = "tools/ghidra_importar_simbolos_panadiga.py")]
+        #[arg(
+            short,
+            long,
+            default_value = "tools/ghidra_importar_simbolos_panadiga.py"
+        )]
         output: PathBuf,
     },
 
@@ -456,24 +465,44 @@ fn main() -> Result<()> {
             }
         },
         Commands::Hdd(hdd_args) => match hdd_args.action {
-            HddActions::Inspect { image, density, json } => {
-                let default_img = PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
+            HddActions::Inspect {
+                image,
+                density,
+                json,
+            } => {
+                let default_img =
+                    PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
                 let img_path = image.unwrap_or(default_img);
                 inspect_hdd_image(&img_path, density, json.as_deref())?;
             }
-            HddActions::Extract { image, outdir, json } => {
-                let default_img = PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
+            HddActions::Extract {
+                image,
+                outdir,
+                json,
+            } => {
+                let default_img =
+                    PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
                 let img_path = image.unwrap_or(default_img);
                 extract_hdd_partitions(&img_path, &outdir, json.as_deref())?;
             }
-            HddActions::DecodeDescriptors { image, json, journal } => {
-                let default_img = PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
+            HddActions::DecodeDescriptors {
+                image,
+                json,
+                journal,
+            } => {
+                let default_img =
+                    PathBuf::from("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin");
                 let img_path = image.unwrap_or(default_img);
                 decode_meihdfs_descriptors(&img_path, journal, json.as_deref())?;
             }
         },
         Commands::Frm(frm_args) => match frm_args.action {
-            FrmActions::Analyze { file, hdd, top, json } => {
+            FrmActions::Analyze {
+                file,
+                hdd,
+                top,
+                json,
+            } => {
                 let default_frm = PathBuf::from("firmware_and_images/PANA_DVD.FRM");
                 let frm_path = file.unwrap_or(default_frm);
                 analyze_frm_container(&frm_path, hdd.as_deref(), top, json.as_deref())?;
@@ -493,7 +522,11 @@ fn main() -> Result<()> {
             Some(HeadersActions::Inspect { hdd, frm, length }) => {
                 inspect_firmware_headers(hdd.as_deref(), frm.as_deref(), length)?;
             }
-            Some(HeadersActions::Dump { file, offset, length }) => {
+            Some(HeadersActions::Dump {
+                file,
+                offset,
+                length,
+            }) => {
                 dump_file_hex(&file, offset, length)?;
             }
             None => {
@@ -509,32 +542,47 @@ fn main() -> Result<()> {
 
             match scan_args.file {
                 Some(f) => {
-                    run_deep_scan(&f, scan_args.min_len, custom_kws, scan_args.limit, scan_args.json.as_deref())?;
+                    run_deep_scan(
+                        &f,
+                        scan_args.min_len,
+                        custom_kws,
+                        scan_args.limit,
+                        scan_args.json.as_deref(),
+                    )?;
                 }
                 None => {
                     scan_all_default(scan_args.min_len, scan_args.limit)?;
                 }
             }
-        },
+        }
         Commands::Manuals(manuals_args) => {
             let custom_terms = if manuals_args.terms.is_empty() {
                 None
             } else {
                 Some(manuals_args.terms)
             };
-            search_manuals(&manuals_args.dir, custom_terms, manuals_args.filter.as_deref())?;
+            search_manuals(
+                &manuals_args.dir,
+                custom_terms,
+                manuals_args.filter.as_deref(),
+            )?;
         }
         Commands::Pico(pico_args) => match pico_args.action {
             PicoActions::List => {
                 let devices = list_pico_devices()?;
-                log_println!("====================================================================");
+                log_println!(
+                    "===================================================================="
+                );
                 log_println!("   PANADIGA HARDWARE DISCOVERY: SERIAL COM PORTS & PICO CONTROLLERS");
-                log_println!("====================================================================");
+                log_println!(
+                    "===================================================================="
+                );
                 if devices.is_empty() {
                     log_println!("No USB serial devices detected on system.");
                 } else {
                     for dev in &devices {
-                        log_println!("Port: {:<10} | {:<32} | VID:{:04X} PID:{:04X} | {}",
+                        log_println!(
+                            "Port: {:<10} | {:<32} | VID:{:04X} PID:{:04X} | {}",
                             dev.port_name,
                             dev.architecture.to_string(),
                             dev.vid,
@@ -543,7 +591,9 @@ fn main() -> Result<()> {
                         );
                     }
                 }
-                log_println!("--------------------------------------------------------------------");
+                log_println!(
+                    "--------------------------------------------------------------------"
+                );
             }
             PicoActions::Ping { port, baud } => {
                 let report = ping_pico(&port, baud)?;
@@ -566,59 +616,88 @@ fn main() -> Result<()> {
             }
             GhidraActions::ExportAll { dir } => {
                 panadiga::ghidra::export_all_ghidra_scripts(&dir)?;
-                log_info!("[OK] All Ghidra scripts generated into directory: {:?}", dir);
+                log_info!(
+                    "[OK] All Ghidra scripts generated into directory: {:?}",
+                    dir
+                );
             }
         },
-        Commands::Rag(rag_args) => match rag_args.action {
-            RagActions::Query { query, json } => {
-                let ans = panadiga::rag::query(&query);
-                if json {
-                    let dto = ans.to_query_result();
-                    log_println!("{}", serde_json::to_string_pretty(&dto)?);
-                } else {
-                    log_println!("====================================================================");
-                    log_println!("         PANADIGA ZERO-ERROR RAG ENGINE (NATIVE RUST)");
-                    log_println!("====================================================================");
-                    log_println!("Query:              {}", query);
-                    log_println!("Groundedness Score: {:.2}%", ans.groundedness_score * 100.0);
-                    log_println!("Confidence:         {:.2}%", ans.confidence * 100.0);
-                    if ans.is_abstained {
-                        log_println!("Status:             ABSTAINED");
-                        if let Some(reason) = &ans.abstention_reason {
-                            log_println!("Reason:             {}", reason);
-                        }
+        Commands::Rag(rag_args) => {
+            match rag_args.action {
+                RagActions::Query { query, json } => {
+                    let ans = panadiga::rag::query(&query);
+                    if json {
+                        let dto = ans.to_query_result();
+                        log_println!("{}", serde_json::to_string_pretty(&dto)?);
                     } else {
-                        log_println!("Status:             ANSWERED");
-                    }
-                    if let Some(s) = &ans.safety_report {
-                        log_println!("Safety Check:       {}", if s.is_safe { "PASS (SAFE)" } else { "FAIL (HAZARD DETECTED)" });
-                        for v in &s.violations {
-                            log_println!("  [!] VIOLATION: {}", v);
+                        log_println!(
+                            "===================================================================="
+                        );
+                        log_println!("         PANADIGA ZERO-ERROR RAG ENGINE (NATIVE RUST)");
+                        log_println!(
+                            "===================================================================="
+                        );
+                        log_println!("Query:              {}", query);
+                        log_println!("Groundedness Score: {:.2}%", ans.groundedness_score * 100.0);
+                        log_println!("Confidence:         {:.2}%", ans.confidence * 100.0);
+                        if ans.is_abstained {
+                            log_println!("Status:             ABSTAINED");
+                            if let Some(reason) = &ans.abstention_reason {
+                                log_println!("Reason:             {}", reason);
+                            }
+                        } else {
+                            log_println!("Status:             ANSWERED");
                         }
-                        for a in &s.critical_alerts {
-                            log_println!("  [*] ALERT: {}", a);
+                        if let Some(s) = &ans.safety_report {
+                            log_println!(
+                                "Safety Check:       {}",
+                                if s.is_safe {
+                                    "PASS (SAFE)"
+                                } else {
+                                    "FAIL (HAZARD DETECTED)"
+                                }
+                            );
+                            for v in &s.violations {
+                                log_println!("  [!] VIOLATION: {}", v);
+                            }
+                            for a in &s.critical_alerts {
+                                log_println!("  [*] ALERT: {}", a);
+                            }
                         }
-                    }
-                    if let Some(c) = &ans.critic_report {
-                        log_println!("Critic Faithful:    {}", if c.is_faithful { "YES" } else { "NO" });
-                        if !c.ungrounded_entities.is_empty() {
-                            log_println!("  [?] Ungrounded:   {:?}", c.ungrounded_entities);
+                        if let Some(c) = &ans.critic_report {
+                            log_println!(
+                                "Critic Faithful:    {}",
+                                if c.is_faithful { "YES" } else { "NO" }
+                            );
+                            if !c.ungrounded_entities.is_empty() {
+                                log_println!("  [?] Ungrounded:   {:?}", c.ungrounded_entities);
+                            }
                         }
-                    }
-                    log_println!("--------------------------------------------------------------------");
-                    log_println!("ANSWER:\n{}", ans.answer_text);
-                    if !ans.citations.is_empty() {
-                        log_println!("--------------------------------------------------------------------");
-                        log_println!("CITATIONS:");
-                        for (idx, cit) in ans.citations.iter().enumerate() {
-                            log_println!("  [{}] {} | Section: {} | Lines: {}", idx + 1, cit.doc_title, cit.section_title, cit.line_range);
-                            log_println!("      Excerpt: \"{}\"", cit.excerpt);
+                        log_println!(
+                            "--------------------------------------------------------------------"
+                        );
+                        log_println!("ANSWER:\n{}", ans.answer_text);
+                        if !ans.citations.is_empty() {
+                            log_println!("--------------------------------------------------------------------");
+                            log_println!("CITATIONS:");
+                            for (idx, cit) in ans.citations.iter().enumerate() {
+                                log_println!(
+                                    "  [{}] {} | Section: {} | Lines: {}",
+                                    idx + 1,
+                                    cit.doc_title,
+                                    cit.section_title,
+                                    cit.line_range
+                                );
+                                log_println!("      Excerpt: \"{}\"", cit.excerpt);
+                            }
                         }
+                        log_println!(
+                            "===================================================================="
+                        );
                     }
-                    log_println!("====================================================================");
                 }
             }
-        },
+        }
         Commands::MemoryMap(args) => {
             let regions = [
                 serde_json::json!({
@@ -710,7 +789,7 @@ fn main() -> Result<()> {
                     print!("{}", out);
                 }
             }
-        },
+        }
         Commands::VerifyArtifact(args) => {
             if !args.file.exists() {
                 log_error!("ERROR: File not found: {:?}", args.file);
@@ -726,7 +805,10 @@ fn main() -> Result<()> {
             log_println!("====================================================================");
             log_println!("            CRYPTOGRAPHIC ARTIFACT VERIFICATION");
             log_println!("====================================================================");
-            log_println!("File:     {}", args.file.file_name().and_then(|n| n.to_str()).unwrap_or(""));
+            log_println!(
+                "File:     {}",
+                args.file.file_name().and_then(|n| n.to_str()).unwrap_or("")
+            );
             log_println!("Size:     {} bytes ({:.2} KB)", size, size as f64 / 1024.0);
             log_println!("SHA-256:  {}", computed_sha256);
             log_println!("--------------------------------------------------------------------");
@@ -739,7 +821,7 @@ fn main() -> Result<()> {
                     std::process::exit(2);
                 }
             }
-        },
+        }
         Commands::GdbConfig(args) => {
             log_println!("====================================================================");
             log_println!("          DWire32A GDB RSP Bridge Configuration");
@@ -752,7 +834,7 @@ fn main() -> Result<()> {
             log_println!("  (gdb) set architecture am34");
             log_println!("  (gdb) info registers");
             log_println!("====================================================================");
-        },
+        }
     }
 
     Ok(())

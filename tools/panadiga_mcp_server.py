@@ -158,8 +158,8 @@ def handle_inspect_hdd(args: Dict[str, Any]) -> Dict[str, Any]:
     size_bytes = img_file.stat().st_size
     with img_file.open("rb") as f:
         mbr_data = f.read(512)
-        has_sh_tag = mbr_data[6:8] == b"SH"
-        guid_bytes = mbr_data[8:16]
+        has_sh_tag = (mbr_data[6:8] == b"SH" or mbr_data[0:2] == b"SH")
+        guid_bytes = mbr_data[8:16] if mbr_data[6:8] == b"SH" else mbr_data[2:10]
         guid_hex = guid_bytes.hex()
 
         # Check mirror at 28 MB (57344 * 512 = 29360128)
@@ -309,11 +309,30 @@ def handle_rag_query(args: Dict[str, Any]) -> Dict[str, Any]:
             "citations": payload.get("citations", []),
         }
     except Exception as e:
-        return {
-            "query": query,
-            "error": f"RAG execution fallback: {e}",
-            "hint": "Run 'cargo build' to compile the native Rust panadiga RAG engine.",
-        }
+        # Fallback to in-process Python ZeroErrorRagEngine if native binary is unavailable or fails
+        try:
+            from tools.rag_engine.pipeline import ZeroErrorRagEngine
+
+            engine = ZeroErrorRagEngine()
+            engine.initialize()
+            py_ans = engine.query(query)
+            ans_dict = py_ans.to_dict()
+            is_safe = py_ans.safety_report.is_safe if py_ans.safety_report else True
+            return {
+                "query": query,
+                "answer": ans_dict.get("answer", ""),
+                "confidence": ans_dict.get("confidence", 1.0),
+                "groundedness_score": ans_dict.get("groundedness_score", 1.0),
+                "safety_passed": is_safe,
+                "is_abstained": ans_dict.get("is_abstained", False),
+                "citations": ans_dict.get("citations", []),
+            }
+        except Exception as py_err:
+            return {
+                "query": query,
+                "error": f"RAG execution fallback: {e} | Python fallback error: {py_err}",
+                "hint": "Run 'cargo build' to compile the native Rust panadiga RAG engine.",
+            }
 
 
 def execute_tool(name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:

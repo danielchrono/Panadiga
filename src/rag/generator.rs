@@ -50,9 +50,8 @@ impl GroundedGenerator {
         )
     }
 
-    pub fn synthesize_deterministic(
+    pub fn synthesize_claims(
         &self,
-        query: &Query,
         results: &[RetrievalResult],
     ) -> (String, Vec<Citation>) {
         if results.is_empty() {
@@ -94,8 +93,9 @@ impl GroundedGenerator {
                 citation_label, excerpt
             ));
 
-            let snippet = if excerpt.len() > 150 {
-                format!("{}...", &excerpt[..150])
+            let snippet = if excerpt.chars().count() > 150 {
+                let truncated: String = excerpt.chars().take(150).collect();
+                format!("{}...", truncated)
             } else {
                 excerpt
             };
@@ -109,11 +109,29 @@ impl GroundedGenerator {
             });
         }
 
-        let header = format!("Verified technical diagnosis for '{}':\n\n", query.sanitized_text);
         let body = extracted_facts.join("\n\n");
-        let footer = "\n\n[Hardware Safety Note: All operations must comply with 3.3V maximum nominal tolerance and preserve flash IPL sectors SA0..SA133].";
+        (body, citations)
+    }
 
-        let full_answer = format!("{}{}{}", header, body, footer);
+    pub fn wrap_grounded_answer(&self, query: &Query, body: &str) -> String {
+        let header = format!("Verified technical diagnosis for '{}':\n\n", query.sanitized_text);
+        let footer = "\n\n[Hardware Safety Note: All operations must comply with 3.3V maximum nominal tolerance and preserve flash IPL sectors SA0..SA133].";
+        format!("{}{}{}", header, body, footer)
+    }
+
+    pub fn synthesize_deterministic(
+        &self,
+        query: &Query,
+        results: &[RetrievalResult],
+    ) -> (String, Vec<Citation>) {
+        if results.is_empty() {
+            return (
+                "Information not verified in technical corpus. In proprietary embedded systems, ungrounded inferences cause physical hardware destruction.".to_string(),
+                Vec::new(),
+            );
+        }
+        let (body, citations) = self.synthesize_claims(results);
+        let full_answer = self.wrap_grounded_answer(query, &body);
         (full_answer, citations)
     }
 }

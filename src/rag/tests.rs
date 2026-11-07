@@ -200,3 +200,39 @@ fn test_opus_11_subsystem_determination() {
     let subsystem = indexer.determine_subsystem(fake_path, "CN55001 DWire32A Schematic");
     assert_eq!(subsystem, SubsystemType::Hardware);
 }
+
+#[test]
+fn test_utf8_multibyte_boundary_and_footer_no_false_abstention() {
+    let mut engine = ZeroErrorRagEngine::new();
+    engine.initialize();
+
+    // Queries whose chunks contain multi-byte UTF-8 box-drawing ('─') / accented chars ('ç', 'ã')
+    // around byte index 150 and do not necessarily contain '3.3V' in retrieved storage/crypto chunks
+    let ans_meihdfs = engine.query("How is the MEIHDFS allocation table encoded on the hard drive?");
+    assert!(!ans_meihdfs.is_abstained);
+    assert_eq!(ans_meihdfs.confidence, 1.0);
+    assert!(ans_meihdfs.critic_report.as_ref().unwrap().is_faithful);
+
+    let ans_frm = engine.query("What is the 64-bit ECB null block in PANA_DVD.FRM?");
+    assert!(!ans_frm.is_abstained);
+    assert_eq!(ans_frm.confidence, 1.0);
+    assert!(ans_frm.critic_report.as_ref().unwrap().is_faithful);
+}
+
+#[test]
+fn test_safety_utf8_multibyte_context_window_and_sram_vs_ipl() {
+    let validator = HardwareSafetyValidator::new();
+
+    // Multi-byte UTF-8 characters near 60-byte context boundary must never panic
+    let utf8_text = "Atenção: não aplique tensão elevada na alimentação lógica çãéíóú─•Ωµ Connect 5V0 to pin 1.";
+    let rep_utf8 = validator.validate(utf8_text, true);
+    assert!(!rep_utf8.is_safe);
+
+    // Legitimate read query on Flash IPL address must not be falsely blocked
+    let rep_read = validator.validate("What is stored at flash offset 0x00000000 and bus address 0x80000000?", true);
+    assert!(rep_read.is_safe);
+
+    // Legitimate write to AM34 Internal SRAM (e.g. RAM loader at 0x00004000) must be allowed
+    let rep_sram = validator.validate("Write the RAM loader payload into AM34 SRAM at 0x00004000.", true);
+    assert!(rep_sram.is_safe);
+}

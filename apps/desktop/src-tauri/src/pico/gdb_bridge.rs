@@ -94,6 +94,7 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                     Ok((mut tcp_stream, _peer)) => {
                         connected_flag.store(true, Ordering::Relaxed);
                         count_flag.fetch_add(1, Ordering::Relaxed);
+                        let _ = tcp_stream.set_nonblocking(false);
                         let _ = tcp_stream.set_read_timeout(Some(Duration::from_millis(200)));
 
                         let mut buf = [0u8; 1024];
@@ -102,16 +103,22 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                                 Ok(0) => break,
                                 Ok(n) => {
                                     let packet = String::from_utf8_lossy(&buf[..n]);
-                                    if packet.contains('?') {
+                                    let cmd = packet
+                                        .split('$')
+                                        .nth(1)
+                                        .and_then(|s| s.split('#').next())
+                                        .unwrap_or(&packet)
+                                        .trim_start_matches('+');
+                                    if cmd.starts_with("qSupported") {
+                                        let _ = tcp_stream.write_all(b"+$PacketSize=800;qXfer:memory-map:read+#3f");
+                                    } else if cmd.starts_with('?') {
                                         let _ = tcp_stream.write_all(b"+$S05#b8");
-                                    } else if packet.contains('g') {
+                                    } else if cmd == "g" {
                                         let mock_g = "+$00000000000000000000000000000000000000000000000000000000f0ff0300000000000001000000000080f0ff0300#44";
                                         let _ = tcp_stream.write_all(mock_g.as_bytes());
-                                    } else if packet.contains("qSupported") {
-                                        let _ = tcp_stream.write_all(b"+$PacketSize=800;qXfer:memory-map:read+#3f");
-                                    } else if packet.contains('c') || packet.contains('s') {
+                                    } else if cmd.starts_with('c') || cmd.starts_with('s') {
                                         let _ = tcp_stream.write_all(b"+$S05#b8");
-                                    } else if packet.contains('k') || packet.contains('D') {
+                                    } else if cmd.starts_with('k') || cmd.starts_with('D') {
                                         let _ = tcp_stream.write_all(b"+$OK#9a");
                                         break;
                                     } else {

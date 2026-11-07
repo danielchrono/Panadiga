@@ -123,3 +123,30 @@ flowchart TD
 3. **Checagem de Segurança**: Se envolver comandos elétricos ou escrita em Flash, consulte a ferramenta MCP `panadiga_safety_check`.
 4. **Implementação**: Escreva código modular, tipado e com testes unitários.
 5. **Portão de Qualidade**: Execute `powershell -ExecutionPolicy Bypass -File validate_all.ps1` e certifique-se de que os 9 portões sejam aprovados antes de concluir.
+
+---
+
+## 5. Padrão Estrito de Saída de Console: O Módulo Logger (`src/logger.rs`)
+
+Todas as chamadas brutas a `println!` e `eprintln!` foram terminantemente descontinuadas na codebase. Ao escrever ou modificar código Rust em `src/` ou `apps/desktop/src-tauri`:
+
+1. **Nunca use `println!` diretamente**: Use [`log_println!`](../src/logger.rs) para saídas tabulares, dumps ou relatórios, e [`log_info!`](../src/logger.rs) para mensagens operacionais.
+2. **Nunca use `eprintln!` diretamente**: Use [`log_error!`](../src/logger.rs) para erros críticos e [`log_warn!`](../src/logger.rs) para alertas operacionais.
+3. **Debug e Rastreamento**: Use [`log_debug!`](../src/logger.rs) e [`log_trace!`](../src/logger.rs).
+4. **Captura Programática**: O logger oferece suporte a interceptadores em tempo de execução via `panadiga::logger::set_sink`, garantindo integração limpa com a UI desktop e testes.
+5. Consulte a especificação técnica completa em [`docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md`](./SUBSISTEMA_LOGGING_E_TELEMETRIA.md).
+
+---
+
+## 6. Motor RAG Nativo em Rust (`src/rag/`) e Comandos CLI de Bancada
+
+Para eliminar qualquer dependência de runtime externo (Python) durante a depuração ou no executável final Desktop Tauri, o motor RAG Zero-Erro está totalmente implementado em Rust nativo:
+
+* **Comandos CLI Integrados**:
+  * `panadiga rag query "<pergunta>"`: Executa a busca híbrida (BM25 + TF-IDF) e os filtros CRAG / Self-RAG em sub-milissegundos.
+  * `panadiga rag query --json "<pergunta>"`: Retorna o DTO padronizado compatível com a interface desktop.
+  * `panadiga memory-map`: Exporta o mapa de memória físico do AM34 em JSON ou tabela formatada.
+  * `panadiga verify-artifact <caminho> [--sha256 <hash>]`: Valida e assegura a integridade criptográfica de artefatos.
+  * `panadiga gdb-config`: Exibe instruções de conexão ao servidor GDB RSP bridge.
+* **Dossiê Completo de Engenharia e Defesa em 6 Camadas**: Consulte [`docs/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md`](./ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md) para análise aprofundada da defesa em 6 camadas, abstenção epistêmica e dualidade Rust vs Python/MCP.
+* **Resiliência e Blindagem Red-Team**: O subsistema foi integralmente auditado contra ataques adversariais, fatiamento UTF-8 e auto-sabotagens do crítico. Consulte os detalhes em [`docs/RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md`](./RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md).

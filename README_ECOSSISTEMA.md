@@ -20,6 +20,12 @@ A documentação do ecossistema é composta por três relatórios técnicos apro
   *Engenharia reversa completa do disco rígido de 100 MB, MBR proprietário (ASCII "SH"), tabela espelho em 28 MB (LBA 57344), journal de alocação de 10 blocos em 8 MB, partições de firmware em 32 MB e 64 MB, e arquitetura de vídeo streaming MEIHDFS-V2.0.*
 * 🔬 **[Especificação Técnica e Reconstrução da Interface DWire32A](dwire32a_jtag_research/PANASONIC_DWIRE32A_JTAG_RECONSTRUCTION.md)**  
   *Blueprint de engenharia do protocolo síncrono half-duplex Matsushita AM34/MN103S, temporizações do barramento no conector CN55001 da placa VEP79138 e emulação via máquina PIO do Raspberry Pi Pico.*
+* 🤖 **[Guia de Arquitetura de IA, Agentes, MCP e Ferramentas](docs/AI_ARCHITECTURE_AND_AGENT_GUIDE.md)**  
+  *Diretrizes de IA (AGENTS.md, GEMINI.md, .cursorrules), matriz dos 6 subagentes especializados, servidor Model Context Protocol (MCP stdio) e fluxo operacional MVP.*
+* 📡 **[Especificação do Subsistema de Logging e Telemetria Unificada](docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)**  
+  *Arquitetura do módulo src/logger.rs, enum LogLevel, filtragem atômica de zero-cost, custom sinks para GUI/testes e substituição total de prints não-padronizados.*
+* 🛡️ **[Dossiê do Motor RAG Zero-Error, Defesa em 6 Camadas e Invariantes Físicos](docs/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)**  
+  *Arquitetura do motor RAG nativo em Rust (src/rag/), 6 camadas ativas de validação/veto (QueryGuard, CRAG, Self-RAG, Hardware Safety Shield), abstenção epistêmica e coexistência com MCP.*
 
 ---
 
@@ -163,6 +169,49 @@ graph TD
 * **Estação de Retrabalho:** Ar quente digital (340°C–350°C) + Ferro de solda com ponta chanfrada/faca.
 * **Consumíveis:** Fluxo pastoso *no-clean* (Amtech NC-559-ASM), malha de cobre trançado, fita térmica Kapton e fio AWG 30 Kynar.
 * **Software Hexadecimal:** HxD Hex Editor (disponível em `tools/Abrir_HxD.bat`).
+
+---
+
+
+
+---
+
+## 7. Integração de Inteligência Artificial, Servidor MCP e Subsistema de Logging
+
+O ecossistema Panadiga conta com infraestrutura de ponta para operação assistida por IA e engenharia reversa automatizada:
+
+### A. Subagentes Especialistas (.agents/agents/)
+O repositório disponibiliza personas e subagentes com fronteiras estritas de domínio:
+* **panadiga-architect**: Orquestrador cross-stack e guardião do SSOT de constantes em Rust.
+* **panadiga-storage-forensics**: Especialista em MEIHFS, parsing de MBR 'SH', espelho em 28 MB e journals.
+* **panadiga-firmware-re**: Desmontagem Matsushita AM34 (MN103S), scripts Ghidra e criptoanálise CPRM/ECB.
+* **panadiga-hardware-embedded**: Firmware C11/PIO do RP2040, Cold Break-In e circuito de bancada CN55001.
+* **panadiga-desktop-ui**: Desenvolvimento da interface Desktop em Tauri 2, React 18, Vitest e Playwright.
+* **panadiga-qa-auditor**: Auditor dos 9 Quality Gates, limiar de 0% de clones (jscpd) e segurança física.
+
+### B. Servidor Model Context Protocol (MCP) (`tools/panadiga_mcp_server.py`)
+Servidor nativo em Python sobre transporte JSON-RPC 2.0 stdio, registrado em .mcp.json e .agents/mcp_config.json:
+* panadiga_memory_map: Retorna regiões de memória e permissões físicas do AM34.
+* panadiga_inspect_hdd: Validação forense de imagens de HD MEIHFS.
+* panadiga_safety_check: Escudo elétrico determinístico ($\le 3.3\text{ V}$) e bloqueio de escrita no bootloader.
+* panadiga_clean_nvram: Sanitização cirúrgica dos 64 KB de NVRAM Spansion para correção do erro U99.
+* panadiga_search_manuals: Consulta automatizada nos 15 manuais de serviço técnicos.
+* panadiga_rag_query: Consulta com guardrails no motor RAG interno.
+
+### C. Subsistema Unificado de Logging (src/logger.rs)
+Substituição total de prints não-padronizados por um motor de logging estruturado:
+* Níveis semânticos: Error, Warn, Info, Debug, Trace, Off.
+* Filtragem atômica de zero-cost (is_enabled).
+* Macros ergonômicas exportadas: log_println!, log_info!, log_warn!, log_error!, log_debug!.
+* Suporte a interceptadores (*custom sinks*) para transmissão em tempo real para a UI Desktop ou testes.
+* Documentação técnica em [docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md](docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md).
+
+### D. Auditoria Adversarial Red-Team & Motor RAG Nativo em Rust (src/rag/)
+* Implementação nativa em Rust (`src/rag/`, `src/main.rs`) com inferência em sub-milissegundos e zero dependências de runtime externo.
+* Comandos CLI de bancada: `panadiga rag query`, `panadiga memory-map`, `panadiga verify-artifact` e `panadiga gdb-config`.
+* Resolução e blindagem comprovada de 14 apontamentos adversariais (crashes de fatiamento UTF-8, auto-sabotagem do FactCritic, MBR "SH" nos offsets 6:8/8:16, parsing RSP C11).
+* Documentação exaustiva em [docs/RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md](docs/RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md) e [docs/AI_GUIDELINES_AND_ZERO_ERROR_RAG.md](docs/AI_GUIDELINES_AND_ZERO_ERROR_RAG.md).
+
 
 ---
 

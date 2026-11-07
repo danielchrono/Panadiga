@@ -33,10 +33,54 @@ static IPL_ERASE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .expect("Invalid regex: IPL_ERASE_PATTERN")
 });
 
+static WRITE_ACTION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\b(?:erase|erasing|wipe|wiping|write|writing|overwrite|overwriting|program|programming|reflash|flashing|clear|clearing|destroy|destroying|modify|modifying|patch|patching)\b|(?i)\bflash\s+(?:a\s+|new\s+|custom\s+|the\s+)?(?:image|binary|firmware|bootloader|rom|data|bytes)?\s*(?:to|at|into)\b")
+        .expect("Invalid regex: WRITE_ACTION_REGEX")
+});
+
 static NEGATION_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\b(?:never|not|no|do\s+not|must\s+not|cannot|prohibited|forbidden|avoid|warning|danger|destroy|damage|destruction|fatal|burn|bricks?|hazard|violation|exceeds|blocks|preserve|preserving|immutable)\b")
         .expect("Invalid regex: NEGATION_REGEX")
 });
+
+fn floor_char_boundary(s: &str, mut idx: usize) -> usize {
+    idx = idx.min(s.len());
+    while idx > 0 && !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+    idx
+}
+
+fn ceil_char_boundary(s: &str, mut idx: usize) -> usize {
+    idx = idx.min(s.len());
+    while idx < s.len() && !s.is_char_boundary(idx) {
+        idx += 1;
+    }
+    idx
+}
+
+/// Returns a UTF-8 character-boundary-safe slice of `lower_text` around `[match_start, match_end]`
+/// bounded by `radius` bytes and truncated at sentence boundaries (`.`, `;`, `!`, `\n`).
+fn sentence_context_window(lower_text: &str, match_start: usize, match_end: usize, radius: usize) -> &str {
+    let safe_start = floor_char_boundary(lower_text, match_start);
+    let safe_end = ceil_char_boundary(lower_text, match_end).max(safe_start);
+
+    let mut start_ctx = floor_char_boundary(lower_text, safe_start.saturating_sub(radius));
+    for p in ['.', ';', '!', '\n'] {
+        if let Some(idx) = lower_text[start_ctx..safe_start].rfind(p) {
+            start_ctx = start_ctx.max(ceil_char_boundary(lower_text, start_ctx + idx + p.len_utf8()));
+        }
+    }
+
+    let mut end_ctx = ceil_char_boundary(lower_text, (safe_end + radius).min(lower_text.len()));
+    for p in ['.', ';', '!', '\n'] {
+        if let Some(idx) = lower_text[safe_end..end_ctx].find(p) {
+            end_ctx = end_ctx.min(floor_char_boundary(lower_text, safe_end + idx));
+        }
+    }
+
+    &lower_text[start_ctx..end_ctx]
+}
 
 /// Extracts all voltage references from text and normalizes them to Volts (f64).
 ///
@@ -111,23 +155,9 @@ impl HardwareSafetyValidator {
         // ----------------------------------------------------------------------
         // 1. Electrical Invariant: Absolute Max Voltage <= 3.35V
         // ----------------------------------------------------------------------
-        for (val, start_idx, end_idx, matched_str) in extract_voltages_volts(text) {
+        for (val, start_idx, end_idx, matched_str) in extract_voltages_volts(&lower_text) {
             if val > MAX_SAFE_VOLTAGE_VOLTS {
-                let mut start_ctx = start_idx.saturating_sub(60);
-                for p in ['.', ';', '!', '\n'] {
-                    if let Some(idx) = lower_text[start_ctx..start_idx].rfind(p) {
-                        start_ctx = start_ctx.max(start_ctx + idx + 1);
-                    }
-                }
-
-                let mut end_ctx = (end_idx + 60).min(text.len());
-                for p in ['.', ';', '!', '\n'] {
-                    if let Some(idx) = lower_text[end_idx..end_ctx].find(p) {
-                        end_ctx = end_ctx.min(end_idx + idx);
-                    }
-                }
-
-                let context_window = &lower_text[start_ctx..end_ctx];
+                let context_window = sentence_context_window(&lower_text, start_idx, end_idx, 60);
                 let has_warning = NEGATION_REGEX.is_match(context_window);
 
                 if is_query || !has_warning {
@@ -151,34 +181,14 @@ impl HardwareSafetyValidator {
         // ----------------------------------------------------------------------
         // 2. Bootloader Invariant: SA0..SA133 is strictly read-only
         // ----------------------------------------------------------------------
-        let write_words = [
-            "erase", "erasing", "wipe", "wiping", "write", "writing", "overwrite",
-            "program", "programming", "flash", "flashing", "clear", "clearing", "destroy",
-        ];
-        let global_has_write = write_words.iter().any(|w| lower_text.contains(w));
-
-        for m in HEX_PATTERN.find_iter(text) {
+        for m in HEX_PATTERN.find_iter(&lower_text) {
             let raw_hex = m.as_str();
             let addr = match u64::from_str_radix(raw_hex.trim_start_matches("0x").trim_start_matches("0X"), 16) {
                 Ok(v) => v,
                 Err(_) => continue,
             };
 
-            let mut start_ctx = m.start().saturating_sub(60);
-            for p in ['.', ';', '!', '\n'] {
-                if let Some(idx) = lower_text[start_ctx..m.start()].rfind(p) {
-                    start_ctx = start_ctx.max(start_ctx + idx + 1);
-                }
-            }
-
-            let mut end_ctx = (m.end() + 60).min(text.len());
-            for p in ['.', ';', '!', '\n'] {
-                if let Some(idx) = lower_text[m.end()..end_ctx].find(p) {
-                    end_ctx = end_ctx.min(m.end() + idx);
-                }
-            }
-
-            let context_window = &lower_text[start_ctx..end_ctx];
+            let context_window = sentence_context_window(&lower_text, m.start(), m.end(), 120);
 
             // Ignore 1-byte data constants and bitmasks (e.g. 0xFF, 0xA0)
             if addr != 0 && addr < 0x1000 && raw_hex.len() <= 4 {
@@ -196,11 +206,25 @@ impl HardwareSafetyValidator {
                 continue;
             }
 
+            // Distinguish AM34 Internal SRAM (0x00000000..0x0003FFFF, e.g. 0x00004000 RAM loader)
+            // when context explicitly specifies SRAM/RAM loader without referencing NOR Flash/IPL.
+            let is_explicit_sram = addr <= 0x0003_FFFF
+                && (context_window.contains("sram") || context_window.contains("ram loader"))
+                && !context_window.contains("flash")
+                && !context_window.contains("ipl")
+                && !context_window.contains("bootloader")
+                && !context_window.contains("spansion")
+                && !context_window.contains("sa0");
+
+            if is_explicit_sram {
+                continue;
+            }
+
             let is_ipl_address = (addr <= (FORBIDDEN_FLASH_WRITE_END as u64))
                 || (addr >= (FORBIDDEN_FLASH_BUS_START as u64) && addr <= (FORBIDDEN_FLASH_BUS_END as u64));
 
             if is_ipl_address {
-                let has_local_write = write_words.iter().any(|w| context_window.contains(w)) || global_has_write;
+                let has_local_write = WRITE_ACTION_REGEX.is_match(context_window);
                 let has_warning = NEGATION_REGEX.is_match(context_window);
 
                 if (is_query && has_local_write) || (!is_query && has_local_write && !has_warning) {
@@ -226,10 +250,8 @@ impl HardwareSafetyValidator {
         }
 
         // Direct explicit intent to erase SA0..SA133 / IPL
-        for m in IPL_ERASE_PATTERN.find_iter(text) {
-            let start_ctx = m.start().saturating_sub(60);
-            let end_ctx = (m.end() + 60).min(text.len());
-            let context_window = &lower_text[start_ctx..end_ctx];
+        for m in IPL_ERASE_PATTERN.find_iter(&lower_text) {
+            let context_window = sentence_context_window(&lower_text, m.start(), m.end(), 80);
             let has_warning = NEGATION_REGEX.is_match(context_window);
 
             if is_query || !has_warning {
@@ -251,7 +273,7 @@ impl HardwareSafetyValidator {
                 .copied()
                 .collect();
 
-            if !mentioned_jtag.is_empty() {
+            if !mentioned_jtag.is_empty() && (is_query || !NEGATION_REGEX.is_match(&lower_text)) {
                 violations.push(format!(
                     "CRITICAL PROTOCOL HAZARD: CN55001 is a proprietary Matsushita DWire32A port (SDATA, SCLK, EXTRG, nRESET, GND). Standard JTAG pins ({}) do NOT exist on CN55001. Direct connection causes bus contention.",
                     mentioned_jtag.join(", ")
@@ -271,15 +293,19 @@ impl HardwareSafetyValidator {
             "format /fs:ntfs", "format /fs:fat32",
         ];
         for util in pc_disk_utils {
-            if lower_text.contains(util) && !NEGATION_REGEX.is_match(&lower_text) {
-                violations.push(format!(
-                    "CRITICAL STORAGE HAZARD: PC utility '{}' destroys MEIHDFS 'SH' signature and firmware partitions.",
-                    util
-                ));
-                critical_alerts.push(format!(
-                    "Destructive disk formatting utility detected: {}",
-                    util
-                ));
+            if let Some(pos) = lower_text.find(util) {
+                let context_window = sentence_context_window(&lower_text, pos, pos + util.len(), 80);
+                let has_warning = NEGATION_REGEX.is_match(context_window);
+                if is_query || !has_warning {
+                    violations.push(format!(
+                        "CRITICAL STORAGE HAZARD: PC utility '{}' destroys MEIHDFS 'SH' signature and firmware partitions.",
+                        util
+                    ));
+                    critical_alerts.push(format!(
+                        "Destructive disk formatting utility detected: {}",
+                        util
+                    ));
+                }
             }
         }
 

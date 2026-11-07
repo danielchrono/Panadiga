@@ -23,6 +23,7 @@ if "%1"=="scan" goto :run_cli_direct
 if "%1"=="manuals" goto :run_cli_direct
 if "%1"=="pico" goto :run_cli_direct
 if "%1"=="ghidra" goto :run_cli_direct
+if "%1"=="rag" goto :run_cli_direct
 
 :: Default: Run Desktop GUI immediately
 if exist "%DESKTOP_EXE%" (
@@ -85,5 +86,6 @@ echo   run.bat --cli [args]    Executa a CLI nativa com argumentos
 echo   run.bat nvram clean ... Atalho direto para comandos da CLI Panadiga
 echo   run.bat hdd inspect ... Atalho direto para inspecao de disco
 echo   run.bat ghidra ...      Atalho direto para gerador de scripts Ghidra
+echo   run.bat rag query ...   Atalho direto para consulta ao motor RAG Zero-Error
 echo ====================================================================
 exit /b 0

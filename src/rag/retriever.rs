@@ -105,7 +105,7 @@ impl<'a> HybridRetriever<'a> {
                 }
             }
 
-            let final_score = rrf_score + boost;
+            let final_score = (rrf_score + boost).min(1.0);
             let chunk_token_set: HashSet<&String> = chunk.tokens.iter().collect();
             let matched_toks: Vec<String> = tokens
                 .iter()

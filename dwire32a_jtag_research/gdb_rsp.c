@@ -92,6 +92,7 @@ static uint8_t compute_checksum(const char *payload) {
  */
 static const char *parse_hex_u32(const char *str, uint32_t *out_val, char delim) {
     uint32_t val = 0U;
+    size_t digits = 0U;
     if (str == NULL || out_val == NULL) return NULL;
 
     while (*str != '\0' && *str != delim) {
@@ -99,12 +100,24 @@ static const char *parse_hex_u32(const char *str, uint32_t *out_val, char delim)
         if (nibble < 0) return NULL;
         val = (val << 4) | (uint32_t)nibble;
         str++;
+        digits++;
+    }
+    if (digits == 0U || *str != delim) {
+        return NULL;
     }
     *out_val = val;
-    if (*str == delim) {
+    if (*str == delim && delim != '\0') {
         str++; // Advance past delimiter
     }
     return str;
+}
+
+static const char *parse_addr_and_len(const char *str, uint32_t *out_addr, uint32_t *out_len, char end_delim) {
+    const char *p = parse_hex_u32(str, out_addr, ',');
+    if (p == NULL) return NULL;
+    p = parse_hex_u32(p, out_len, end_delim);
+    if (p == NULL || *out_len == 0U || *out_len > 512U) return NULL;
+    return p;
 }
 
 /* =========================================================================
@@ -143,9 +156,8 @@ static uint8_t memory_read_byte(uint32_t addr) {
         return s_sector_cache[addr - s_cache_base_addr];
     }
 
-    // Flash or NVRAM range: populate sector cache for burst speed
-    if ((addr >= 0x80000000UL && addr < 0x80800000UL) ||
-        (addr >= 0x007F0000UL && addr < 0x00800000UL)) {
+    // Flash or NVRAM bus range (0x80000000..0x807FFFFF): populate sector cache for burst speed
+    if (addr >= 0x80000000UL && addr < 0x80800000UL) {
         uint32_t aligned = addr & ~(GDB_SECTOR_CACHE_SIZE - 1U);
         populate_cache(aligned);
         return s_sector_cache[addr - aligned];
@@ -228,16 +240,23 @@ static bool is_valid_write_address(uint32_t addr) {
 
 static bool is_valid_write_range(uint32_t addr, uint32_t length) {
     if (length == 0U) return false;
-    if (addr + length < addr) return false;
-    uint32_t end_addr = addr + length - 1U;
+    uint32_t end_addr = addr + (length - 1U);
+    if (end_addr < addr) return false;
 
-    if ((addr >= 0x80000000UL && addr <= 0x807EFFFFUL) ||
-        (end_addr >= 0x80000000UL && end_addr <= 0x807EFFFFUL) ||
-        (addr < 0x80000000UL && end_addr >= 0x807EFFFFUL)) {
+    /* Reject any overlap with protected IPL ROM (0x80000000..0x807EFFFF) */
+    if (addr <= 0x807EFFFFUL && end_addr >= 0x80000000UL) {
         return false;
     }
 
-    return is_valid_write_address(addr) && is_valid_write_address(end_addr);
+    /* Entire [addr, end_addr] range must reside within the same contiguous writable region */
+    if (end_addr <= 0x0003FFFFUL) return true; /* Internal SRAM */
+    if (addr >= 0x10000000UL && end_addr <= 0x1000FFFFUL) return true; /* Core MMIO */
+    if (addr >= 0x40000000UL && end_addr <= 0x43FFFFFFUL) return true; /* System SDRAM */
+    if (addr >= 0x807F0000UL && end_addr <= 0x807FFFFFUL) return true; /* NVRAM SA134..SA141 */
+    if (addr >= 0xC0000000UL && end_addr <= 0xC000FFFFUL) return true; /* System / DWire32A OCD MMIO */
+    if (addr >= 0xD4000000UL && end_addr <= 0xD4000FFFUL) return true; /* ATA / IDE MMIO */
+
+    return false;
 }
 
 /**
@@ -429,12 +448,7 @@ static void handle_gdb_command(const char *cmd) {
         case 'm': {
             uint32_t addr = 0U;
             uint32_t length = 0U;
-            const char *p = parse_hex_u32(&cmd[1], &addr, ',');
-            if (p != NULL) {
-                parse_hex_u32(p, &length, '\0');
-            }
-
-            if (length == 0U || length > 512U) {
+            if (parse_addr_and_len(&cmd[1], &addr, &length, '\0') == NULL) {
                 gdb_rsp_send_packet("E02");
                 break;
             }
@@ -454,12 +468,8 @@ static void handle_gdb_command(const char *cmd) {
         case 'M': {
             uint32_t addr = 0U;
             uint32_t length = 0U;
-            const char *p = parse_hex_u32(&cmd[1], &addr, ',');
-            if (p != NULL) {
-                p = parse_hex_u32(p, &length, ':');
-            }
-
-            if (p == NULL || length == 0U || length > 512U) {
+            const char *p = parse_addr_and_len(&cmd[1], &addr, &length, ':');
+            if (p == NULL) {
                 gdb_rsp_send_packet("E03");
                 break;
             }
@@ -503,7 +513,10 @@ static void handle_gdb_command(const char *cmd) {
         case 'c': {
             if (cmd[1] != '\0') {
                 uint32_t cont_addr = 0U;
-                parse_hex_u32(&cmd[1], &cont_addr, '\0');
+                if (parse_hex_u32(&cmd[1], &cont_addr, '\0') == NULL) {
+                    gdb_rsp_send_packet("E01");
+                    break;
+                }
                 s_reg_file.pc = cont_addr;
                 dwire_hw_set_pc(cont_addr);
             }
@@ -518,7 +531,10 @@ static void handle_gdb_command(const char *cmd) {
         case 's': {
             if (cmd[1] != '\0') {
                 uint32_t step_addr = 0U;
-                parse_hex_u32(&cmd[1], &step_addr, '\0');
+                if (parse_hex_u32(&cmd[1], &step_addr, '\0') == NULL) {
+                    gdb_rsp_send_packet("E01");
+                    break;
+                }
                 s_reg_file.pc = step_addr;
                 dwire_hw_set_pc(step_addr);
             }

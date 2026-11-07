@@ -217,6 +217,10 @@ Modelos icônicos que sofrem massivamente com o erro **`U99`** ou o travamento c
   * Para Flash de 4 MB: O topo da Flash situa-se em `0x803F0000` (em vez de `0x807F0000`).
   * Para Flash de 2 MB: O topo situa-se em `0x801F0000`.
 
+> [!TIP]
+> **DETECÇÃO AUTOMÁTICA UNIVERSAL EM RUST (`src/nvram.rs`):**
+> O comando `panadiga nvram clean` detecta automaticamente o tamanho do dump binário da Flash (2 MB, 4 MB, 8 MB ou 16 MB), calculando o offset exato da NVRAM (`len - 64 KB`) e mapeando os micro-setores correspondentes sem exigir parâmetros manuais!
+
 ### 6.3. Grupo 3: Linhas com Sintonizador Digital e Gravadores Blu-ray DIGA
 * **Modelos:** `DMR-EX75`, `DMR-EX85`, `DMR-EX77`, `DMR-EX87`, `DMR-EZ25`, `DMR-EZ47` e os primeiros gravadores Blu-ray `DMR-BW500` / `DMR-BW700`.
 * **Arquitetura:** Equipados com processadores UniPhier de 2ª geração (núcleos atualizados `MN2DS0018` e `MN2DS0022`), mantendo o barramento de depuração síncrono DWire32A e a partição de parâmetros em Flash.

@@ -554,6 +554,7 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
     for stream_res in listener.incoming() {
         match stream_res {
             Ok(mut tcp_stream) => {
+                let _ = tcp_stream.set_read_timeout(Some(Duration::from_millis(100)));
                 let peer_addr = tcp_stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "unknown".to_string());
                 log_info!("[Bridge] GDB client connected from: {}", peer_addr);
 

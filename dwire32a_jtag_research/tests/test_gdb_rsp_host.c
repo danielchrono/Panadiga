@@ -183,6 +183,14 @@ static void test_ipl_write_rejection_e05(void) {
     send_cmd_and_get_response("M807EFFFE,4:11223344", resp, sizeof(resp));
     assert(strcmp(resp, "E05") == 0);
 
+    /* Writing across unmapped boundary at end of SRAM (0x0003FFFE..0x00040001) must be rejected */
+    send_cmd_and_get_response("M0003FFFE,4:11223344", resp, sizeof(resp));
+    assert(strcmp(resp, "E05") == 0);
+
+    /* Malformed read packet without comma delimiter must return E02 */
+    send_cmd_and_get_response("m80000000", resp, sizeof(resp));
+    assert(strcmp(resp, "E02") == 0);
+
     printf("  [PASS] test_ipl_write_rejection_e05 (OPUS-07 verified)\n");
 }
 

@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -157,8 +158,8 @@ def handle_inspect_hdd(args: Dict[str, Any]) -> Dict[str, Any]:
     size_bytes = img_file.stat().st_size
     with img_file.open("rb") as f:
         mbr_data = f.read(512)
-        has_sh_tag = mbr_data[0:2] == b"SH"
-        guid_bytes = mbr_data[2:18]
+        has_sh_tag = mbr_data[6:8] == b"SH"
+        guid_bytes = mbr_data[8:16]
         guid_hex = guid_bytes.hex()
 
         # Check mirror at 28 MB (57344 * 512 = 29360128)
@@ -198,17 +199,19 @@ def handle_safety_check(args: Dict[str, Any]) -> Dict[str, Any]:
     address_str = args.get("address")
     if address_str is not None:
         try:
-            addr = int(str(address_str), 16) if str(address_str).startswith("0x") else int(str(address_str))
-            if 0x80000000 <= addr <= 0x807EFFFF:
+            raw_addr = str(address_str).strip()
+            addr = int(raw_addr, 16) if raw_addr.lower().startswith("0x") else int(raw_addr)
+            if (0x00000000 <= addr <= 0x007EFFFF) or (0x80000000 <= addr <= 0x807EFFFF):
                 results["safe"] = False
                 results["violations"].append(
                     f"FLASH_WRITE_VIOLATION: Address 0x{addr:08X} resides in protected IPL/Bootloader area! Write forbidden."
                 )
-            elif 0x807F0000 <= addr <= 0x807FFFFF:
+            elif (0x007F0000 <= addr <= 0x007FFFFF) or (0x807F0000 <= addr <= 0x807FFFFF):
                 results["address_status"] = f"Address 0x{addr:08X} is inside mutable NVRAM (U99 unbrick area)."
             else:
                 results["address_status"] = f"Address 0x{addr:08X} is outside NOR Flash range."
         except ValueError:
+            results["safe"] = False
             results["violations"].append(f"Invalid address format: {address_str}")
 
     return results
@@ -231,6 +234,8 @@ def handle_clean_nvram(args: Dict[str, Any]) -> Dict[str, Any]:
     saved = False
     if output_path_str:
         out_path = WORKSPACE_ROOT / output_path_str
+        if out_path.resolve() == input_path.resolve():
+            return {"error": "Forensic Invariant Violation: Cannot overwrite original flash dump in-place."}
         # Replace 64KB with 0xFF
         data[0x7F0000:0x800000] = b"\xFF" * 65536
         out_path.write_bytes(data)
@@ -265,28 +270,49 @@ def handle_search_manuals(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _resolve_panadiga_cmd() -> List[str]:
+    candidates = [
+        WORKSPACE_ROOT / "target" / "debug" / "panadiga.exe",
+        WORKSPACE_ROOT / "target" / "release" / "panadiga.exe",
+        WORKSPACE_ROOT / "target" / "debug" / "panadiga",
+        WORKSPACE_ROOT / "target" / "release" / "panadiga",
+    ]
+    existing = [c for c in candidates if c.is_file()]
+    if existing:
+        existing.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return [str(existing[0])]
+    return ["cargo", "run", "--quiet", "--"]
+
+
 def handle_rag_query(args: Dict[str, Any]) -> Dict[str, Any]:
     query = str(args["query"])
     try:
-        from tools.rag_engine.pipeline import ZeroErrorRagEngine
-
-        rag = ZeroErrorRagEngine()
-        response = rag.query(query)
-        passed_safety = (
-            response.safety_report.is_safe if response.safety_report is not None else True
+        cmd = _resolve_panadiga_cmd() + ["rag", "query", "--json", query]
+        proc = subprocess.run(
+            cmd,
+            cwd=str(WORKSPACE_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True,
         )
+        payload: Dict[str, Any] = json.loads(proc.stdout)
+        safety_obj = payload.get("safety", {})
+        passed_safety = bool(safety_obj.get("is_safe", True))
         return {
             "query": query,
-            "answer": response.answer_text,
-            "confidence": response.confidence,
+            "answer": payload.get("answer", ""),
+            "confidence": payload.get("confidence", 0.0),
+            "groundedness_score": payload.get("groundedness_score", 0.0),
             "safety_passed": passed_safety,
-            "is_abstained": response.is_abstained,
+            "is_abstained": payload.get("is_abstained", False),
+            "citations": payload.get("citations", []),
         }
     except Exception as e:
         return {
             "query": query,
             "error": f"RAG execution fallback: {e}",
-            "hint": "Check tools/rag_engine/cli.py for standalone pipeline execution.",
+            "hint": "Run 'cargo build' to compile the native Rust panadiga RAG engine.",
         }
 
 
@@ -339,7 +365,7 @@ def run_stdio() -> None:
                     },
                 },
             }
-        elif method == "notifications/initialized":
+        elif method == "notifications/initialized" or req_id is None:
             continue
         elif method == "tools/list":
             resp = {

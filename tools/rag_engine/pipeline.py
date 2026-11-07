@@ -108,18 +108,19 @@ class ZeroErrorRagEngine:
         # Layer 4: Grounded Synthesis
         # ----------------------------------------------------------------------
         answer_text, citations = self.generator.synthesize_deterministic(q, valid_results)
+        auditable_body = self.generator.strip_boilerplate(answer_text, q)
 
         # ----------------------------------------------------------------------
         # Layer 5: FactCritic (Self-RAG Post-Generation Entity Grounding)
         # ----------------------------------------------------------------------
         critic_report = self.fact_critic.audit(
-            answer_text, [r.chunk for r in valid_results]
+            auditable_body, [r.chunk for r in valid_results]
         )
 
         # ----------------------------------------------------------------------
         # Layer 6: Hardware Safety Shield (Deterministic Post-Generation Veto)
         # ----------------------------------------------------------------------
-        post_safety = self.safety_validator.validate(answer_text, is_query=False)
+        post_safety = self.safety_validator.validate(auditable_body, is_query=False)
 
         is_abstained = False
         abstention_reason = None

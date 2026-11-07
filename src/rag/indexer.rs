@@ -459,10 +459,16 @@ impl HierarchicalIndexer {
 
         let dirs_to_scan = directories.unwrap_or(&default_dirs);
         let mut all_chunks = Vec::new();
+        let mut seen_canonical = HashSet::new();
 
         for d in dirs_to_scan {
             if !d.exists() {
                 continue;
+            }
+            if let Ok(canon) = fs::canonicalize(d) {
+                if !seen_canonical.insert(canon) {
+                    continue;
+                }
             }
             self.scan_recursive(d, &mut all_chunks);
         }
@@ -480,8 +486,10 @@ impl HierarchicalIndexer {
 
     fn scan_recursive(&self, dir: &Path, acc: &mut Vec<Chunk>) {
         if let Ok(entries) = fs::read_dir(dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
+            let mut paths: Vec<PathBuf> = entries.flatten().map(|e| e.path()).collect();
+            paths.sort();
+
+            for path in paths {
                 if path.is_dir() {
                     self.scan_recursive(&path, acc);
                 } else if path.is_file() {

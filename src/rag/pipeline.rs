@@ -134,18 +134,20 @@ impl ZeroErrorRagEngine {
         // ----------------------------------------------------------------------
         // Layer 4: Grounded Synthesis
         // ----------------------------------------------------------------------
-        let (mut answer_text, citations) = self.generator.synthesize_deterministic(&q, &valid_results);
+        let (claims_body, citations) = self.generator.synthesize_claims(&valid_results);
+        let mut answer_text = self.generator.wrap_grounded_answer(&q, &claims_body);
 
         // ----------------------------------------------------------------------
         // Layer 5: FactCritic (Self-RAG Post-Generation Entity Grounding)
+        // Audits only the synthesized factual claims (excluding boilerplate header/footer)
         // ----------------------------------------------------------------------
         let source_chunks: Vec<_> = valid_results.iter().map(|r| r.chunk.clone()).collect();
-        let critic_report = self.fact_critic.audit(&answer_text, &source_chunks);
+        let critic_report = self.fact_critic.audit(&claims_body, &source_chunks);
 
         // ----------------------------------------------------------------------
         // Layer 6: Hardware Safety Shield (Deterministic Post-Generation Veto)
         // ----------------------------------------------------------------------
-        let post_safety = self.safety_validator.validate(&answer_text, false);
+        let post_safety = self.safety_validator.validate(&claims_body, false);
 
         let mut is_abstained = false;
         let mut abstention_reason = None;

@@ -21,7 +21,7 @@ static INJECTION_PATTERNS: LazyLock<Vec<Regex>> = LazyLock::new(|| {
 });
 
 static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\b0x[0-9A-Fa-f]{1,8}\b").unwrap()
+    Regex::new(r"\b0x[0-9A-Fa-f]{1,16}\b").unwrap()
 });
 
 static ERROR_CODE_REGEX: LazyLock<Regex> = LazyLock::new(|| {

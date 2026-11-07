@@ -96,6 +96,18 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         }
     };
 
+    // Forensic Invariant #3: Reject in-place overwrite of original flash dump
+    let same_path = resolved_input == resolved_output
+        || (resolved_input.canonicalize().ok().is_some()
+            && resolved_input.canonicalize().ok() == resolved_output.canonicalize().ok());
+    if same_path {
+        bail!(
+            "[FORENSIC INVARIANT VIOLATION] Output path ({}) cannot overwrite input flash dump ({}) in-place.",
+            resolved_output.display(),
+            resolved_input.display()
+        );
+    }
+
     let backup_dir = resolved_output
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -118,23 +130,41 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     file.read_to_end(&mut flash_bytes)
         .with_context(|| "Failed reading flash binary content")?;
 
-    // Strict validation of Spansion S29JL064H 8MB capacity
-    if flash_bytes.len() != SPANSION_FLASH_SIZE_BYTES {
+    // Multi-model support: Standard Panasonic DIGA Top-Boot NOR Flash capacities
+    // 2 MB (E50/E55), 4 MB (E85H/E95H), 8 MB (EH50/EH55/EH56/EH60/EH65), 16 MB (EX75/EX85)
+    let flash_len = flash_bytes.len();
+    let valid_capacities = [
+        2 * 1024 * 1024,
+        4 * 1024 * 1024,
+        8 * 1024 * 1024,
+        16 * 1024 * 1024,
+    ];
+    if !valid_capacities.contains(&flash_len) {
         bail!(
-            "Invalid flash dump size: {} bytes. Expected Spansion S29JL064H capacity: {} bytes (8 MB).",
-            flash_bytes.len(),
-            SPANSION_FLASH_SIZE_BYTES
+            "Invalid flash dump size: {} bytes. Expected standard Panasonic DIGA NOR Flash capacity (2 MB, 4 MB, 8 MB or 16 MB).",
+            flash_len
         );
     }
 
+    let nvram_base_offset = flash_len - SPANSION_NVRAM_SIZE_BYTES;
+    let nvram_end_offset = flash_len;
+    let bootloader_size = nvram_base_offset;
+    let base_sector_idx = match flash_len {
+        8388608 => 134, // S29JL064H Top-Boot SA134..SA141
+        4194304 => 70,  // S29JL032H Top-Boot SA70..SA77
+        2097152 => 38,  // S29AL016J Top-Boot SA38..SA45
+        _ => 262,
+    };
+
     let (orig_md5, orig_sha256) = calculate_hashes(&flash_bytes);
-    log_println!("  Dump Size    : {} bytes (8.00 MB / 64 Mbit)", flash_bytes.len());
+    let size_mb = flash_len as f64 / (1024.0 * 1024.0);
+    log_println!("  Dump Size    : {} bytes ({:.2} MB / {} Mbit)", flash_len, size_mb, (flash_len * 8) / (1024 * 1024));
     log_println!("  Original MD5 : {}", orig_md5);
     log_println!("  Orig SHA-256 : {}", orig_sha256);
     log_println!("----------------------------------------------------------------------");
 
-    // Extract raw NVRAM block (0x007F_0000 .. 0x0080_0000)
-    let nvram_slice = &flash_bytes[SPANSION_NVRAM_BASE_OFFSET..SPANSION_NVRAM_END_OFFSET];
+    // Extract raw NVRAM block
+    let nvram_slice = &flash_bytes[nvram_base_offset..nvram_end_offset];
     fs::write(&backup_nvram_path, nvram_slice).with_context(|| {
         format!(
             "Failed writing corrupt NVRAM backup to {}",
@@ -144,8 +174,8 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
 
     log_println!(
         "[OK] Corrupted NVRAM sector (0x{:06X} - 0x{:06X}) extracted to:",
-        SPANSION_NVRAM_BASE_OFFSET,
-        SPANSION_NVRAM_END_OFFSET - 1
+        nvram_base_offset,
+        nvram_end_offset - 1
     );
     log_println!("     -> {} ({} bytes)", backup_nvram_path.display(), nvram_slice.len());
 
@@ -158,7 +188,7 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     log_println!("\n[+] ANALISE ESTRUTURAL DA NVRAM CORROMPIDA:");
     log_println!("    * Bytes nao-FF (dados gravados) : {:6} / {} ({:.2}%)", non_ff, SPANSION_NVRAM_SIZE_BYTES, pct_non_ff);
     log_println!("    * Bytes nao-zero                : {:6} / {} ({:.2}%)", non_zero, SPANSION_NVRAM_SIZE_BYTES, pct_non_zero);
-    log_println!("\n    * Auditoria Detalhada dos 8 Micro-Setores (SA134 a SA141 - 8 KB cada):");
+    log_println!("\n    * Auditoria Detalhada dos 8 Micro-Setores (SA{} a SA{} - 8 KB cada):", base_sector_idx, base_sector_idx + 7);
     log_println!("    +-------+----------+--------------------+-------------------------+");
     log_println!("    | Setor |  Offset  | Ativos (Nao-0xFF)  | Header (Primeiros 8B)   |");
     log_println!("    +-------+----------+--------------------+-------------------------+");
@@ -169,8 +199,8 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         let sec_slice = &nvram_slice[sec_offset..sec_offset + SPANSION_MICROSECTOR_SIZE];
         let used = sec_slice.iter().filter(|&&b| b != FLASH_ERASED_BYTE).count();
         let header_hex = hex::encode_upper(&sec_slice[..8]);
-        let sec_name = format!("SA{}", SPANSION_MICROSECTOR_BASE_INDEX + idx);
-        let abs_offset = SPANSION_NVRAM_BASE_OFFSET + sec_offset;
+        let sec_name = format!("SA{}", base_sector_idx + idx);
+        let abs_offset = nvram_base_offset + sec_offset;
 
         log_println!(
             "    | {:<5} | 0x{:06X} | {:4} / {} ({:5.1}%) | {:<23} |",
@@ -193,18 +223,18 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     log_println!("    +-------+----------+--------------------+-------------------------+");
 
     // Preserve original OS and Bootloader byte sequence for strict immutability check
-    let original_os_bytes = flash_bytes[..SPANSION_BOOTLOADER_SIZE_BYTES].to_vec();
+    let original_os_bytes = flash_bytes[..bootloader_size].to_vec();
 
     // Erase NVRAM to factory virgin state (0xFF)
-    for byte in &mut flash_bytes[SPANSION_NVRAM_BASE_OFFSET..SPANSION_NVRAM_END_OFFSET] {
+    for byte in &mut flash_bytes[nvram_base_offset..nvram_end_offset] {
         *byte = FLASH_ERASED_BYTE;
     }
 
     // Verify 100% bit-for-bit immutability of OS and Bootloader area
-    if flash_bytes[..SPANSION_BOOTLOADER_SIZE_BYTES] != original_os_bytes[..] {
-        bail!("[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x007EFFFF) was modified during clean! Aborting.");
+    if flash_bytes[..bootloader_size] != original_os_bytes[..] {
+        bail!("[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x{:08X}) was modified during clean! Aborting.", bootloader_size);
     }
-    log_println!("\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)", SPANSION_BOOTLOADER_SIZE_BYTES);
+    log_println!("\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)", bootloader_size);
     log_println!("     Bit-a-bit 100% IDENTICA E IMUTAVEL.");
 
     // Write clean binary
@@ -230,9 +260,9 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         original_sha256: orig_sha256,
         clean_md5,
         clean_sha256,
-        total_flash_bytes: flash_bytes.len(),
-        nvram_offset_start: SPANSION_NVRAM_BASE_OFFSET,
-        nvram_offset_end: SPANSION_NVRAM_END_OFFSET,
+        total_flash_bytes: flash_len,
+        nvram_offset_start: nvram_base_offset,
+        nvram_offset_end: nvram_end_offset,
         nvram_non_ff_bytes: non_ff,
         nvram_non_zero_bytes: non_zero,
         microsectors,

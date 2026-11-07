@@ -185,6 +185,18 @@ Panasonic Firmware HDD bin/
 
 ---
 
+### 3.1. Scripts de Inicialização e Build Multiplataforma (Linux, macOS, Windows)
+
+O ecossistema dispõe de automações de ciclo de vida completo compatíveis com Windows (PowerShell/CMD), Linux e macOS:
+
+| Script | Plataformas | Finalidade e Capacidades |
+| :--- | :--- | :--- |
+| **`build_all.sh`** / **`build_all.ps1`** | Linux, macOS, Windows | **Build Mestre:** Compilação paralela com autodetecção de núcleos de CPU (`nproc`/`sysctl`), cache `sccache`, compilação da CLI Rust, compilação da interface Vite/React e do Tauri Desktop, empacotando em `dist_bin/` e gerando releases `.tar.gz`/`.zip` com hashes SHA-256. |
+| **`run.sh`** / **`run.ps1`** | Linux, macOS, Windows | **Inicializador Rápido:** Lança instantaneamente a interface Desktop (`--dev` para hot-reload, `--build` para recompilar), ou atua como atalho para comandos da CLI (`run.sh rag query ...`, `run.sh nvram clean ...`). |
+| **`validate_all.sh`** / **`validate_all.ps1`** | Linux, macOS, Windows | **Portão Universal de Qualidade:** Executa os 9 Quality Gates obrigatórios de commit e verificação anti-regressão. |
+
+---
+
 ## 4. Guia de Uso Completo da Ferramenta Rust `panadiga` (`src/`)
 
 A ferramenta **`panadiga`** foi desenvolvida para substituir scripts legados por uma implementação industrial em **Rust moderno (edição 2021/2024)**. O software emprega mapeamento de memória em modo zero-copy (`memmap2`), tratamento de erros sem pânico (`anyhow`/`thiserror`), tipagem estrita contra números mágicos (`constants.rs`) e serialização estruturada em JSON.
@@ -217,7 +229,7 @@ cargo run --release -- nvram clean DMR_EH55_FLASH_ORIGINAL.bin -o DMR_EH55_FLASH
 ```
 
 #### O que o comando executa rigorosamente:
-1. **Validação de Geometria:** Verifica se o arquivo de entrada possui exatamente $8.388.608\text{ bytes}$ ($8\text{ MB} / 64\text{ Mbit}$).
+1. **Validação de Geometria e Suporte Multi-Modelos:** Detecta e suporta automaticamente dumps de **2 MB** (16 Mbit - ex: `DMR-E50`/`E55`), **4 MB** (32 Mbit - ex: `DMR-E85H`/`E95H`), **8 MB** (64 Mbit - ex: `DMR-EH50`/`EH55`/`EH56`/`EH60`/`EH65`) e **16 MB** (128 Mbit - ex: `DMR-EX75`/`EX85`), calculando o offset da NVRAM em `len - 64 KB`.
 2. **Extração de Segurança:** Isola os $65.536\text{ bytes}$ da área de calibração/NVRAM (`0x007F0000` a `0x007FFFFF`) e salva em `nvram_corrupt_backup.bin` para auditoria forense.
 3. **Auditoria Micro-Setorial:** Analisa a ocupação de dados não-virgens (bytes diferentes de `0xFF`) nos 8 micro-setores protegidos de 8 KB da Spansion Model 00:
    * `SA134` (`0x007F0000`), `SA135` (`0x007F2000`), `SA136` (`0x007F4000`), `SA137` (`0x007F6000`)
@@ -550,6 +562,20 @@ cargo run --release -- manuals --filter dmr-eh55p9 --term U99 --term VEP79138
 
 ---
 
+### 4.12 Comando 11: Consulta ao Motor RAG Zero-Error e Guardrails Físicos (`rag query`)
+
+Executa a consulta semântica ao motor de inteligência técnica embutido em Rust (`src/rag/`), percorrendo as 6 camadas de defesa em sub-milissegundos (< 1 ms). Protege a bancada contra alucinações técnicas vetando automaticamente consultas ou respostas que violem os limites de 3.3V LVTTL ou que sugiram modificações na região de bootloader Spansion (IPL):
+
+```bash
+# Consulta técnica de bancada fundamentada com citações dos manuais oficiais
+cargo run --release -- rag query "Qual a pinagem de CN55001 e a tensao maxima de bancada?"
+
+# Saída estruturada em JSON (usada nativamente pelo aplicativo Desktop Tauri)
+cargo run --release -- rag query "Quais sao os micro-setores de NVRAM para recuperacao de U99?" --json
+```
+
+---
+
 ## 5. Especificação Elétrica e Pinout da Interface DWire32A (`CN55001`)
 
 A interface de diagnóstico localizada no conector SMD de 6 pinos **`CN55001`** na Placa Digital Principal (`VEP79138`) não é uma UART assíncrona comum. Trata-se da porta física do protocolo síncrono proprietário **Matsushita DWire32A / On-Chip Debug (OCD)**, conectado diretamente às linhas de depuração em nível de silício do SoC **MN2DS0016**.
@@ -762,9 +788,9 @@ flowchart TD
 
 ---
 
-### Rota A: Gravação Física Externa TSOP-48 via SVOD 4 / XGecu T48 (Mais Recomendada)
+### Rota A: Gravação Física Externa TSOP-48 via SVOD 4 / XGecu T48 (Gravação de ROM Completa)
 
-É o método padrão industrial mais rápido e confiável:
+É o método padrão industrial mais rápido, seguro e irrestrito. Permite regravar **100% da ROM Flash (todos os 8 MB, incluindo Bootloader/IPL, fontes OSD e NVRAM)** diretamente no soquete ZIF do gravador universal, sem qualquer trava de segurança in-circuit:
 1. **Proteção Térmica:** Aplique fita Kapton sobre os circuitos integrados vizinhos (SDRAMs Elpida `IC53202`/`IC53203` e SoC `IC55001`).
 2. **Remoção do Componente:** Aplique fluxo *no-clean* (Amtech NC-559-ASM) nos terminais do chip `IC55007` (Spansion `S29JL064H70TFI00`). Remova o componente utilizando bocal largo de ar quente regulado a $340^\circ\text{C}–345^\circ\text{C}$.
 3. **Limpeza dos Pinos:** Limpe os terminais do chip e as ilhas da PCB utilizando malha de cobre trançada e álcool isopropílico 99.8%.
@@ -858,6 +884,14 @@ Para aprofundamento específico em cada área de engenharia, consulte os dossiê
   *Procedimento completo de conexão no conector P7501/CN55001 sem dessolda, especificações mecânicas do conector JST ZR 1.5mm de 6 pinos (B6B-ZR-3R4) e testes de continuidade.*
 * 🐛 **[Guia de Depuração Interativa de Hardware: GDB, Ghidra e IDA Pro](dwire32a_jtag_research/GUIA_DEPURACAO_GDB_GHIDRA_IDA.md)**  
   *Tutorial prático para conectar depuradores interativos (gdb-multiarch, Ghidra Debugger, IDA Pro e OpenOCD) à CPU Matsushita AM34 via ponte TCP 'panadiga pico gdb-bridge', permitindo pausar a CPU, inspecionar registradores e executar passo a passo.*
+* 🤖 **[Guia de Governança de Inteligência Artificial, Subagentes e Servidor MCP](docs/AI_ARCHITECTURE_AND_AGENT_GUIDE.md)**  
+  *Diretrizes universais para modelos de IA no ecossistema Panadiga: matriz dos 6 subagentes especializados (.agents/agents/), runbooks operacionais (.agents/skills/), regras de segurança física e silício (.agents/rules/), ferramentas MCP em Python (panadiga_mcp_server.py) e metodologia MVP.*
+* 📡 **[Especificação Técnica do Subsistema de Logging e Telemetria](docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)**  
+  *Arquitetura do motor thread-safe de logging em Rust (src/logger.rs), filtragem atômica com zero-overhead, macros estruturadas (log_info!, log_warn!, log_error!, log_debug!, log_trace!), suporte a interceptadores de GUI desktop e histórico de migração de 365 pontos de log.*
+* 🛡️ **[Dossiê do Motor RAG Zero-Error, Defesa em 6 Camadas e Invariantes Físicos](docs/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)**  
+  *Arquitetura do motor RAG nativo em Rust (src/rag/), 6 camadas ativas de validação e veto mútuo (QueryGuard, CRAG, Self-RAG FactCritic, Hardware Safety Shield), abstenção epistêmica contra alucinações e justificativa técnica da coexistência com o servidor MCP.*
+* 🛡️ **[Relatório de Auditoria Red-Team, Refutação e Blindagem Lógica de Runtime](docs/RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md)**  
+  *Relatório adversarial completo detalhando o diagnóstico, reprodução ao vivo de crashes UTF-8 e remediação cirúrgica de 14 vulnerabilidades lógicas, de silício, protocolo e forenses em Rust, C11 e Python.*
 
 
 ---
@@ -876,56 +910,109 @@ Para executar as intervenções físicas e lógicas com padrão de excelência d
 
 ---
 
-## 12. Qualidade Total, Pirâmide de Testes e Proteção Anti-Regressão (8 Gates de Commit)
+## 12. Qualidade Total, Pirâmide de Testes e Proteção Anti-Regressão (9 Quality Gates)
 
-Para impedir regressões e garantir que nenhum commit quebre a codebase, o repositório é blindado por uma esteira com **8 Portões de Validação Contínua (8 Gates)**:
+Para impedir regressões e garantir que nenhum commit quebre a codebase, o repositório é blindado por uma esteira com **9 Portões de Validação Contínua (9 Quality Gates)** executados via `validate_all.ps1`:
 
-`	ext
+```text
                                PIRÂMIDE DE TESTES DA SUÍTE PANADIGA
                                              ▲
-                                            /                                            /                                             / E2E \   ◄── 8 Testes Playwright (Chromium Headless)
-                                         /───────\      Navegação, Bancada DWire32A, Cirurgia S29JL064H
-                                        /                                                /  VIEW-    \ ◄── 24 Testes Vitest (jsdom + Testing Library)
-                                      /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge
-                                     /───────────────                                    /                 \ ◄── 11 Testes Pytest + Typer CLI + Mypy Strict
-                                   / PYTHON & TOOLS    \    tools/panadiga_cli.py, RAG Engine
-                                  /─────────────────────                                 /                       \ ◄── 16 Testes de Integração Rust
-                                /   RUST CORE ENGINE      \    MEIHDFS, Entropia Shannon, Cripto FRM
-                               /___________________________`
+                                            / \
+                                           / E2E \   ◄── 8 Testes Playwright (Chromium Headless)
+                                         /─────────\      Navegação, Bancada DWire32A, Cirurgia S29JL064H
+                                        /  VIEW-    \ ◄── 26 Testes Vitest (jsdom + Testing Library)
+                                       /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge
+                                      /───────────────\
+                                     / PYTHON & TOOLS  \ ◄── 26 Testes Pytest + Typer CLI + Mypy Strict + MCP Server
+                                    /                   \    tools/panadiga_cli.py, RAG Engine, panadiga_mcp_server.py
+                                   /─────────────────────\
+                                  /   RUST CORE ENGINE    \ ◄── 33 Testes (17 unitários lib/RAG + 16 integração)
+                                 /                         \    MEIHDFS, Entropia Shannon, Cripto FRM, Logger
+                                /___________________________\
+```
 
-### 12.1. Ferramental Integrado e Ativo
+### 12.1. Os 9 Quality Gates Integrados e Ativos
 
-* **jscpd:** Detector de duplicação cross-language em Rust, TypeScript, Python e C (	hreshold <= 5%, atual **1.12%**).
-* **uxlint:** Auditoria de completude de estados UI/UX no frontend React (loading, error, empty, eedback).
-* **	yper + 
-ich:** CLI Python tipada em [	ools/panadiga_cli.py](tools/panadiga_cli.py) validada com mypy --strict (**0 erros**) e testes unitários pytest.
-* **Playwright E2E:** 8 testes end-to-end em navegador real cobrindo todas as telas e interações de hardware da bancada virtual.
-* **Vitest:** 24 testes unitários e de integração de estado/ViewModels no frontend desktop.
-* **Rust Workspace:** 16 testes unitários no motor de alta performance cobrindo estruturas de baixo nível e criptoanálise.
+1. **Rust Workspace Check & Tests:** `cargo check --workspace --all-targets` e `cargo test --workspace --verbose` cobrindo 33 testes (17 unitários lib/RAG + 16 testes de integração) com memory-safety estrita.
+2. **TypeScript Strict Type-Check:** `npm run typecheck` (`tsc --noEmit`) em `apps/desktop` com zero erros de tipagem.
+3. **Vitest Frontend & ViewModels:** `npm test` em `apps/desktop` com 26 testes unitários cobrindo hooks e ViewModels da interface.
+4. **Copy/Paste Detector (jscpd):** Auditoria cross-language em Rust, TypeScript, Python e C com **limiar estrito de 0% de duplicação** (**0 clones permitidos**).
+5. **UI/UX Completeness Linter (uxlint):** Auditoria automatizada de completude de estados de UI no React (loading, error, empty, feedback) com pontuação 100/100.
+6. **Playwright E2E:** 8 testes end-to-end com Chromium headless cobrindo navegação, conexão de bancada e simulações de hardware.
+7. **Ghidra Native Script Generator Gate:** Exportação idempotente de scripts a partir da SSOT nativa em Rust (`panadiga ghidra export-all`).
+8. **Pico C11 Firmware & RSP Server Host Tests:** Compilação e execução dos testes unitários do servidor GDB RSP com GCC `-Werror` (7 assertions validadas).
+9. **Python Typer CLI, Mypy Strict & Pytest:** Compilação de sintaxe, tipagem estrita com `mypy --strict` (0 erros) e suíte pytest cobrindo 26 testes unitários (`tools/tests` e `tools/rag_engine/tests`).
 
 ### 12.2. Execução da Validação Completa Local
 
-Para executar todos os 8 gates localmente antes de um commit:
+Para executar todos os 9 gates localmente antes de qualquer commit:
 
-`powershell
+```powershell
 # No Windows PowerShell:
-.alidate_all.ps1
+powershell -ExecutionPolicy Bypass -File validate_all.ps1
 
 # No Windows CMD:
-.alidate_all.bat
+validate_all.bat
 
 # No Linux / macOS / WSL:
 ./validate_all.sh
-`
+```
 
-Para ativar a execução automática pré-commit:
-`ash
+Para ativar a execução automática pré-commit via Git Hooks:
+```bash
 git config core.hooksPath .githooks
-`
+```
 
 ---
 
-## 13. Conformidade e Integridade de Engenharia
+## 13. Governança de Inteligência Artificial, Servidor MCP e Logging Estruturado
+
+Para garantir previsibilidade, reprodutibilidade e conformidade física estrita durante o desenvolvimento assistido por modelos generativos (como Claude, Gemini e GPT-4), o ecossistema incorpora infraestrutura completa de agentes e telemetria:
+
+### 13.1. Matriz de Subagentes Especialistas (`.agents/agents/`)
+Seis personas especializadas com responsabilidades compartimentadas e guardrails específicos:
+* **`panadiga-architect`**: Orquestrador macro, decisões de barramento e integridade do SSOT de constantes em Rust.
+* **`panadiga-storage-forensics`**: Engenharia reversa MEIHFS, parsing de MBR "SH", recuperação de partições e journal.
+* **`panadiga-firmware-re`**: Desmontagem Matsushita AM34 (MN103S), scripts Ghidra e criptoanálise CPRM/ECB.
+* **`panadiga-hardware-embedded`**: Firmware C11/PIO do RP2040, Cold Break-In e circuito elétrico CN55001.
+* **`panadiga-desktop-ui`**: Interface Desktop Tauri 2, React 18, Tailwind CSS e testes Vitest/Playwright.
+* **`panadiga-qa-auditor`**: Auditoria dos 9 Quality Gates, tolerância zero a duplicação (`jscpd` 0 clones) e segurança.
+
+### 13.2. Servidor Nativo Model Context Protocol (`tools/panadiga_mcp_server.py`)
+Servidor JSON-RPC 2.0 stdio configurado em `.mcp.json` e `.agents/mcp_config.json`, expondo ferramentas determinísticas:
+* `panadiga_memory_map`: Consulta de regiões e permissões do espaço de endereçamento AM34.
+* `panadiga_inspect_hdd`: Inspeção de imagens de disco rígido MEIHFS e conferência de partições.
+* `panadiga_clean_nvram`: Sanitização dos 64 KB de NVRAM Spansion para correção do erro U99.
+* `panadiga_safety_check`: Validação física estrita (limite de 3.3V LVTTL e bloqueio de escrita no bootloader).
+* `panadiga_search_manuals`: Busca automatizada nos 15 manuais de serviço e cadernos de esquemáticos.
+* `panadiga_rag_query`: Consulta com guardrails semânticos e citações verificadas.
+
+### 13.3. Subsistema de Logging e Telemetria Unificada (`src/logger.rs`)
+Substituição integral de `println!` por telemetria padronizada:
+* Filtragem atômica de zero overhead (`is_enabled`) configurável via variável de ambiente `PANADIGA_LOG`.
+* Níveis semânticos: `Error`, `Warn`, `Info`, `Debug`, `Trace`, `Off`.
+* Suporte a *Custom Sinks* para roteamento em tempo real para janelas de terminal na interface Desktop ou buffers de teste.
+* Dossiê de referência técnica disponível em [`docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md`](docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md).
+
+---
+
+### 13.4. Interface Desktop Tauri 2 & Arquitetura Visual (100% Offline)
+O aplicativo gráfico de bancada Desktop (`apps/desktop`) disponibiliza 7 módulos visuais dedicados, operando inteiramente em modo local e sem qualquer dependência de nuvem:
+* **Dashboard:** Telemetria em tempo real do sistema e atalhos rápidos.
+* **NVRAM Surgery:** Gráfico interativo dos micro-setores e geração do dump limpo para unbrick do erro `U99`.
+* **Storage MEIHFS:** Parser visual de partições de disco rígido, LBA 0 "SH", mirror em 28 MB e journal.
+* **Pico Workbench:** Controle de bancada do RP2040, pinagem do conector CN55001, Cold Break-In e console serial.
+* **FRM Crypto:** Criptoanálise da TOC de 48B, módulos de firmware ópticos e dicionário ECB de 64 bits.
+* **Manuals & Zero-Error RAG AI Assistant:** Consulta com citações diretas dos 15 manuais de serviço com selo verde de validação física e latência < 1 ms.
+* **Hex Inspector:** Inspetor hexadecimal em tempo real com alinhamento de setores LBA.
+
+### 13.5. Modelo de Defesa em Duplo Anel (RAG Cognitivo vs. Runtime Hard Defense)
+* **Anel 1 (Cognitivo / RAG):** Protege o operador e os agentes de IA de gerarem procedimentos suicidas (bloqueia tensões > 3.3V LVTTL e comandos destrutivos no bootloader).
+* **Anel 2 (Runtime Físico / Firmware & Rust):** Protege o circuito caso o operador tente executar comandos manuais destrutivos. O firmware C11 do RP2040 (`gdb_rsp.c`) rejeita tentativas de escrita no IPL com erro `E05`, o motor Rust garante imutabilidade via hashes SHA-256 e os dumps são abertos em modo `ReadOnly` via `memmap2`.
+
+---
+
+## 14. Conformidade e Integridade de Engenharia
 
 O projeto cumpre rigorosamente os princípios de engenharia de software e hardware:
 1. **Zero Magic Numbers:** Todos os offsets, tamanhos de bloco, assinaturas e máscaras são estritamente documentados e tipados em [`src/constants.rs`](src/constants.rs).

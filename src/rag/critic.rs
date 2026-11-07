@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use super::config::{ABSTENTION_SIMILARITY_THRESHOLD, MIN_GROUNDEDNESS_RATIO, MIN_RELEVANCE_SCORE};
 use super::guardrails::{KNOWN_COMPONENTS, KNOWN_PINS_AND_SIGNALS};
-use super::indexer::STOPWORDS;
+use super::indexer::technical_tokenize;
 use super::models::{Chunk, CriticReport, EntityType, Query, RetrievalResult};
 use super::safety::extract_voltages_volts;
 
@@ -16,10 +16,6 @@ static HEX_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 static WORD_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b[A-Za-z0-9_#/]+").unwrap()
-});
-
-static STOPWORDS_SET: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    STOPWORDS.iter().copied().collect()
 });
 
 pub struct RetrievalCritic {
@@ -62,24 +58,26 @@ impl RetrievalCritic {
             );
         }
 
-        // Check content term coverage
-        let lower_sanitized = query.sanitized_text.to_lowercase();
-        let query_words: Vec<&str> = WORD_REGEX
-            .find_iter(&lower_sanitized)
-            .map(|m| m.as_str())
-            .filter(|w| !STOPWORDS_SET.contains(*w) && w.len() > 2)
+        // Check content term coverage using canonical technical tokenizer
+        let query_tokens: Vec<String> = technical_tokenize(&query.sanitized_text, true)
+            .into_iter()
+            .filter(|w| w.len() > 2)
             .collect();
 
-        if !query_words.is_empty() {
+        if !query_tokens.is_empty() {
             let top_matched: HashSet<&String> = results[0].matched_tokens.iter().collect();
-            let matched_count = query_words.iter().filter(|w| top_matched.contains(&w.to_string())).count();
-            let coverage = matched_count as f64 / query_words.len() as f64;
+            let matched_count = query_tokens.iter().filter(|w| top_matched.contains(w)).count();
+            let coverage = matched_count as f64 / query_tokens.len() as f64;
 
             let chunk_upper = results[0].chunk.text.to_uppercase();
             let has_entity_grounding = query.extracted_entities.iter().any(|e| {
                 matches!(
                     e.entity_type,
-                    EntityType::HexAddress | EntityType::ErrorCode | EntityType::Pin
+                    EntityType::HexAddress
+                        | EntityType::ErrorCode
+                        | EntityType::Pin
+                        | EntityType::Component
+                        | EntityType::LbaSector
                 ) && chunk_upper.contains(&e.name.to_uppercase())
             });
 

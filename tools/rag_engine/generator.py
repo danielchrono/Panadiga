@@ -39,6 +39,22 @@ class GroundedGenerator:
         )
         return prompt
 
+    SAFETY_FOOTER = (
+        "\n\n[Hardware Safety Note: All operations must comply with 3.3V maximum nominal tolerance "
+        "and preserve flash IPL sectors SA0..SA133]."
+    )
+
+    @classmethod
+    def strip_boilerplate(cls, text: str, query: Query) -> str:
+        """Removes the deterministic header and safety footer prior to entity/safety auditing."""
+        header = f"Verified technical diagnosis for '{query.sanitized_text}':\n\n"
+        cleaned = text
+        if cleaned.startswith(header):
+            cleaned = cleaned[len(header):]
+        if cleaned.endswith(cls.SAFETY_FOOTER):
+            cleaned = cleaned[:-len(cls.SAFETY_FOOTER)]
+        return cleaned
+
     def synthesize_deterministic(
         self, query: Query, results: List[RetrievalResult]
     ) -> Tuple[str, List[Citation]]:
@@ -82,10 +98,4 @@ class GroundedGenerator:
 
         header = f"Verified technical diagnosis for '{query.sanitized_text}':\n\n"
         body = "\n\n".join(extracted_facts)
-        footer = (
-            "\n\n[Hardware Safety Note: All operations must comply with 3.3V maximum nominal tolerance "
-            "and preserve flash IPL sectors SA0..SA133]."
-        )
-
-        full_answer = header + body + footer
-        return full_answer, citations
+        return header + body + self.SAFETY_FOOTER, citations

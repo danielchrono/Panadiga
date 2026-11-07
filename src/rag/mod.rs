@@ -36,6 +36,6 @@ static GLOBAL_ENGINE: LazyLock<Mutex<ZeroErrorRagEngine>> = LazyLock::new(|| {
 
 /// Convenience helper querying the global thread-safe Zero-Error RAG Engine.
 pub fn query(text: &str) -> RagAnswer {
-    let engine = GLOBAL_ENGINE.lock().unwrap();
+    let engine = GLOBAL_ENGINE.lock().unwrap_or_else(|e| e.into_inner());
     engine.query(text)
 }

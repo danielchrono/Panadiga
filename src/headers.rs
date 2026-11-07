@@ -107,7 +107,7 @@ pub fn inspect_firmware_headers(
         );
         log_println!(
             "Magic Signature: {} [{}]",
-            hex::encode_upper(&hdr32[..8]),
+            hex::encode_upper(&hdr32[..hdr32.len().min(8)]),
             if p1_magic_ok {
                 "VALID PANASONIC PARTITION"
             } else {
@@ -128,7 +128,7 @@ pub fn inspect_firmware_headers(
         );
         log_println!(
             "Magic Signature: {} [{}]",
-            hex::encode_upper(&hdr64[..8]),
+            hex::encode_upper(&hdr64[..hdr64.len().min(8)]),
             if p2_magic_ok {
                 "VALID PANASONIC PARTITION"
             } else {

@@ -50,7 +50,7 @@ if ($Build) {
 }
 
 # 3. CLI Mode or Subcommand Shortcut
-$cliSubcommands = @("nvram", "hdd", "frm", "headers", "scan", "manuals", "pico", "ghidra", "help")
+$cliSubcommands = @("nvram", "hdd", "frm", "headers", "scan", "manuals", "pico", "ghidra", "rag", "help")
 $firstArg = if ($RemainingArgs.Count -gt 0) { $RemainingArgs[0] } else { "" }
 
 if ($Cli -or ($cliSubcommands -contains $firstArg)) {

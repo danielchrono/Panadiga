@@ -117,6 +117,20 @@ fn test_nvram_clean_lifecycle() {
     let backup_data = fs::read(&backup_path).expect("Failed reading backup");
     assert_eq!(backup_data.len(), SPANSION_NVRAM_SIZE_BYTES);
 
+    // 5. Cross-device multi-model check: 4MB Flash (DMR-E85H / E95H / ES20)
+    let flash_4mb_size = 4 * 1024 * 1024;
+    let mut flash_4mb = vec![0x55u8; flash_4mb_size];
+    let nvram_4mb_start = flash_4mb_size - SPANSION_NVRAM_SIZE_BYTES;
+    flash_4mb[nvram_4mb_start] = 0x99;
+    let in_4mb = temp_dir.join("test_4mb_dirty.bin");
+    let out_4mb = temp_dir.join("test_4mb_clean.bin");
+    fs::write(&in_4mb, &flash_4mb).unwrap();
+    let rep_4mb = clean_flash_nvram(&in_4mb, Some(&out_4mb)).unwrap();
+    assert_eq!(rep_4mb.microsectors[0].sector_name, "SA70");
+    assert_eq!(rep_4mb.total_flash_bytes, flash_4mb_size);
+    let clean_4mb = fs::read(&out_4mb).unwrap();
+    assert!(clean_4mb[nvram_4mb_start..].iter().all(|&b| b == 0xFF));
+
     // Clean up
     let _ = fs::remove_dir_all(&temp_dir);
 }

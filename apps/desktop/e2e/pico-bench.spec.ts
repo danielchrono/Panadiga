@@ -12,12 +12,13 @@ test.describe('Pico Bench & DWire32A Hardware Workbench E2E', () => {
     await expect(page.getByText('Conexões Físicas (Pico → CN55001)')).toBeVisible();
   });
 
-  test('renders pins in the DWire32A Pinout table', async ({ page }) => {
-    await expect(page.getByText('Pino 1 (VDD 3.3V):')).toBeVisible();
-    await expect(page.getByText('Pino 3 (SCLK):')).toBeVisible();
-    await expect(page.getByText('Pino 4 (SDATA):')).toBeVisible();
-    await expect(page.getByText('Pino 5 (nRESET):')).toBeVisible();
-    await expect(page.getByText('Pino 6 (GND):')).toBeVisible();
+  test('renders pins in the DWire32A Pinout table with GND disclaimer', async ({ page }) => {
+    await expect(page.getByText('DISCLAIMER CRÍTICO: IDENTIFICAÇÃO DO TERRA (GND)')).toBeVisible();
+    await expect(page.getByText('Pino 1 (Manual) / Pino 6 (Físico) [VDD 3.3V]:')).toBeVisible();
+    await expect(page.getByText('Pino 3 (Manual) / Pino 4 (Físico) [SDATA]:')).toBeVisible();
+    await expect(page.getByText('Pino 4 (Manual) / Pino 3 (Físico) [GND]:')).toBeVisible();
+    await expect(page.getByText('Pino 5 (Manual) / Pino 2 (Físico) [SCLK]:')).toBeVisible();
+    await expect(page.getByText('Pino 6 (Manual) / Pino 1 (Físico) [EXTRG]:')).toBeVisible();
   });
 
   test('switches Cold Break-In modes dynamically', async ({ page }) => {

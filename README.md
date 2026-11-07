@@ -584,29 +584,42 @@ A interface de diagnóstico localizada no conector SMD de 6 pinos **`CN55001`** 
 
 Na placa digital `VEP79138`, o conector de depuração (marcado no esquemático oficial da Panasonic como **`P7501 [B6B-ZR-3R4]`**, legenda *"TO WRITE JIGU"*) situa-se fisicamente entre o cabo flat de 10 vias (`FP50003`) e o de 8 vias (`FP50004`).
 
+> [!CAUTION]
+> **DISCLAIMER CRÍTICO DE BANCADA — IDENTIFICAÇÃO DO TERRA (`GND`):**
+> * **No Manual de Serviço Oficial da Panasonic (Esquemático do Conector P7501):** O **`GND` é ESTRITAMENTE O PINO 4**.
+> * **Na Contagem Física Visual (Do cabo flat de 10 vias `FP50003` para o de 8 vias `FP50004`):** O **`GND` corresponde ao PINO 3**.
+> * **A regra canônica e correta de engenharia é a do MANUAL (Pino 4 = `GND`).** O desenhista do CAD da Panasonic numerou o conector no esquema em ordem espelhada em relação à contagem visual da esquerda para a direita ($\text{Pino Físico} = 6 - \text{Pino Esquemático} + 1$).
+> * **NUNCA conecte o terra no Pino 6** (o que causaria curto-circuito destrutivo com a linha de +3.3V VDD Sense) nem sem validação prévia. Antes de ligar o Raspberry Pi Pico ou qualquer ferramenta de bancada, **sempre valide com o multímetro o bipe sonoro de $0.0\,\Omega$ de continuidade direta entre o pino de terra e a carcaça de lata metálica desprovida de tinta!**
+
+![Topografia Física e Pinagem VEP79138](docs/images/panasonic_dmr_eh55_pcb_p7501_orientation.png)
+
 ```text
        ORIENTAÇÃO FÍSICA NA PLACA VEP79138 (CONTAGEM DE 10V PARA 8V)
             ┌───────────┐
-     Pino 1 │ ● EXTRG   │ Gatilho Externo OCD / Breakpoint
-     Pino 2 │ ● SCLK    │ Clock Síncrono DWire32A (Master 1.0 MHz)
-     Pino 3 │ ● GND     │ Ground Comum (0.0Ω para o Chassi Metálico!)
-     Pino 4 │ ● SDATA   │ Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V)
-     Pino 5 │ ● nRESET  │ Linha de Reset Mestre (Controle Open-Drain)
-     Pino 6 │ ● VDD     │ Target Power Sense (+3.3V Referência)
+     Pino 1 │ ● EXTRG   │ Gatilho Externo OCD / Breakpoint [Pino 6 do Manual]
+     Pino 2 │ ● SCLK    │ Clock Síncrono DWire32A (Master 1.0 MHz) [Pino 5 do Manual]
+     Pino 3 │ ● GND     │ Ground Comum (0.0Ω para o Chassi Metálico!) [Pino 4 do Manual]
+     Pino 4 │ ● SDATA   │ Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V) [Pino 3 do Manual]
+     Pino 5 │ ● nRESET  │ Linha de Reset Mestre (Controle Open-Drain) [Pino 2 do Manual]
+     Pino 6 │ ● VDD     │ Target Power Sense (+3.3V Referência) [Pino 1 do Manual]
             └───────────┘
 ```
+
+![Esquemático Oficial Panasonic P7501](docs/images/schematic_p7501_panasonic_official.png)
 
 > [!NOTE]
 > **Compatibilidade de Hardware:** Qualquer microcontrolador equipado com o silício **RP2040** (Raspberry Pi Pico, Pico W, Arduino Nano RP2040 Connect, Waveshare RP2040-Zero, Seeed XIAO RP2040) é 100% suportado, pois a temporização crítica é gerada internamente pelas máquinas de estados **PIO0**.
 
-| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Pino RP2040 | Componente de Proteção / Condicionamento | Função Técnica Detalhada |
+| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 (Manual) | Sinal Matsushita | Pino RP2040 | Componente de Proteção / Condicionamento | Função Técnica Detalhada |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Pino 1** | Pino 6 | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo para forçar parada (*Halt Request*) na CPU. |
-| **Pino 2** | Pino 5 | `SCLK` | `GP3` (Pino 5) | Resistor $47\,\Omega$ a $100\,\Omega$ em série | Clock serial síncrono master (Operação em $1.0\text{ MHz}$). |
+| **Pino 1** | Pino 6 | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Gatilho externo para forçar parada (*Halt Request*) na CPU no Cold Break-In. |
+| **Pino 2** | Pino 5 | `SCLK` | `GP3` (Pino 5) | Resistor $100\,\Omega$ em série | Clock serial síncrono master (Operação em $1.0\text{ MHz}$). |
 | **Pino 3** | **Pino 4** | **`GND`** | **`GND` (Pino 38)** | Ligação direta de baixa impedância | **Referência de 0V ($0.0\,\Omega$ com a carcaça/chassi metálico).** |
 | **Pino 4** | Pino 3 | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ 3.3V | Barramento de dados síncrono half-duplex bidirecional. |
 | **Pino 5** | Pino 2 | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ em série (**Modo Open-Drain**) | Linha de Reset mestre do SoC (`XRST` / `D_RESET`). **Nunca 3.3V push-pull!** |
 | **Pino 6** | Pino 1 | `VDD` | `GP26 / ADC0` | Resistor $1.0\text{ k}\Omega$ em série | Monitoramento de tensão do target (Validação de $+3.3\text{V}$ estável). |
+
+![Esquema Elétrico de Montagem da Sonda Pico](docs/images/dwire32a_pico_probe_assembly_schematic.png)
 
 ---
 

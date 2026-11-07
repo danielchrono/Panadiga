@@ -528,6 +528,18 @@ Quando o operador de bancada conta os pinos da esquerda para a direita, partindo
 
 ### 8.2 Tabela de Equivalência: Contagem Física vs. Numeração Esquemática P7501
 
+> [!CAUTION]
+> **DISCLAIMER CRÍTICO DE BANCADA — PINO DO TERRA (GND):**
+> * **No Manual de Serviço Oficial da Panasonic (Esquemático P7501):** O **GND é ESTRITAMENTE O PINO 4**.
+> * **Na Contagem Física Visual (Do cabo flat de 10 vias para o de 8 vias):** O **GND corresponde ao PINO 3**.
+> * **A referência canônica do projeto é o MANUAL (Pino 4 = GND).** O desenhista do CAD da Panasonic numerou o conector esquemático de forma espelhada em relação à disposição visual na placa ($\text{Pino Esquemático} = 6 - \text{Pino Físico} + 1$).
+> * **NUNCA assuma que o pino 6 é terra!** No mapeamento físico, o Pino 6 é a linha de alimentação +3.3V VDD Sense. Conectar terra ali causa curto-circuito violento na linha de alimentação principal do SoC.
+
+![Topografia Física e Pinagem VEP79138](images/panasonic_dmr_eh55_pcb_p7501_orientation.png)
+![Esquemático Oficial Panasonic P7501](images/schematic_p7501_panasonic_official.png)
+![Esquema Elétrico de Montagem da Sonda Pico](images/dwire32a_pico_probe_assembly_schematic.png)
+
+
 No esquema elétrico da Panasonic, a numeração do conector `P7501` foi invertida pelo desenhista do CAD em relação à contagem visual da esquerda:
 $$\text{Pino Esquemático } = 6 - \text{Pino Físico} + 1$$
 Como o pino de terra no esquema oficial é o **Pino 4 (`GND`)**, na contagem física a partir do flat de 10 vias ele corresponde com exatidão matemática ao **Pino 3** ($6 - 4 + 1 = 3$).

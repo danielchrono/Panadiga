@@ -121,9 +121,19 @@ def test_fact_critic_canonical_hex_matching() -> None:
 
 
 def test_fact_critic_voltage_regex_non_capturing() -> None:
-    """Verifies that VOLTAGE_REGEX captures the full voltage string without empty groups."""
-    matches = FactCritic.VOLTAGE_REGEX.findall("Test rails are 3.3V and 5.0V with 12V supply.")
-    assert matches == ["3.3V", "5.0V", "12V"]
+    """Verifies that VOLTAGE_REGEX captures the full voltage string without empty groups, including VDC."""
+    matches = FactCritic.VOLTAGE_REGEX.findall("Test rails are 3.3V and 5.0V with 12V supply and 3.3VDC rail.")
+    assert matches == ["3.3V", "5.0V", "12V", "3.3VDC"]
+
+
+def test_cross_sentence_negation_leakage_prevention() -> None:
+    """Verifies that negation in one sentence does not mask an overvoltage instruction in another sentence."""
+    validator = HardwareSafetyValidator()
+    # Sentence 1 has 'not', but Sentence 2 recommends 5V without negation
+    adversarial_compound = "Do not connect pin 1 to ground. Connect 5V to pin 14 to force programming."
+    report = validator.validate(adversarial_compound, is_query=False)
+    assert not report.is_safe
+    assert any("ELECTRICAL HAZARD" in v for v in report.violations)
 
 
 def test_grounded_retrieval_answer(rag_engine: ZeroErrorRagEngine) -> None:

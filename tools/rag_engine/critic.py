@@ -81,7 +81,7 @@ class FactCritic:
     """Self-RAG post-generation auditor verifying factual grounding against sources."""
 
     # Non-capturing group for decimals so re.findall returns full voltage string
-    VOLTAGE_REGEX = re.compile(r"\b\d+(?:\.\d+)?\s*(?:V|volts?)\b", re.IGNORECASE)
+    VOLTAGE_REGEX = re.compile(r"\b\d+(?:\.\d+)?\s*(?:VDC|VAC|V|volts?)\b", re.IGNORECASE)
     HEX_REGEX = re.compile(r"\b0x[0-9A-Fa-f]+\b")
 
     def __init__(self) -> None:

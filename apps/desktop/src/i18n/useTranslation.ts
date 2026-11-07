@@ -11,6 +11,11 @@ export const setGlobalLocale = (newLocale: Locale): void => {
 
 export const getGlobalLocale = (): Locale => currentGlobalLocale;
 
+export const translate = (key: TranslationKey, fallback?: string): string => {
+  const dict = translations[currentGlobalLocale] || translations['en-US'];
+  return dict[key] ?? fallback ?? key;
+};
+
 /**
  * Functional Programming Hook: Provides declarative, strongly-typed i18n translations
  * with automatic global synchronization across all mounted components.

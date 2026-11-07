@@ -79,6 +79,17 @@ FILES_TO_AUDIT: Dict[str, List[str]] = {
         "build_all.ps1",
         ".github/workflows/ci.yml",
     ],
+    "Domain 7: RP2040/RP2350 Pico Firmware & DWire32A PIO Engine (C & Assembly)": [
+        "dwire32a_jtag_research/dwire32a.pio",
+        "dwire32a_jtag_research/dwire32a_types.h",
+        "dwire32a_jtag_research/dwire32a_hw.h",
+        "dwire32a_jtag_research/dwire32a_hw.c",
+        "dwire32a_jtag_research/dwire32a_pico_main.c",
+        "dwire32a_jtag_research/gdb_rsp.h",
+        "dwire32a_jtag_research/gdb_rsp.c",
+        "dwire32a_jtag_research/ram_loader.c",
+        "dwire32a_jtag_research/CMakeLists.txt",
+    ],
 }
 
 
@@ -160,6 +171,11 @@ You have been provided with the **complete, full-text source code** of all criti
 4. **Zero-Error AI / RAG Guidelines & Invariants:**
    - Review `docs/AI_GUIDELINES_AND_ZERO_ERROR_RAG.md` and evaluate whether the 6-layer defense (QueryGuard, HybridRetriever, CRAG, Grounded Synthesis, FactCritic, Invariant Shield) provides formal mathematical guarantees against hallucinated offsets and dangerous voltages.
 
+5. **RP2040/RP2350 C Firmware & PIO State Machine (`dwire32a_jtag_research/*`):**
+   - Audit `dwire32a.pio` for half-duplex bus turnaround, setup/hold timing (250ns setup, 500ns hold at 1 MHz SCLK), and High-Z release at the end of TX.
+   - Audit `dwire32a_hw.c` for open-drain reset emulation on GP5 (never driving 3.3V push-pull into reset supervisor), ADC0 VDD threshold verification (>= 2.5V), and Cold Break-In mode execution.
+   - Audit `gdb_rsp.c` for buffer bounds safety, checksum calculation, shadow register synchronization, and memory windowing.
+
 ### Required Verdict Structure:
 - **1. Executive Summary & Production Readiness Score (0-100%)**
 - **2. Table of Findings by Severity**:
@@ -167,7 +183,12 @@ You have been provided with the **complete, full-text source code** of all criti
   - `[MAJOR]`: Logic bugs, data corruption risk, missing error handling, i18n bypasses.
   - `[MINOR]`: Code style, dead code, redundant allocations.
   - `[RECOMMENDATION]`: Future-proofing, performance optimizations.
-- **3. File-by-File Technical Deep Dive**
+- **3. File-by-File Technical Deep Dive**:
+  - Subsystem A: Rust Low-Level Engine (`src/*.rs`)
+  - Subsystem B: Python Administration CLI (`tools/panadiga_cli.py`)
+  - Subsystem C: Frontend & i18n Strictness (`apps/desktop/`)
+  - Subsystem D: Hardware Safety & Invariant Guarantees (`tools/rag_engine/`)
+  - Subsystem E: RP2040/RP2350 C Firmware & DWire32A PIO Engine (`dwire32a_jtag_research/*`)
 - **4. Concrete Remediated Code Diffs (if issues are detected)**
 - **5. Final Formal Certification Statement**
 

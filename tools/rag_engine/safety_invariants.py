@@ -24,7 +24,7 @@ class HardwareSafetyValidator:
     """Enforces absolute hardware physical invariants with zero tolerance."""
 
     VOLTAGE_PATTERN: Pattern[str] = re.compile(
-        r"\b(\d+(?:\.\d+)?)\s*(?:V|volts?)\b", re.IGNORECASE
+        r"\b(\d+(?:\.\d+)?)\s*(?:VDC|VAC|V|volts?)\b", re.IGNORECASE
     )
     HEX_PATTERN: Pattern[str] = re.compile(r"\b0x[0-9A-Fa-f]+\b")
 
@@ -98,7 +98,17 @@ class HardwareSafetyValidator:
 
             if val > MAX_SAFE_VOLTAGE_VOLTS:
                 start_ctx = max(0, match.start() - 60)
+                for p in [".", ";", "!", "\n"]:
+                    punct_idx = lower_text.rfind(p, start_ctx, match.start())
+                    if punct_idx != -1:
+                        start_ctx = max(start_ctx, punct_idx + 1)
+
                 end_ctx = min(len(text), match.end() + 60)
+                for p in [".", ";", "!", "\n"]:
+                    punct_idx = lower_text.find(p, match.end(), end_ctx)
+                    if punct_idx != -1:
+                        end_ctx = min(end_ctx, punct_idx)
+
                 context_window = lower_text[start_ctx:end_ctx]
 
                 has_warning = any(w in context_window for w in self.NEGATION_WARNING_WORDS)
@@ -129,12 +139,22 @@ class HardwareSafetyValidator:
                 continue
 
             start_ctx = max(0, h_match.start() - 60)
+            for p in [".", ";", "!", "\n"]:
+                punct_idx = lower_text.rfind(p, start_ctx, h_match.start())
+                if punct_idx != -1:
+                    start_ctx = max(start_ctx, punct_idx + 1)
+
             end_ctx = min(len(text), h_match.end() + 60)
+            for p in [".", ";", "!", "\n"]:
+                punct_idx = lower_text.find(p, h_match.end(), end_ctx)
+                if punct_idx != -1:
+                    end_ctx = min(end_ctx, punct_idx)
+
             context_window = lower_text[start_ctx:end_ctx]
 
-            # Ignore byte values and bitmasks (e.g. 0xFF, 0xA0) which are data patterns, not Flash addresses.
-            # SA0 base address is 0x00000000 (addr == 0), while all other sectors start at >= 0x1000 (e.g. 0x2000, 0x10000).
-            if addr != 0 and addr < 0x1000:
+            # Ignore 1-byte data constants and bitmasks (e.g. 0xFF, 0xA0).
+            # If length is >= 6 (e.g. 0x00000800 in SA0), it is a real memory address.
+            if addr != 0 and addr < 0x1000 and len(raw_hex) <= 4:
                 continue
 
             # Distinguish Flash addresses from small constants

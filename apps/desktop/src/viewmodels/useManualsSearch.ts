@@ -6,6 +6,7 @@
 import { useState, useCallback } from "react";
 import { ManualSearchResult, ExecutionStatus } from "../types/domain";
 import { digaApi } from "../services/digaApi";
+import { translate } from "../i18n/useTranslation";
 
 export interface ManualsSearchViewModel {
   readonly query: string;
@@ -31,7 +32,7 @@ export function useManualsSearch(): ManualsSearchViewModel {
 
   const executeSearch = useCallback(async () => {
     if (!query || query.trim().length === 0) {
-      setErrorMessage("Please enter a keyword to search.");
+      setErrorMessage(translate("manuals.search.emptyQuery"));
       setStatus(ExecutionStatus.ERROR);
       return;
     }

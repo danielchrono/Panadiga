@@ -26,7 +26,7 @@ class QueryGuard:
 
     # Domain Entity Regular Expressions
     HEX_REGEX: Pattern[str] = re.compile(r"\b0x[0-9A-Fa-f]{1,8}\b")
-    VOLTAGE_REGEX: Pattern[str] = re.compile(r"\b\d+(?:\.\d+)?\s*(?:V|volts?)\b", re.IGNORECASE)
+    VOLTAGE_REGEX: Pattern[str] = re.compile(r"\b\d+(?:\.\d+)?\s*(?:VDC|VAC|V|volts?)\b", re.IGNORECASE)
     ERROR_CODE_REGEX: Pattern[str] = re.compile(r"\bU\d{2}\b", re.IGNORECASE)
     LBA_REGEX: Pattern[str] = re.compile(r"\bLBA\s*\d+\b", re.IGNORECASE)
 

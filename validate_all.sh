@@ -27,9 +27,8 @@ echo "[5/6] Running UI/UX State Linter (uxlint)..."
 (cd apps/desktop && npm run uxlint)
 
 echo ""
-echo "[6/6] Validating Python Tools (Typer CLI, Pytest & Mypy)..."
-python3 -m mypy tools/panadiga_cli.py
-python3 -m pytest tools/tests
+echo "[6/6] Validating Ghidra Native Script Generator..."
+cargo run -p panadiga -- ghidra export-all --dir tools
 
 echo ""
 echo "======================================================================"

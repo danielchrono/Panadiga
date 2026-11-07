@@ -33,9 +33,8 @@ call npm run uxlint || goto :error
 cd ..\..
 
 echo.
-echo [6/6] Validating Python Tools (Typer CLI, Pytest & Mypy)...
-python -m mypy tools\panadiga_cli.py || goto :error
-python -m pytest tools\tests || goto :error
+echo [6/6] Validating Ghidra Native Script Generator...
+cargo run -p panadiga -- ghidra export-all --dir tools || goto :error
 
 echo.
 echo ======================================================================

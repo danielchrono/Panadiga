@@ -509,11 +509,11 @@ fn pump_stream<R: Read, W: Write>(
             Ok(0) => {
                 if let Some(msg) = on_eof_msg {
                     println!("{}", msg);
-                    break;
                 }
+                break;
             }
             Ok(n) => {
-                if writer.write_all(&buf[..n]).is_err() {
+                if writer.write_all(&buf[..n]).is_err() || writer.flush().is_err() {
                     break;
                 }
             }

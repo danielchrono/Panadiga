@@ -48,12 +48,12 @@ def test_verify_artifact(tmp_path: Path):
     expected = hashlib.sha256(b"Panasonic DIGA DMR-EH55 NVRAM Test Vector").hexdigest()
     res_correct = runner.invoke(app, ["verify-artifact", str(dummy_file), "--sha256", expected])
     assert res_correct.exit_code == 0
-    assert "HASH CONFIRMADO" in res_correct.stdout
+    assert "HASH CONFIRMED" in res_correct.stdout
 
     # Run with mismatched expected hash
     res_fail = runner.invoke(app, ["verify-artifact", str(dummy_file), "--sha256", "deadbeef0000"])
     assert res_fail.exit_code == 2
-    assert "DIVERGÊNCIA DE HASH" in res_fail.stdout
+    assert "HASH MISMATCH" in res_fail.stdout
 
 
 def test_gdb_config_command():

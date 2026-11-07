@@ -56,12 +56,25 @@ FILES_TO_AUDIT: Dict[str, List[str]] = {
         "apps/desktop/src/views/FrmCryptoView.tsx",
         "apps/desktop/src/views/DashboardView.tsx",
     ],
-    "Domain 4: Architectural Directives, Safety Invariants & Guidelines": [
+    "Domain 4: Zero-Error RAG Engine & Hardware Safety Shield": [
+        "tools/rag_engine/config.py",
+        "tools/rag_engine/models.py",
+        "tools/rag_engine/guardrails.py",
+        "tools/rag_engine/indexer.py",
+        "tools/rag_engine/retriever.py",
+        "tools/rag_engine/critic.py",
+        "tools/rag_engine/safety_invariants.py",
+        "tools/rag_engine/generator.py",
+        "tools/rag_engine/pipeline.py",
+        "tools/rag_engine/cli.py",
+        "tools/rag_engine/tests/test_rag_zero_error.py",
+    ],
+    "Domain 5: Architectural Directives, Safety Invariants & Guidelines": [
         "docs/AI_GUIDELINES_AND_ZERO_ERROR_RAG.md",
         "docs/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md",
         "docs/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md",
     ],
-    "Domain 5: Build Automation & Universal Quality Gates": [
+    "Domain 6: Build Automation & Universal Quality Gates": [
         "validate_all.ps1",
         "build_all.ps1",
         ".github/workflows/ci.yml",
@@ -168,13 +181,17 @@ You have been provided with the **complete, full-text source code** of all criti
         cargo_out = run_command_capture("cargo test -- --nocapture")
         doc_parts.append(cargo_out + "\n```\n\n")
 
-        doc_parts.append("### 1.2 Python CLI & Pytest Suite (`pytest tools/tests`)\n```text\n")
-        pytest_out = run_command_capture("python -m pytest tools/tests -v")
+        doc_parts.append("### 1.2 Python CLI & Pytest Suites (`tools/tests` & `tools/rag_engine/tests`)\n```text\n")
+        pytest_out = run_command_capture("python -m pytest tools/tests tools/rag_engine/tests -v")
         doc_parts.append(pytest_out + "\n```\n\n")
 
         doc_parts.append("### 1.3 Desktop Frontend Test Suite (`vitest`)\n```text\n")
         vitest_out = run_command_capture("npm test --prefix apps/desktop -- --run")
         doc_parts.append(vitest_out + "\n```\n\n")
+
+        doc_parts.append("### 1.4 Adversarial Safety Benchmark (`tools.rag_engine.cli benchmark`)\n```text\n")
+        benchmark_out = run_command_capture("python -m tools.rag_engine.cli benchmark")
+        doc_parts.append(benchmark_out + "\n```\n\n")
     else:
         doc_parts.append("*[Automated test execution skipped per user flag]*\n\n")
 

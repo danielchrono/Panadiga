@@ -284,6 +284,46 @@ export const digaApi = {
       const isU99 = /u99/i.test(query);
       const isHardware = /cn55001|rp2040|pin/i.test(query);
 
+      // Check deterministic safety invariants in offline simulation
+      const hasOvervoltageHazard = /(?:inject|apply|supply|conectar|injetar|ligar)\s*(?:with\s+)?(?:5|12)\s*v/i.test(query) || /\b(?:5|12)\s*v\b/i.test(query) && /cn55001|wp#|sdata/i.test(query);
+      const hasIplHazard = /(?:erase|wipe|apagar|limpar).*(?:0x00000000|0x0000|ipl)/i.test(query);
+      const hasJtagHazard = /cn55001.*(?:tdi|tdo|tms)|(?:tdi|tdo|tms).*cn55001/i.test(query);
+
+      if (hasOvervoltageHazard || hasIplHazard || hasJtagHazard) {
+        const violations: string[] = [];
+        if (hasOvervoltageHazard) {
+          violations.push("CRITICAL OVERVOLTAGE VIOLATION: Voltages > 3.3V (5V/12V) destroy the MN2DS0016 SoC and Flash. Maximum safe voltage is strictly 3.35V.");
+        }
+        if (hasIplHazard) {
+          violations.push("CRITICAL BOOTLOADER VIOLATION: Erasure of sectors SA0..SA133 (0x00000000..0x007EFFFF) destroys the IPL root-of-trust. Only NVRAM (0x007F0000..0x007FFFFF) may be sanitized.");
+        }
+        if (hasJtagHazard) {
+          violations.push("PROTOCOL VIOLATION: Connector CN55001 uses half-duplex Matsushita DWire32A (SDATA+SCLK), not traditional 4-wire JTAG (no TDI/TDO).");
+        }
+
+        const blockedAnswer: RagQueryResult = {
+          query,
+          answer: `⛔ RESPONSE BLOCKED BY HARDWARE INVARIANT SHIELD!\n\nThe requested operation violates hardware safety rules:\n${violations.map(v => `- ${v}`).join("\n")}\n\nOperation aborted to prevent permanent hardware destruction.`,
+          confidence: 0.0,
+          groundedness_score: 1.0,
+          is_abstained: false,
+          abstention_reason: null,
+          citations: [],
+          safety: {
+            is_safe: false,
+            violations,
+            alerts: ["RESPONSE BLOCKED BY HARDWARE SAFETY SHIELD"],
+          },
+          critic: {
+            is_faithful: true,
+            ungrounded_entities: [],
+          },
+          retrieved_chunks_count: 0,
+          execution_time_ms: 1.2,
+        };
+        return ok(blockedAnswer);
+      }
+
       const simulatedAnswer: RagQueryResult = {
         query,
         answer: isU99

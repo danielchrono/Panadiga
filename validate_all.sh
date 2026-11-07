@@ -41,7 +41,7 @@ echo ""
 echo "[8/8] Verifying Python Typer CLI, Mypy & Pytest Suite..."
 python3 -m py_compile tools/ghidra_am34_memory_map.py tools/ghidra_importar_simbolos_panadiga.py tools/ghidra_conectar_debugger.py
 python3 -m mypy tools/panadiga_cli.py
-python3 -m pytest tools/tests
+python3 -m pytest tools/tests tools/rag_engine/tests
 
 echo ""
 echo "======================================================================"

@@ -129,6 +129,14 @@ export const ManualsView: React.FC = () => {
           </button>
         </div>
 
+        {/* Error Alert Display */}
+        {ragError && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{ragError}</span>
+          </div>
+        )}
+
         {/* RAG Answer Display */}
         {ragResult && (
           <div className="space-y-4 pt-2">
@@ -359,7 +367,7 @@ export const ManualsView: React.FC = () => {
                         {doc.title}
                       </span>
                       <span className="text-[10px] text-slate-500 shrink-0">
-                        {doc.page_count}p
+                        {doc.page_count} {t('manuals.results.pages')}
                       </span>
                     </div>
                     <p className="text-[10px] text-slate-500 line-clamp-2">

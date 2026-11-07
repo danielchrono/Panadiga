@@ -198,6 +198,10 @@ pub fn open_mmap(path: &Path) -> Result<(File, Mmap)> {
     let resolved = resolve_input_path(path)?;
     let file = File::open(&resolved)
         .with_context(|| format!("Failed opening HDD image: {}", resolved.display()))?;
+    let file_len = file.metadata()?.len();
+    if file_len == 0 {
+        anyhow::bail!("Cannot memory map empty file (0 bytes): {}", resolved.display());
+    }
     let mmap = unsafe { Mmap::map(&file) }
         .with_context(|| format!("Failed creating mmap on: {}", resolved.display()))?;
     Ok((file, mmap))
@@ -214,7 +218,7 @@ pub fn export_report_to_json<T: serde::Serialize>(
     fs::write(json_path, json_data)
         .with_context(|| format!("Failed writing JSON report to {}", json_path.display()))?;
     println!(
-        "\n[+] Relatorio JSON estruturado exportado: {}",
+        "\n[+] Structured JSON report exported: {}",
         json_path.display()
     );
     Ok(())

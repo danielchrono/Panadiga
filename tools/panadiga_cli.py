@@ -44,9 +44,10 @@ def generate_memory_map(
     regions: List[MemoryRegion] = [
         {"name": "FLASH_NOR", "start": "0x00000000", "end": "0x007FFFFF", "size_kb": 8192, "perms": "r-x"},
         {"name": "INTERNAL_SRAM", "start": "0x10000000", "end": "0x1003FFFF", "size_kb": 256, "perms": "rwx"},
-        {"name": "BOOT_ROM", "start": "0x80000000", "end": "0x8001FFFF", "size_kb": 128, "perms": "r-x"},
+        {"name": "BOOT_ROM", "start": "0x80000000", "end": "0x807FFFFF", "size_kb": 8192, "perms": "r-x"},
         {"name": "SYSTEM_MMIO", "start": "0xC0000000", "end": "0xC0003FFF", "size_kb": 16, "perms": "rw-"},
         {"name": "DWIRE32A_OCD", "start": "0xC0004000", "end": "0xC00040FF", "size_kb": 1, "perms": "rw-"},
+        {"name": "ATA_IDE_MMIO", "start": "0xD4000000", "end": "0xD4000FFF", "size_kb": 4, "perms": "rw-"},
     ]
 
     if format_type.lower() == "json":
@@ -81,7 +82,7 @@ def verify_artifact(
     Verify integrity, calculate SHA-256 and detect known Panadiga binary signatures.
     """
     if not file_path.exists():
-        console.print(f"[bold red]ERRO:[/bold red] Arquivo não encontrado: {file_path}")
+        console.print(f"[bold red]ERROR:[/bold red] File not found: {file_path}")
         raise typer.Exit(code=1)
 
     data = file_path.read_bytes()
@@ -89,18 +90,18 @@ def verify_artifact(
     computed_sha256 = hashlib.sha256(data).hexdigest()
 
     console.print(Panel(
-        f"[bold]Arquivo:[/bold] {file_path.name}\n"
-        f"[bold]Tamanho:[/bold] {size:,} bytes ({size / 1024:.2f} KB)\n"
+        f"[bold]File:[/bold] {file_path.name}\n"
+        f"[bold]Size:[/bold] {size:,} bytes ({size / 1024:.2f} KB)\n"
         f"[bold]SHA-256:[/bold] [yellow]{computed_sha256}[/yellow]",
-        title="Verificação Criptográfica de Artefato",
+        title="Cryptographic Artifact Verification",
         border_style="cyan"
     ))
 
     if expected_sha256:
         if computed_sha256.lower() == expected_sha256.lower():
-            console.print("[bold green]✔ HASH CONFIRMADO COM SUCESSO![/bold green]")
+            console.print("[bold green]✔ HASH CONFIRMED SUCCESSFULLY![/bold green]")
         else:
-            console.print(f"[bold red]✖ DIVERGÊNCIA DE HASH![/bold red] Esperado: {expected_sha256}")
+            console.print(f"[bold red]✖ HASH MISMATCH![/bold red] Expected: {expected_sha256}")
             raise typer.Exit(code=2)
 
 

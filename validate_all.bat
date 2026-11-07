@@ -53,7 +53,7 @@ echo [8/8] Verifying Python Typer CLI, Mypy and Pytest Suite...
 cd /d "%SCRIPT_DIR%"
 python -m py_compile tools\ghidra_am34_memory_map.py tools\ghidra_importar_simbolos_panadiga.py tools\ghidra_conectar_debugger.py || goto :error
 python -m mypy tools\panadiga_cli.py || goto :error
-python -m pytest tools\tests || goto :error
+python -m pytest tools\tests tools\rag_engine\tests || goto :error
 
 echo.
 echo ======================================================================

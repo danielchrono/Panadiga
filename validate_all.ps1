@@ -109,9 +109,9 @@ try {
     Assert-LastExitCode "Ghidra Python Syntax Verification"
     python -m mypy "$ScriptRoot/tools/panadiga_cli.py"
     Assert-LastExitCode "Typer CLI Mypy Strict Check"
-    python -m pytest "$ScriptRoot/tools/tests"
-    Assert-LastExitCode "Pytest Suite (4/4 tests)"
-    Write-Success "All Python scripts, Typer CLI and Pytest suites passed (4/4 tests, 0 mypy issues)!"
+    python -m pytest "$ScriptRoot/tools/tests" "$ScriptRoot/tools/rag_engine/tests"
+    Assert-LastExitCode "Pytest Suite (15/15 tests)"
+    Write-Success "All Python scripts, Typer CLI and Pytest suites passed (15/15 tests, 0 mypy issues)!"
 
     $elapsed = (Get-Date) - $startTime
     Write-Host ""

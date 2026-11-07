@@ -31,7 +31,7 @@ export function useManualsSearch(): ManualsSearchViewModel {
 
   const executeSearch = useCallback(async () => {
     if (!query || query.trim().length === 0) {
-      setErrorMessage("Por favor, digite uma palavra-chave para busca.");
+      setErrorMessage("Please enter a keyword to search.");
       setStatus(ExecutionStatus.ERROR);
       return;
     }

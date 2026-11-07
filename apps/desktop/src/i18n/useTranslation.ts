@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { translations, Locale, TranslationKey } from './translations';
 
 let currentGlobalLocale: Locale = 'en-US';
@@ -12,14 +12,21 @@ export const setGlobalLocale = (newLocale: Locale): void => {
 export const getGlobalLocale = (): Locale => currentGlobalLocale;
 
 /**
- * Functional Programming Hook: Provides declarative, strongly-typed i18n translations.
+ * Functional Programming Hook: Provides declarative, strongly-typed i18n translations
+ * with automatic global synchronization across all mounted components.
  */
 export function useTranslation() {
   const [locale, setLocaleState] = useState<Locale>(currentGlobalLocale);
 
+  useEffect(() => {
+    listeners.add(setLocaleState);
+    return () => {
+      listeners.delete(setLocaleState);
+    };
+  }, []);
+
   const setLocale = useCallback((newLocale: Locale) => {
     setGlobalLocale(newLocale);
-    setLocaleState(newLocale);
   }, []);
 
   const t = useCallback(

@@ -1,6 +1,6 @@
 /**
  * Panasonic DMR-EH55 HDD Storage & MEIHDFS Forensic Data Models
- * Matches crates/panadiga/src/hdd.rs & constants.rs
+ * Matches src/hdd.rs & src/constants.rs
  */
 
 export interface MbrTableReport {

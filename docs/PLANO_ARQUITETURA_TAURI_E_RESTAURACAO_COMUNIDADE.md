@@ -387,7 +387,7 @@ Para democratizar essas operações e eliminar o atrito de scripts manuais em te
 
 #### B. Single Source of Truth (SSOT) & Zero Magic Numbers
 * Todos os números mágicos, limites de matriz de memória, assinaturas de partição e blocos de cifra foram unificados nos módulos de constantes:
-  - Backend: `crates/panadiga/src/constants.rs`
+  - Backend: `src/constants.rs`
   - Frontend: `apps/desktop/src/types/domain.ts`
   - Firmware C Pico: `dwire32a_jtag_research/dwire32a_types.h`
 * Nenhuma função do sistema possui constantes mágicas literais no meio do código. Todas as dimensões derivam de constantes fortemente tipadas como `SPANSION_FLASH_SIZE_BYTES`, `SPANSION_NVRAM_BASE_OFFSET`, `MEIHDFS_MBR_SIGNATURE`, etc.

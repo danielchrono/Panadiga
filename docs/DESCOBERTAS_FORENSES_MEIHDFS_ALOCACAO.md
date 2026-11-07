@@ -286,7 +286,7 @@ Caso o usuário puxe o plugue da tomada durante a gravação de um disco ou tran
 
 ## 5. Implementação na Crate Rust `panadiga`
 
-Para assegurar total reprodutibilidade forense e viabilizar ferramentas de alto desempenho para o projeto DMR-EH55, as rotinas de decodificação foram integradas diretamente na crate Rust `crates/panadiga`.
+Para assegurar total reprodutibilidade forense e viabilizar ferramentas de alto desempenho para o projeto DMR-EH55, as rotinas de decodificação foram integradas diretamente na crate Rust `src`.
 
 ### 5.1. Novas Funcionalidades no Módulo `src/hdd.rs`
 - **`decode_meihdfs_descriptors`**: Função central que lê e decodifica os 256 registros de 16 bytes a partir da imagem completa do disco ou do arquivo extraído `hdd_allocation_descriptors_0x00003000.bin`.
@@ -299,13 +299,13 @@ A ferramenta `panadiga` agora expõe o comando oficial:
 
 ```bash
 # Decodificar descritores na imagem de disco padrão
-cargo run --release --manifest-path crates/panadiga/Cargo.toml -- hdd decode-descriptors
+cargo run --release --manifest-path src/Cargo.toml -- hdd decode-descriptors
 
 # Decodificar arquivo específico de descritores com exportação JSON estruturada
-cargo run --release --manifest-path crates/panadiga/Cargo.toml -- hdd decode-descriptors extracted_partitions/hdd_allocation_descriptors_0x00003000.bin --json report_descriptors.json
+cargo run --release --manifest-path src/Cargo.toml -- hdd decode-descriptors extracted_partitions/hdd_allocation_descriptors_0x00003000.bin --json report_descriptors.json
 
 # Decodificar imagem completa incluindo análise profunda dos 10 blocos de journal
-cargo run --release --manifest-path crates/panadiga/Cargo.toml -- hdd decode-descriptors "firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin" --journal
+cargo run --release --manifest-path src/Cargo.toml -- hdd decode-descriptors "firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin" --journal
 ```
 
 ---

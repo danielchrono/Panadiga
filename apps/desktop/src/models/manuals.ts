@@ -1,6 +1,6 @@
 /**
  * Panasonic Service Manual & Schematics Search Models
- * Matches crates/panadiga/src/manuals.rs
+ * Matches src/manuals.rs & src/constants.rs
  */
 
 export interface SearchMatchSnippet {

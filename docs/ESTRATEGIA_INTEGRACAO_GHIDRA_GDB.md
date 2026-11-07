@@ -23,7 +23,7 @@ flowchart TD
     subgraph CoreBridge ["Camada de Comunicação & Bridge (C & Rust)"]
         CDC["Firmware Pico CDC Serial (dwire32a_pico)"]
         RSP["GDB Remote Serial Protocol (RSP) Engine"]
-        PANAPICO["Panadiga CLI / Desktop Bridge (crates/panadiga & apps/desktop)"]
+        PANAPICO["Panadiga CLI / Desktop Bridge (src & apps/desktop)"]
         PICO <--> CDC
         CDC <--> RSP
         CDC <--> PANAPICO

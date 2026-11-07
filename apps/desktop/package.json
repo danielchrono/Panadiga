@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "lint": "tsc --noEmit",
     "uxlint": "uxlint scan src",
     "jscpd": "jscpd src --threshold 5",

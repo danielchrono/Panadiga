@@ -1,0 +1,7 @@
+# Panadiga High-Performance Parallel Compilation & Caching Configuration
+[build]
+# Default build uses all logical cores dynamically; incremental compilation enabled
+incremental = true
+
+[env]
+CARGO_INCREMENTAL = "1"

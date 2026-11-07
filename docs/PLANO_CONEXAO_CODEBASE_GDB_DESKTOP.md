@@ -29,7 +29,7 @@ flowchart TD
         EV -->|gdb-event / register-update| UI
     end
 
-    subgraph Core["3. Camada de Engenharia de Sistemas (crates/panadiga)"]
+    subgraph Core["3. Camada de Engenharia de Sistemas (src)"]
         PCore["pico.rs<br/>Descoberta USB & Ponte TCP"]
         CLI["main.rs<br/>Subcomando 'panadiga pico'"]
         CLI --> PCore
@@ -62,7 +62,7 @@ flowchart TD
      * `PicoDevice`: nome da porta, arquitetura (`RP2040`, `RP2350`, `Bootloader`), VID, PID.
      * `GdbBridgeStatus`: `active` (boolean), `listen_addr` (string), `connected_clients` (number), `last_event` (string).
      * `Am34RegisterState`: `d` (array de 4 u32), `a` (array de 4 u32), `pc` (u32), `sp` (u32), `psw` (u32), `mdr` (u32), `is_halted` (boolean).
-  2. Ajustar `apps/desktop/src-tauri/src/pico_serial.rs` e `crates/panadiga/src/pico.rs` para serializarem os mesmos campos JSON esperados pelo frontend.
+  2. Ajustar `apps/desktop/src-tauri/src/pico_serial.rs` e `src/pico.rs` para serializarem os mesmos campos JSON esperados pelo frontend.
 
 ---
 

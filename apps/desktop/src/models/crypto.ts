@@ -1,6 +1,6 @@
 /**
  * Panasonic DMR-EH55 Cryptographic Forensics & PANA_DVD.FRM Models
- * Matches crates/panadiga/src/crypto.rs & constants.rs
+ * Matches src/crypto.rs & src/constants.rs
  */
 
 export interface BlockFrequency {

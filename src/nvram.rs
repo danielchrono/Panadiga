@@ -66,7 +66,7 @@ pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
         return Ok(candidate);
     }
 
-    // Try relative to parent directories if run from within crates/panadiga
+    // Try relative to parent directories if run from within subdirectories
     let candidate_parent = Path::new("../../firmware_and_images").join(input);
     if candidate_parent.exists() {
         return Ok(candidate_parent);

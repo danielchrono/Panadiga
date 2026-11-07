@@ -78,10 +78,10 @@ jobs:
         run: npx --prefix apps/desktop jscpd --config .jscpd.json
 
   # ==========================================================================
-  # 3. Desktop Application Frontend (Types, Vitest, uxlint, Vite Build)
+  # 3. Desktop Application Frontend (Types, Vitest, uxlint, Playwright, Build)
   # ==========================================================================
   desktop-frontend:
-    name: Desktop UI (Types, Vitest, uxlint, Build)
+    name: Desktop UI (Types, Vitest, uxlint, Playwright, Build)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -109,18 +109,33 @@ jobs:
       - name: Run UI/UX State Completeness Linter (uxlint)
         run: npm run uxlint
 
+      - name: Install Playwright Browsers (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright End-to-End Tests
+        run: npm run test:e2e
+
       - name: Vite Production Build
         run: npm run build
 
   # ==========================================================================
-  # 4. Python Tools Quality Gate (Typer CLI, Pytest & Mypy)
+  # 4. Ghidra Native Script Generator & Python Tools Gate (Typer, Mypy, Pytest)
   # ==========================================================================
-  python-tools:
-    name: Python Workbench Tools (Typer CLI, Mypy & Pytest)
+  ghidra-and-python-tools:
+    name: Ghidra Generator & Python Tools (Typer, Mypy, Pytest)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Export Ghidra Scripts from Rust SSOT
+        run: cargo run -- ghidra export-all --dir tools
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
@@ -128,16 +143,17 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install Python Dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install typer rich pytest mypy
+      - name: Install Python Quality Tools
+        run: pip install typer rich mypy pytest
 
-      - name: Run Mypy Type Checker
+      - name: Verify Exported Python Syntax
+        run: python -m py_compile tools/ghidra_am34_memory_map.py tools/ghidra_importar_simbolos_panadiga.py tools/ghidra_conectar_debugger.py
+
+      - name: Run Mypy Strict Type Check on Typer CLI
         run: python -m mypy tools/panadiga_cli.py
 
-      - name: Run Pytest Suite
-        run: python -m pytest tools/tests -v
+      - name: Run Pytest Suite (Typer CLI Tests)
+        run: python -m pytest tools/tests
 
   # ==========================================================================
   # 5. Pico Firmware Cross-Compilation (RP2040 & RP2350)

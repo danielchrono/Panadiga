@@ -348,7 +348,7 @@ if __name__ == "__main__":
 Para assegurar longevidade e portabilidade total ao projeto, toda e qualquer restrição ou amarração (*hardcode*) que limitava a controladora exclusivamente ao Raspberry Pi Pico original (RP2040) foi **completamente eliminada**, estabelecendo uma arquitetura multi-controladora e multi-sistema operacional.
 
 ### 9.1. Eliminação de Hardcodes e Matriz de Controladoras Suportadas
-A camada de abstração de hardware (`crates/panadiga/src/pico.rs`) reconhece automaticamente a família de silício, a capacidade de SRAM e o tamanho ótimo de cache de setor com base na enumeração USB:
+A camada de abstração de hardware (`src/pico.rs`) reconhece automaticamente a família de silício, a capacidade de SRAM e o tamanho ótimo de cache de setor com base na enumeração USB:
 
 | Fabricante da Placa | Família de Silício | Arquitetura de CPU | SRAM On-Chip | Cache Alocado | Identificação USB (VID:PID) |
 | :--- | :--- | :--- | :---: | :---: | :---: |
@@ -404,3 +404,79 @@ jobs:
     # Configura arm-none-eabi-gcc, compila para RP2040 e RP2350,
     # valida os binários UF2 e publica os artefatos de release.
 ```
+
+
+---
+
+## 10. Sistema de Qualidade Total, Pirâmide de Testes e Proteção Anti-Regressão (8 Gates de Commit)
+
+Para garantir que o código **nunca quebre entre commits** e que qualquer alteração seja 100% verificada antes de chegar à branch principal ou ser gravada em bancada, a Suíte Panadiga adota um modelo rigoroso de **Qualidade em Múltiplas Camadas** e uma esteira local pré-commit com **8 Portões de Validação (8 Gates)**:
+
+```text
+                              PIRÂMIDE DE TESTES DA SUÍTE PANADIGA
+                                            ▲
+                                           / \
+                                          /   \
+                                         / E2E \   ◄── 8 Testes Playwright (Chromium Headless)
+                                        /───────\      Navegação, Workbench DWire32A, Cirurgia NVRAM
+                                       /         \
+                                      /  VIEW-    \ ◄── 24 Testes Vitest (jsdom + Testing Library)
+                                     /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge
+                                    /───────────────\
+                                   /                 \ ◄── 11 Testes Pytest + Typer CLI + Mypy Strict
+                                  / PYTHON & TOOLS    \    Mapeamento de memória, RAG Engine, CLI
+                                 /─────────────────────\
+                                /                       \ ◄── 16 Testes de Integração Rust
+                               /   RUST CORE ENGINE      \    MEIHDFS, Entropia Shannon, Cripto FRM,
+                              /___________________________\   S29JL064H Microsetores, GDB RSP Checksums
+```
+
+### 10.1. Ferramental Plugado e Operacional na Codebase
+
+1. **`jscpd` (Copy/Paste Detector Cross-Language):**
+   * Configurado via `.jscpd.json` na raiz do projeto.
+   * Varre simultaneamente arquivos Rust (`src/`), TypeScript/React (`apps/desktop/src/`), Python (`tools/`) e C/C++ (`dwire32a_jtag_research/`).
+   * **Threshold obrigatório de rejeição:** `< 5%` de duplicação tolerada. (Status atual: **1.12%**, amplamente aprovado).
+   * Impede proliferação de código duplicado e lógicas divergentes de parsing.
+
+2. **`uxlint` (Auditor de Completude de Estados UI/UX):**
+   * Configurado em `apps/desktop/uxlint.config.json`.
+   * Audita componentes React para garantir conformidade de estados essenciais: `missing_empty_state`, `missing_loading_state`, `missing_error_feedback` e `missing_success_feedback`.
+   * Garante que o operador técnico nunca fique sem feedback visual diante de falhas de comunicação serial, dumps vazios ou desconexões inesperadas.
+
+3. **`typer` (CLI Python Tipada com Validação Estrita):**
+   * Implementado em `tools/panadiga_cli.py` utilizando `typer`, `rich` e anotações estritas de tipagem (`typing.TypedDict`, `Optional`, `List`).
+   * Fornece comandos de bancada como `memory-map`, `verify-artifact` e `gdb-config`.
+   * Submetido a validação estrita com `mypy --strict` (**0 erros / 0 advertências**) e suíte dedicada de testes `pytest` via `typer.testing.CliRunner`.
+
+4. **Playwright (Testes End-to-End no Navegador):**
+   * Configurado em `apps/desktop/playwright.config.ts` executando em ambiente headless (Chromium) contra o servidor Vite.
+   * Suítes ativas em `apps/desktop/e2e/`:
+     * `navigation.spec.ts`: Verifica carregamento do Dashboard, sidebar e navegação sem quebras pelas 7 telas da aplicação;
+     * `pico-bench.spec.ts`: Valida a tabela interativa de pinagem DWire32A (Pico → CN55001), comutação de modos Cold Break-In (Vcc Pin Shunt vs In-Circuit Serial Clamping) e digitação/envio no console serial;
+     * `nvram.spec.ts`: Valida as especificações técnicas da memória Spansion S29JL064H, o mapa de topologia de microsetores e a trava de segurança do botão cirúrgico.
+
+### 10.2. Os 8 Portões de Validação Contínua (8-Gate Pipeline)
+
+Disponíveis através dos scripts `validate_all.ps1` (PowerShell), `validate_all.bat` (Windows CMD) e `validate_all.sh` (Linux/macOS), além de integrados diretamente ao gancho git `.githooks/pre-commit`:
+
+| Portão | Etapa de Validação | Ferramenta / Comando | Critério de Sucesso |
+| :---: | :--- | :--- | :--- |
+| **Gate 1** | **Rust Core & Forensics** | `cargo check --workspace` & `cargo test --workspace` | Compilação com 0 avisos e 16/16 testes unitários aprovados |
+| **Gate 2** | **TypeScript Strict Types** | `npm run typecheck` (`tsc --noEmit`) | 0 erros de tipagem na interface React/Tauri |
+| **Gate 3** | **Frontend Unit & ViewModels** | `npm test` (`vitest run`) | 24/24 testes aprovados em componentes e hooks de estado |
+| **Gate 4** | **Anti-Duplicação de Código** | `jscpd --config .jscpd.json` | Duplicação estritamente inferior a 5% (atual 1.12%) |
+| **Gate 5** | **UI/UX State Completeness** | `npm run uxlint` | Auditoria de estados de loading, erro e listas vazias |
+| **Gate 6** | **Playwright E2E Testing** | `npm run test:e2e` (`playwright test`) | 8/8 testes E2E aprovados em navegador real |
+| **Gate 7** | **Ghidra SSOT Generator** | `cargo run -- ghidra export-all` | Geração dos 3 scripts de desassemblagem a partir do Rust |
+| **Gate 8** | **Python Tools & CLI Type-Check** | `py_compile` + `mypy` + `pytest` | Sintaxe válida, 0 erros no MyPy e 11/11 testes pytest aprovados |
+
+### 10.3. Instalação e Ativação do Git Hook Local
+
+Para que a esteira seja executada automaticamente a cada `git commit`, o repositório disponibiliza a pasta versionada `.githooks`. Para ativá-la no seu clone local:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+A partir deste comando, qualquer tentativa de commit disparará a validação dos 8 portões em ~20 segundos. Caso qualquer teste falhe ou haja regressão de tipos, duplicação ou quebra visual, o commit é imediatamente abortado antes de poluir o histórico.

@@ -256,7 +256,7 @@ O contêiner óptico `PANA_DVD.FRM` e as partições do HD IDE são gerados pela
 
 ## 6. Operação Prática com o Utilitário `panadiga`
 
-Os comandos desenvolvidos na crate Rust `crates/panadiga` permitem a inspeção imediata e repetível da TOC e do Codebook.
+Os comandos desenvolvidos na crate Rust `src` permitem a inspeção imediata e repetível da TOC e do Codebook.
 
 ### 6.1 Comando `panadiga frm dump-toc`
 

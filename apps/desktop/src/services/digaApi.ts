@@ -15,6 +15,7 @@ import {
   DwireScanStats,
   DwireBreakInMode,
   ManualSearchResult,
+  RagQueryResult,
   SPANSION_FLASH_SIZE_BYTES,
   SPANSION_NVRAM_BASE_OFFSET,
   SPANSION_NVRAM_SIZE_BYTES,
@@ -51,7 +52,7 @@ export const digaApi = {
 
       // Offline / Web preview simulation adhering strictly to domain rules
       if (!inputPath || inputPath.trim().length === 0) {
-        return err("O caminho do arquivo de dump da Flash não pode estar vazio.");
+        return err("Flash dump file path cannot be empty.");
       }
 
       const microsectors = Array.from({ length: 8 }, (_, idx) => {
@@ -232,7 +233,7 @@ export const digaApi = {
   async searchManuals(query: string): Promise<Result<readonly ManualSearchResult[], string>> {
     try {
       if (!query || query.trim().length === 0) {
-        return err("A consulta de busca nos manuais não pode estar vazia.");
+        return err("Manual search query cannot be empty.");
       }
 
       if (isTauriEnvironment()) {
@@ -252,11 +253,76 @@ export const digaApi = {
         {
           manual_filename: "DMR-EH55_Service_Manual.pdf",
           page_number: 89,
-          snippet: `CN55001 Pinout: 1=GND, 2=EXTRG, 3=SCLK, 4=SDATA, 5=nRESET, 6=VDD 3.3V for query: ${query}`,
+          snippet: `CN55001 Pinout: 1=EXTRG, 2=SCLK, 3=GND, 4=SDATA, 5=nRESET, 6=NC with 3.3V nominal for query: ${query}`,
         },
       ];
 
       return ok(mockResults);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+  },
+
+  /**
+   * Submits a technical inquiry to the Zero-Error RAG Engine.
+   */
+  async queryRag(query: string): Promise<Result<RagQueryResult, string>> {
+    try {
+      if (!query || query.trim().length === 0) {
+        return err("Technical query cannot be empty.");
+      }
+
+      if (isTauriEnvironment()) {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const answer = await invoke<RagQueryResult>("query_rag_engine", {
+          query,
+        });
+        return ok(answer);
+      }
+
+      // Offline / Web preview simulation adhering strictly to 6-layer RAG rules
+      const isU99 = /u99/i.test(query);
+      const isHardware = /cn55001|rp2040|pin/i.test(query);
+
+      const simulatedAnswer: RagQueryResult = {
+        query,
+        answer: isU99
+          ? "Error U99 is caused by corrupted calibration parameters in the Spansion S29JL064H Flash NVRAM emulation zone (SA134..SA141, 0x007F0000 to 0x007FFFFF). The safe recovery procedure is sanitizing these 64 KB microsectors to 0xFF. Never erase sectors SA0..SA133, as they contain the IPL bootloader root-of-trust."
+          : isHardware
+          ? "The CN55001 debug port uses the Matsushita DWire32A half-duplex synchronous serial protocol (SDATA + SCLK) at 3.3V nominal. Pinout: 1=EXTRG, 2=SCLK, 3=GND, 4=SDATA, 5=nRESET. It does not use traditional 4-wire JTAG."
+          : `Grounded response for '${query}' verified against indexed service manuals and hardware schematics. All parameters strictly adhere to 3.3V maximum tolerance.`,
+        confidence: 0.98,
+        groundedness_score: 1.0,
+        is_abstained: false,
+        abstention_reason: null,
+        citations: [
+          {
+            doc: "BLUEPRINT_ESQUEMA_ELETRICO_BANCADA",
+            section: "Hardware Interface & Pin Mapping",
+            lines: "54-85",
+            excerpt: "CN55001 JST ZR 1.5mm debug port with half-duplex SDATA transceiver at 3.3V nominal.",
+          },
+          {
+            doc: "PLANO_ARQUITETURA_TAURI_E_RESTAURACAO_COMUNIDADE",
+            section: "Root Cause & Operational Summary",
+            lines: "439-448",
+            excerpt: "Error U99 caused by calibration parameter corruption in Flash NVRAM at 0x007F0000.",
+          },
+        ],
+        safety: {
+          is_safe: true,
+          violations: [],
+          alerts: [],
+        },
+        critic: {
+          is_faithful: true,
+          ungrounded_entities: [],
+        },
+        retrieved_chunks_count: 5,
+        execution_time_ms: 3.2,
+      };
+
+      return ok(simulatedAnswer);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }

@@ -232,4 +232,4 @@ A tabela abaixo especifica os part numbers comerciais para aquisição em distri
 1. **Desenho no KiCad:** Criar o esquemático `.kicad_sch` e o layout `.kicad_pcb` utilizando as regras de fabricação da JLCPCB ou PCBWay (trilhas mínimas de $0.15\text{ mm}$, espaçamento de $0.15\text{ mm}$, furos de $0.3\text{ mm}$).
 2. **Geração dos Gerbers:** Exportar Gerbers RS-274X, arquivos de furação Excellon e lista de coordenadas de posicionamento de componentes (Pick-and-Place / CPL) para montagem SMT automatizada.
 3. **Modelagem 3D do Gabinete:** Modelar a carcaça no Autodesk Fusion 360 ou FreeCAD e exportar em `.STL` / `.STEP` para encomenda de lote de impressão 3D em resina SLA preta fosca.
-4. **Homologação do Protótipo:** Executar os testes de leitura com o software oficial [`panadiga`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/crates/panadiga) e validar a ausência de ruído com analisador lógico USB.
+4. **Homologação do Protótipo:** Executar os testes de leitura com o software oficial [`panadiga`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/src) e validar a ausência de ruído com analisador lógico USB.

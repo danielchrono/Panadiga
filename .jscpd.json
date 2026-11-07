@@ -30,7 +30,7 @@
   ],
   "path": [
     "apps/desktop/src",
-    "crates/panadiga/src",
+    "src",
     "dwire32a_jtag_research",
     "tools"
   ]

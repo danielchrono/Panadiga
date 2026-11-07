@@ -1,6 +1,6 @@
 /**
  * Panasonic DMR-EH55 NVRAM & Spansion Flash Data Models
- * Matches crates/panadiga/src/nvram.rs & constants.rs
+ * Matches src/nvram.rs & src/constants.rs
  */
 
 export interface MicroSectorAudit {

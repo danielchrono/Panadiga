@@ -1,7 +1,7 @@
 # Scripts Legados em Python (Status: Arquivados & 100% Substituídos por Rust)
 
 > [!NOTE]
-> Todos os scripts utilitários em Python contidos anteriormente neste diretório foram migrados integralmente para a crate nativa em Rust **`panadiga`** (`crates/panadiga`) e arquivados em `scripts/legacy_python/`.
+> Todos os scripts utilitários em Python contidos anteriormente neste diretório foram migrados integralmente para a crate nativa em Rust **`panadiga`** (`src`) e arquivados em `scripts/legacy_python/`.
 > A suíte prioriza nativamente código compilado em Rust com acesso zero-copy via `memmap2`, ausência de runtime externo e velocidade em nível de hardware.
 
 ---

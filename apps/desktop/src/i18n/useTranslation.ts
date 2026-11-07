@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { translations, Locale, TranslationKey } from './translations';
 
-let currentGlobalLocale: Locale = 'pt-BR';
+let currentGlobalLocale: Locale = 'en-US';
 const listeners = new Set<(locale: Locale) => void>();
 
 export const setGlobalLocale = (newLocale: Locale): void => {
@@ -24,7 +24,7 @@ export function useTranslation() {
 
   const t = useCallback(
     (key: TranslationKey, fallback?: string): string => {
-      const dict = translations[locale] || translations['pt-BR'];
+      const dict = translations[locale] || translations['en-US'];
       return dict[key] ?? fallback ?? key;
     },
     [locale]

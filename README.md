@@ -107,7 +107,7 @@ A topologia de arquivos do repositório foi projetada seguindo as melhores prát
 ```text
 Panasonic Firmware HDD bin/
 │
-├── Cargo.toml                                         <-- Configuração mestre do Workspace Rust (Members: crates/panadiga)
+├── Cargo.toml                                         <-- Configuração mestre do Workspace Rust (Manifesto raiz unificado: Pacote panadiga + Workspace Tauri)
 ├── Cargo.lock                                         <-- Árvore de dependências determinísticas compiladas
 ├── README.md                                          <-- Este documento mestre de engenharia e referência técnica
 ├── README_ECOSSISTEMA.md                              <-- Visão executiva inicial e resumo de transição
@@ -185,7 +185,7 @@ Panasonic Firmware HDD bin/
 
 ---
 
-## 4. Guia de Uso Completo da Ferramenta Rust `panadiga` (`crates/panadiga`)
+## 4. Guia de Uso Completo da Ferramenta Rust `panadiga` (`src/`)
 
 A ferramenta **`panadiga`** foi desenvolvida para substituir scripts legados por uma implementação industrial em **Rust moderno (edição 2021/2024)**. O software emprega mapeamento de memória em modo zero-copy (`memmap2`), tratamento de erros sem pânico (`anyhow`/`thiserror`), tipagem estrita contra números mágicos (`constants.rs`) e serialização estruturada em JSON.
 
@@ -876,10 +876,59 @@ Para executar as intervenções físicas e lógicas com padrão de excelência d
 
 ---
 
-## 12. Conformidade e Integridade de Engenharia
+## 12. Qualidade Total, Pirâmide de Testes e Proteção Anti-Regressão (8 Gates de Commit)
+
+Para impedir regressões e garantir que nenhum commit quebre a codebase, o repositório é blindado por uma esteira com **8 Portões de Validação Contínua (8 Gates)**:
+
+`	ext
+                               PIRÂMIDE DE TESTES DA SUÍTE PANADIGA
+                                             ▲
+                                            /                                            /                                             / E2E \   ◄── 8 Testes Playwright (Chromium Headless)
+                                         /───────\      Navegação, Bancada DWire32A, Cirurgia S29JL064H
+                                        /                                                /  VIEW-    \ ◄── 24 Testes Vitest (jsdom + Testing Library)
+                                      /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge
+                                     /───────────────                                    /                 \ ◄── 11 Testes Pytest + Typer CLI + Mypy Strict
+                                   / PYTHON & TOOLS    \    tools/panadiga_cli.py, RAG Engine
+                                  /─────────────────────                                 /                       \ ◄── 16 Testes de Integração Rust
+                                /   RUST CORE ENGINE      \    MEIHDFS, Entropia Shannon, Cripto FRM
+                               /___________________________`
+
+### 12.1. Ferramental Integrado e Ativo
+
+* **jscpd:** Detector de duplicação cross-language em Rust, TypeScript, Python e C (	hreshold <= 5%, atual **1.12%**).
+* **uxlint:** Auditoria de completude de estados UI/UX no frontend React (loading, error, empty, eedback).
+* **	yper + 
+ich:** CLI Python tipada em [	ools/panadiga_cli.py](tools/panadiga_cli.py) validada com mypy --strict (**0 erros**) e testes unitários pytest.
+* **Playwright E2E:** 8 testes end-to-end em navegador real cobrindo todas as telas e interações de hardware da bancada virtual.
+* **Vitest:** 24 testes unitários e de integração de estado/ViewModels no frontend desktop.
+* **Rust Workspace:** 16 testes unitários no motor de alta performance cobrindo estruturas de baixo nível e criptoanálise.
+
+### 12.2. Execução da Validação Completa Local
+
+Para executar todos os 8 gates localmente antes de um commit:
+
+`powershell
+# No Windows PowerShell:
+.alidate_all.ps1
+
+# No Windows CMD:
+.alidate_all.bat
+
+# No Linux / macOS / WSL:
+./validate_all.sh
+`
+
+Para ativar a execução automática pré-commit:
+`ash
+git config core.hooksPath .githooks
+`
+
+---
+
+## 13. Conformidade e Integridade de Engenharia
 
 O projeto cumpre rigorosamente os princípios de engenharia de software e hardware:
-1. **Zero Magic Numbers:** Todos os offsets, tamanhos de bloco, assinaturas e máscaras são estritamente documentados e tipados em [`crates/panadiga/src/constants.rs`](crates/panadiga/src/constants.rs).
+1. **Zero Magic Numbers:** Todos os offsets, tamanhos de bloco, assinaturas e máscaras são estritamente documentados e tipados em [`src/constants.rs`](src/constants.rs).
 2. **Portabilidade:** Todos os comandos e scripts utilizam caminhos relativos robustos baseados na raiz do projeto.
 3. **Auditoria Criptográfica Contínua:** Todas as modificações em dumps e extrações de partição são validadas através de somas de verificação SHA-256 e MD5.
 

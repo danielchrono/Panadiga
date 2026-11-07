@@ -14,12 +14,15 @@ Cargo.lock.orig
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+apps/desktop/test-results/
+apps/desktop/playwright-report/
 
 # Python bytecode and caches
 **/__pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+.mypy_cache/
 
 # Third-party precompiled binaries
 tools/HxD/app/

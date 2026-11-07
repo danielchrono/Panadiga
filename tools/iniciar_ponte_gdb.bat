@@ -1,4 +1,5 @@
 @echo off
+@chcp 65001 >nul
 setlocal enabledelayedexpansion
 title Panadiga - GDB Remote RSP Bridge Server
 

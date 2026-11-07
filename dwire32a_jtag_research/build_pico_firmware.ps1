@@ -32,6 +32,8 @@ param (
 )
 
 $ErrorActionPreference = "Stop"
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "====================================================================" -ForegroundColor Cyan
 Write-Host "   PANASONIC DWIRE32A / OCD - MULTI-PLATFORM BUILD SYSTEM" -ForegroundColor Cyan

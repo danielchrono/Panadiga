@@ -8,8 +8,10 @@ use panadiga::headers::{hex_dump, inspect_firmware_headers};
 use panadiga::manuals::search_manuals;
 use panadiga::nvram::clean_flash_nvram;
 use panadiga::pico::{
-    list_pico_devices, PicoArchitecture, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
-    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID,
+    classify_usb_device, list_pico_devices, HostControllerPlatform, PicoArchitecture,
+    ARDUINO_NANO_RP2040_CONNECT_PID, ARDUINO_VID, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
+    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID, SEEED_VID, SEEED_XIAO_RP2040_PID,
+    SEEED_XIAO_RP2350_PID,
 };
 use panadiga::scan::scan_data_strings;
 
@@ -364,6 +366,30 @@ fn test_pico_architecture_and_device_listing() {
         PicoArchitecture::Bootloader.to_string(),
         "Raspberry Pi BOOTSEL Mode"
     );
+
+    // Multi-Platform classification tests across vendors
+    let (plat_pico, _) = classify_usb_device(RASPBERRY_PI_VID, PICO_RP2040_CDC_PID, None);
+    assert_eq!(plat_pico, HostControllerPlatform::RaspberryPiPico);
+    assert_eq!(plat_pico.sram_size_bytes(), 264 * 1024);
+    assert_eq!(plat_pico.sector_cache_capacity_bytes(), 8 * 1024);
+    assert!(plat_pico.supports_dwire32a_pio());
+
+    let (plat_pico2, _) = classify_usb_device(RASPBERRY_PI_VID, PICO_RP2350_CDC_PID, None);
+    assert_eq!(plat_pico2, HostControllerPlatform::RaspberryPiPico2Arm);
+    assert_eq!(plat_pico2.sram_size_bytes(), 520 * 1024);
+    assert_eq!(plat_pico2.sector_cache_capacity_bytes(), 64 * 1024);
+    assert!(plat_pico2.supports_dwire32a_pio());
+
+    let (plat_arduino, _) = classify_usb_device(ARDUINO_VID, ARDUINO_NANO_RP2040_CONNECT_PID, None);
+    assert_eq!(plat_arduino, HostControllerPlatform::ArduinoNanoRp2040);
+    assert_eq!(plat_arduino.architecture(), PicoArchitecture::Rp2040);
+
+    let (plat_seeed2040, _) = classify_usb_device(SEEED_VID, SEEED_XIAO_RP2040_PID, None);
+    assert_eq!(plat_seeed2040, HostControllerPlatform::SeeedXiaoRp2040);
+
+    let (plat_seeed2350, _) = classify_usb_device(SEEED_VID, SEEED_XIAO_RP2350_PID, None);
+    assert_eq!(plat_seeed2350, HostControllerPlatform::SeeedXiaoRp2350);
+    assert_eq!(plat_seeed2350.architecture(), PicoArchitecture::Rp2350);
 
     // Enumerating system serial devices must execute cleanly without crashing
     let devices = list_pico_devices();

@@ -836,6 +836,8 @@ O diretório [`manuals_and_schematics/`](manuals_and_schematics/) contém o acer
 
 Para aprofundamento específico em cada área de engenharia, consulte os dossiês técnicos oficiais do projeto:
 
+* 🛠️ **[Especificação de Engenharia de Produto: Hardware Dedicado, Cabeamento e Embalagem](docs/ESPECIFICACAO_PRODUTO_HARDWARE_DWIRE32_PROBE.md)**  
+  *Especificação para fabricação de PCB dedicada (Dongle All-in-One RP2040), proteção ESD TVS, chicote oficial JST ZR-6 / sonda Pogo-Pin "No-Solder", gabinete usinado/SLA 3D, BOM com part numbers e embalagem comercial.*
 * ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)**  
   *Esquema elétrico de bancada detalhado, especificações de cabos, condicionamento de sinais, pinagem completa da Spansion S29JL064H TSOP-48 e procedimentos cirúrgicos de soldagem.*
 * 🔐 **[Dossiê de Engenharia Reversa e Criptoanálise de Firmware](docs/DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md)**  
@@ -850,6 +852,11 @@ Para aprofundamento específico em cada área de engenharia, consulte os dossiê
   *Inventário criptográfico exaustivo de todos os artefatos com hashes SHA-256 fixados, indexação dos 15 manuais de serviço e matriz FMEA completa de riscos e mitigações em bancada.*
 * 🔬 **[Especificação Técnica e Reconstrução da Interface DWire32A / OCD](dwire32a_jtag_research/PANASONIC_DWIRE32A_JTAG_RECONSTRUCTION.md)**  
   *Documento fundacional do protocolo DWire32A, temporizações do barramento síncrono half-duplex, código assembly da máquina PIO do RP2040 e driver JEDEC nativo AM34.*
+* 🪛 **[Guia Prático de Bancada DWire32A Sem Dessolda (Cabo JST SH 1.0mm)](dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)**  
+  *Procedimento completo de conexão plug-and-play no conector CN55001 sem ferro de solda, especificações mecânicas do cabo JST SH 1.0mm de 6 pinos e testes de continuidade.*
+* 🐛 **[Guia de Depuração Interativa de Hardware: GDB, Ghidra e IDA Pro](dwire32a_jtag_research/GUIA_DEPURACAO_GDB_GHIDRA_IDA.md)**  
+  *Tutorial prático para conectar depuradores interativos (gdb-multiarch, Ghidra Debugger, IDA Pro e OpenOCD) à CPU Matsushita AM34 via ponte TCP 'panadiga pico gdb-bridge', permitindo pausar a CPU, inspecionar registradores e executar passo a passo.*
+
 
 ---
 

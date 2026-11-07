@@ -176,3 +176,20 @@ DWIRE32A> ERASE_NVRAM
 [ERASE_NVRAM] NVRAM sanitization complete: U99 condition resolved.
 ERASE_NVRAM: OK (8 micro-sectors 0x007F0000..0x007FFFFF erased, U99 cleared)
 ```
+
+---
+
+## 7. Modo Ponte GDB RSP (Depuração Interativa com Ghidra / IDA Pro)
+
+O firmware implementa um servidor nativo do **GNU Remote Serial Protocol (RSP)** para conexão de depuradores de alto nível:
+* Comando terminal: `GDB` (ou auto-chaveamento ao receber `$`).
+* Protocolo completo de registradores AM34 (`D0..D3`, `A0..A3`, `PC`, `SP`, etc.).
+* Caching de alta performance: 64 KB no RP2350 (Pico 2) e 8 KB no RP2040.
+* Ponte TCP automatizada no terminal:
+  ```bash
+  panadiga pico gdb-bridge --port COM3 --listen 127.0.0.1:3333
+  ```
+
+Para o tutorial completo de como conectar o **Ghidra**, **IDA Pro**, **gdb-multiarch** e **OpenOCD** passo a passo, consulte:
+* 📖 **[Guia de Depuração Interativa de Hardware: GDB, Ghidra e IDA Pro](GUIA_DEPURACAO_GDB_GHIDRA_IDA.md)**
+

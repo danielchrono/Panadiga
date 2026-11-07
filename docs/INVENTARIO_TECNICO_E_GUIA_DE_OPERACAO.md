@@ -28,6 +28,7 @@ Abaixo encontra-se a tabela mestre de todos os arquivos do repositório, com tam
 | Diretório | Arquivo | Tamanho (Bytes) | Hash SHA-256 | Função Técnica / Descrição | Status QA |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `docs/` | `INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md` | Dinâmico | Homologado | Inventário técnico de QA, catálogo de 15 manuais, rotinas operacionais e FMEA. | Homologado |
+| `docs/` | `ESPECIFICACAO_PRODUTO_HARDWARE_DWIRE32_PROBE.md` | 20,460 | `c6ef39328cc40a892bc5927c7562fa0e4772aa176eab03fde210d1410f7043c9` | Especificação de PCB dedicada, proteção ESD, chicote JST ZR-6, case 3D e embalagem. | Homologado |
 | `docs/` | `BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md` | 42,895 | `7a20831386eac43fb3f1bc60aec3d070497c4068664a01a150bcaa28d530af1f` | Blueprint elétrico detalhado de bancada (Interconexão RP2040 $\leftrightarrow$ CN55001 e TSOP-48). | Homologado |
 | `docs/` | `DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md` | 31,081 | `c80521139fde58eeeda684ea575149484705c727569d7055b027559a8fa5d6be` | Dossiê forense de criptoanálise, DRM, cifragem CPRM e paradoxo de segurança da Flash física. | Homologado |
 | `firmware_and_images/` | `panasonic DMR EH-55 Firmware hdd_100.bin` | 104,857,600 | `9d292d5b46f190775f359e30af11d074021fb321f040bf701d0ecf0f2056db00` | Dump bruto dos primeiros 100 MB do HDD original (MEIHFS, LBA 0 e partições de firmware). | Homologado |

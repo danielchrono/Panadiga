@@ -61,14 +61,15 @@ export const HexInspectorView: React.FC = () => {
               value={jumpInput}
               onChange={e => setJumpInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && jumpToInputOffset()}
-              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-cyan-400 focus:outline-none focus:border-cyan-500 w-36 font-bold"
+              aria-label="Offset físico em hexadecimal ou número de setor LBA"
+              className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-cyan-400 focus:outline-none focus:border-cyan-500 w-36 font-bold focus:ring-1 focus:ring-cyan-500"
             />
           </div>
           <button
             onClick={jumpToInputOffset}
-            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors"
+            className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
           >
-            Ir para Offset
+            {t('hex.jumpButton', 'Ir para')}
           </button>
         </div>
       </div>
@@ -172,15 +173,17 @@ export const HexInspectorView: React.FC = () => {
               <div className="flex items-center gap-1">
                 <button
                   onClick={prevPage}
-                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
                   title="Página Anterior (384 bytes)"
+                  aria-label="Página Anterior (384 bytes)"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
                   onClick={nextPage}
-                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
                   title="Próxima Página (384 bytes)"
+                  aria-label="Próxima Página (384 bytes)"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>

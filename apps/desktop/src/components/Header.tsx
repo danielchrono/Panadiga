@@ -75,12 +75,15 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Demo Mode Switch */}
         <button
           onClick={() => onToggleDemoMode(!demoMode)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition-all ${
+          role="switch"
+          aria-checked={demoMode}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium border transition-all focus:outline-none focus:ring-2 focus:ring-amber-400 ${
             demoMode
               ? 'bg-amber-500/10 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-950'
               : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-750'
           }`}
           title="Alternar entre Mock IPC e hardware real"
+          aria-label="Alternar modo demonstração e hardware real"
         >
           <FlaskConical className="w-3.5 h-3.5" />
           <span>{demoMode ? 'Modo Demonstração: ATIVO' : 'Modo Hardware: IPC'}</span>
@@ -90,8 +93,9 @@ export const Header: React.FC<HeaderProps> = ({
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg bg-slate-800/80 border border-slate-700 hover:bg-slate-750 text-slate-300 hover:text-slate-100 transition-colors"
+            className="p-2 rounded-lg bg-slate-800/80 border border-slate-700 hover:bg-slate-750 text-slate-300 hover:text-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
             title="Atualizar dados de telemetria"
+            aria-label="Atualizar dados de telemetria"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>

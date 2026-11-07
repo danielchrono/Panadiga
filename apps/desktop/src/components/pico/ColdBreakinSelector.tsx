@@ -61,7 +61,11 @@ export const ColdBreakinSelector: React.FC<ColdBreakinSelectorProps> = ({
         </p>
       </div>
 
-      <div className="space-y-2.5">
+      <div
+        className="space-y-2.5"
+        role="radiogroup"
+        aria-label="Perfil de Timing do Cold Break-In"
+      >
         {BREAKIN_MODES.length === 0 ? (
           <div className="text-slate-500 text-xs p-3 font-mono">Nenhum modo configurado</div>
         ) : (
@@ -70,8 +74,17 @@ export const ColdBreakinSelector: React.FC<ColdBreakinSelectorProps> = ({
           return (
             <div
               key={m.mode}
+              role="radio"
+              aria-checked={isSelected}
+              tabIndex={0}
               onClick={() => onSelectMode(m.mode)}
-              className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+              onKeyDown={(e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                  e.preventDefault();
+                  onSelectMode(m.mode);
+                }
+              }}
+              className={`p-3.5 rounded-xl border cursor-pointer transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bench-900 ${
                 isSelected
                   ? 'bg-cyan-500/10 border-cyan-500/50 shadow-md shadow-cyan-950/20'
                   : 'bg-slate-950 border-slate-800 hover:border-slate-700'

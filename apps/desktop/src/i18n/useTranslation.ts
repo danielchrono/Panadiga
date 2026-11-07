@@ -1,52 +1,56 @@
-import { useState, useCallback, useEffect } from 'react';
-import { translations, Locale, TranslationKey } from './translations';
+import { useCallback } from 'react';
+import { useTranslation as useI18nextTranslation } from 'react-i18next';
+import i18n from './i18n';
+import { Locale, TranslationKey, translations } from './translations';
 
 export type { Locale, TranslationKey };
-
-let currentGlobalLocale: Locale = 'en-US';
-const listeners = new Set<(locale: Locale) => void>();
+export { translations };
 
 export const setGlobalLocale = (newLocale: Locale): void => {
-  currentGlobalLocale = newLocale;
-  listeners.forEach(fn => fn(newLocale));
+  i18n.changeLanguage(newLocale);
 };
 
-export const getGlobalLocale = (): Locale => currentGlobalLocale;
+export const getGlobalLocale = (): Locale => {
+  return (i18n.language as Locale) || 'en-US';
+};
 
-export const translate = (key: TranslationKey, fallback?: string): string => {
-  const dict = translations[currentGlobalLocale] || translations['en-US'];
-  return dict[key] ?? fallback ?? key;
+export const translate = (key: TranslationKey | string, fallback?: string): string => {
+  const res = i18n.t(key);
+  if (res === key && fallback) {
+    return fallback;
+  }
+  return res;
 };
 
 /**
  * Functional Programming Hook: Provides declarative, strongly-typed i18n translations
- * with automatic global synchronization across all mounted components.
+ * backed by i18next with automatic global synchronization across all mounted components.
  */
 export function useTranslation() {
-  const [locale, setLocaleState] = useState<Locale>(currentGlobalLocale);
-
-  useEffect(() => {
-    listeners.add(setLocaleState);
-    return () => {
-      listeners.delete(setLocaleState);
-    };
-  }, []);
+  const { t: i18nTranslate, i18n: instance } = useI18nextTranslation();
 
   const setLocale = useCallback((newLocale: Locale) => {
     setGlobalLocale(newLocale);
   }, []);
 
   const t = useCallback(
-    (key: TranslationKey, fallback?: string): string => {
-      const dict = translations[locale] || translations['en-US'];
-      return dict[key] ?? fallback ?? key;
+    (key: TranslationKey | string, fallbackOrOptions?: string | Record<string, unknown>): string => {
+      if (typeof fallbackOrOptions === 'string') {
+        const res = i18nTranslate(key);
+        return res === key ? fallbackOrOptions : res;
+      }
+      if (fallbackOrOptions) {
+        return i18nTranslate(key, fallbackOrOptions);
+      }
+      return i18nTranslate(key);
     },
-    [locale]
+    [i18nTranslate]
   );
 
   return {
     t,
-    locale,
+    locale: (instance.language as Locale) || 'en-US',
     setLocale,
+    i18n: instance,
   };
 }

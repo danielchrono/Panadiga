@@ -1,240 +1,31 @@
 /**
  * @file translations.ts
- * @brief Strictly-typed internationalization (i18n) dictionary for Panasonic DIGA Suite.
+ * @brief Internationalization resources loaded directly from canonical JSON tables.
  *
- * Supports en-US (Primary / Standard) and pt-BR (Localized) locales.
- * Enforces compile-time key validation.
+ * Backed by locales/en-US.json and locales/pt-BR.json.
  */
 
-export type Locale = "en-US" | "pt-BR";
+import enUSJson from '../locales/en-US.json';
+import ptBRJson from '../locales/pt-BR.json';
+
+export type Locale = 'en-US' | 'pt-BR';
+
+function flattenObject(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      Object.assign(result, flattenObject(value as Record<string, unknown>, fullKey));
+    } else {
+      result[fullKey] = String(value);
+    }
+  }
+  return result;
+}
 
 export const translations = {
-  "en-US": {
-    // App & Layout
-    "app.title": "Panasonic DMR-EH55 DIGA Engineering Suite",
-    "app.subtitle": "Reverse Engineering Bench, Cryptanalysis & Hardware Repair",
-    "app.demoMode": "Demo Mode",
-    "app.liveMode": "Live Hardware",
-    "app.loading": "Loading engineering subsystem...",
-
-    // Navigation Views
-    "nav.dashboard": "Overview",
-    "nav.dashboard.sub": "Recorder Status & Binaries",
-    "nav.nvram": "Flash & NVRAM",
-    "nav.nvram.sub": "Spansion SA134..SA141 U99",
-    "nav.hdd": "HDD Storage",
-    "nav.hdd.sub": "MEIHDFS Partitions & MBR",
-    "nav.picobench": "Pico Bench",
-    "nav.picobench.sub": "DWire32A & GDB Server",
-    "nav.frmcrypto": "PANA_DVD Crypto",
-    "nav.frmcrypto.sub": "ECB Codebook & Entropy",
-    "nav.manuals": "Service Manuals",
-    "nav.manuals.sub": "15 PDFs & Schematics",
-    "nav.hexinspector": "Hex Inspector",
-    "nav.hexinspector.sub": "LBA Alignment & Offsets",
-
-    // Pico Bench
-    "pico.title": "Raspberry Pi Pico Bench & DWire32A OCD Master",
-    "pico.port": "Serial COM Port",
-    "pico.connect": "Connect",
-    "pico.disconnect": "Disconnect",
-    "pico.connected": "CONNECTED",
-    "pico.disconnected": "DISCONNECTED",
-    "pico.targetRail": "Target Board Rail (VDD)",
-    "pico.targetState": "AM34 Core State",
-    "pico.chipId": "Chip Identifier",
-    "pico.inCircuitErase": "Inject Loader & Erase NVRAM",
-    "pico.erasing": "Executing In-Circuit Erase...",
-    "pico.gdbServer": "GDB Remote RSP Server (TCP Port 3333)",
-    "pico.gdbStart": "Start GDB Server",
-    "pico.gdbStop": "Stop GDB Server",
-    "pico.gdbListening": "LISTENING (3333)",
-    "pico.gdbOffline": "OFFLINE",
-    "pico.gdbClientActive": "CLIENT ACTIVE",
-    "pico.extTools": "Ecosystem & External Tools:",
-    "pico.launchGdb": "GDB Multiarch",
-    "pico.launchOpenocd": "OpenOCD AM34",
-    "pico.launchGhidra": "Ghidra Scripts",
-    "pico.launchHxd": "HxD Editor",
-    "pico.launchTerminal": "PowerShell",
-
-    // NVRAM View
-    "nvram.title": "Spansion S29JL064H Flash & NVRAM U99 Surgery",
-    "nvram.cleanButton": "Perform Dump Surgery",
-    "nvram.cleaning": "Sanitizing Micro-Sectors...",
-    "nvram.statusClean": "NVRAM SANITIZED (U99 RESOLVED)",
-    "nvram.statusCorrupted": "NVRAM CORRUPTED (U99 ERROR ACTIVE)",
-    "nvram.microsectorsTitle": "Boot Micro-Sectors Map (SA134 to SA141)",
-    "nvram.auditButton": "View Audit & SHA-256 Hashes",
-
-    // Manuals View
-    "manuals.header.title": "Technical Library & Circuit Schematics (15 Service Manuals)",
-    "manuals.header.badge": "LOCAL RAPID INDEXING",
-    "manuals.header.subtitle": "Instant lookup for ICs, test pins, self-check routines, and bench error codes",
-    "manuals.header.size": "62.1 MB of Indexed Technical Documentation",
-    "manuals.search.placeholder": "Search by part/error code (U99, S29JL064, CN55001, IC5001)...",
-    "manuals.search.emptyQuery": "Please enter a search keyword or part code.",
-    "manuals.search.button": "Search Manuals",
-    "manuals.terms.label": "Critical Diagnostic Terms:",
-    "manuals.results.title": "Matches Found for Search Query",
-    "manuals.results.loading": "Indexing PDF document text streams...",
-    "manuals.results.empty": "No matching references found. Try another diagnostic code from the quick pills above.",
-    "manuals.results.pages": "pages",
-    "manuals.results.occurrences": "OCCURRENCES",
-    "manuals.meta.title": "Document Metadata & Diagnostics",
-    "manuals.meta.selectPrompt": "Select a service manual from the results on the left to inspect schematic metadata.",
-    "manuals.meta.openExternal": "Open in External Viewer",
-    "manuals.meta.totalDocs": "Indexed Documents",
-    "manuals.meta.totalPages": "Total Pages",
-    "manuals.meta.fileSize": "Corpus Size",
-    "manuals.meta.chipsTitle": "Critical Silicon & Connectors in Manual:",
-
-    // Zero-Error RAG Technical Assistant
-    "rag.title": "Zero-Error AI Engineering Assistant",
-    "rag.badge": "GROUNDED CRAG & SELF-RAG",
-    "rag.subtitle": "Epistemic grounding, citation verification, and hardware safety invariant enforcement",
-    "rag.inputPlaceholder": "Ask a technical question (e.g. How to recover error U99 safely?)...",
-    "rag.askButton": "Verify with RAG",
-    "rag.asking": "Auditing across 6 defense layers...",
-    "rag.groundedBadge": "100% GROUNDED IN CORPUS",
-    "rag.hallucinationWarning": "HALLUCINATION DETECTED BY CRITIC",
-    "rag.safetyPassed": "HARDWARE INVARIANTS VERIFIED (<= 3.3V, IPL PROTECTED)",
-    "rag.safetyBlocked": "BLOCKED BY HARDWARE SAFETY SHIELD",
-    "rag.confidence": "Confidence Score:",
-    "rag.latency": "Latency:",
-    "rag.chunksCount": "Chunks Cited:",
-    "rag.citationsTitle": "Verified Documentary Citations & Line Numbers",
-    "rag.line": "Lines",
-    "rag.criticReportTitle": "FactCritic (Self-RAG) Verification Report",
-    "rag.verifiedEntities": "Verified Entities in Context:",
-    "rag.ungroundedEntities": "Unverified Fabrications:",
-    "rag.abstentionTitle": "Formal Epistemic Abstention",
-    "rag.emptyPrompt": "Ask any low-level hardware, firmware, or storage question. The RAG engine enforces zero extrapolation.",
-
-    // Common Actions
-    "common.close": "Close",
-    "common.copy": "Copy",
-    "common.copied": "Copied!",
-    "common.execute": "Execute",
-    "common.searching": "Searching...",
-    "common.cancel": "Cancel",
-    "common.ok": "OK",
-    "common.error": "Error",
-    "common.success": "Success",
-  },
-  "pt-BR": {
-    // App & Layout
-    "app.title": "Panasonic DMR-EH55 DIGA Engineering Suite",
-    "app.subtitle": "Bancada de Engenharia Reversa, Criptoanálise & Reparo de Hardware",
-    "app.demoMode": "Modo Simulação",
-    "app.liveMode": "Conexão Real",
-    "app.loading": "Carregando subsistema de bancada...",
-
-    // Navigation Views
-    "nav.dashboard": "Visão Geral",
-    "nav.dashboard.sub": "Status do Gravador & Binários",
-    "nav.nvram": "Flash & NVRAM",
-    "nav.nvram.sub": "Spansion SA134..SA141 U99",
-    "nav.hdd": "Armazenamento HD",
-    "nav.hdd.sub": "Partições MEIHDFS & MBR",
-    "nav.picobench": "Bancada Pico",
-    "nav.picobench.sub": "DWire32A & Servidor GDB",
-    "nav.frmcrypto": "Cripto PANA_DVD",
-    "nav.frmcrypto.sub": "Dicionário ECB & Entropia",
-    "nav.manuals": "Manuais Técnicos",
-    "nav.manuals.sub": "15 PDFs & Esquemáticos",
-    "nav.hexinspector": "Inspetor Hex",
-    "nav.hexinspector.sub": "Alinhamento LBA & Offsets",
-
-    // Pico Bench
-    "pico.title": "Bancada Raspberry Pi Pico & DWire32A OCD Master",
-    "pico.port": "Porta Serial COM",
-    "pico.connect": "Conectar",
-    "pico.disconnect": "Desconectar",
-    "pico.connected": "CONECTADO",
-    "pico.disconnected": "DESCONECTADO",
-    "pico.targetRail": "Tensão da Placa (VDD)",
-    "pico.targetState": "Estado do Core AM34",
-    "pico.chipId": "Identificador do Chip",
-    "pico.inCircuitErase": "Injetar Loader & Limpar NVRAM",
-    "pico.erasing": "Executando Apagamento In-Circuit...",
-    "pico.gdbServer": "Servidor GDB Remote RSP (Porta TCP 3333)",
-    "pico.gdbStart": "Iniciar Servidor GDB",
-    "pico.gdbStop": "Parar Servidor GDB",
-    "pico.gdbListening": "OUVINDO (3333)",
-    "pico.gdbOffline": "OFFLINE",
-    "pico.gdbClientActive": "CLIENTE ATIVO",
-    "pico.extTools": "Ecossistema & Ferramentas Externas:",
-    "pico.launchGdb": "GDB Multiarch",
-    "pico.launchOpenocd": "OpenOCD AM34",
-    "pico.launchGhidra": "Scripts Ghidra",
-    "pico.launchHxd": "HxD Editor",
-    "pico.launchTerminal": "PowerShell",
-
-    // NVRAM View
-    "nvram.title": "Flash Spansion S29JL064H & Cirurgia NVRAM U99",
-    "nvram.cleanButton": "Executar Cirurgia no Dump",
-    "nvram.cleaning": "Higienizando Micro-Setores...",
-    "nvram.statusClean": "NVRAM HIGIENIZADA (U99 CORRIGIDO)",
-    "nvram.statusCorrupted": "NVRAM CORROMPIDA (ERRO U99 PRESENTE)",
-    "nvram.microsectorsTitle": "Mapa dos 8 Micro-Setores de Boot (SA134 a SA141)",
-    "nvram.auditButton": "Ver Auditoria & Hashes SHA-256",
-
-    // Manuals View
-    "manuals.header.title": "Biblioteca Técnica & Esquemas Elétricos (15 Manuais em PDF)",
-    "manuals.header.badge": "INDEXAÇÃO LOCAL RÁPIDA",
-    "manuals.header.subtitle": "Busca instantânea de CIs, conectores de teste, rotinas de auto-teste e códigos de erro de bancada",
-    "manuals.header.size": "62.1 MB de Documentação Indexada",
-    "manuals.search.placeholder": "Pesquisar por código (U99, S29JL064, CN55001, IC5001)...",
-    "manuals.search.emptyQuery": "Por favor, digite uma palavra-chave ou código de componente.",
-    "manuals.search.button": "Pesquisar Manuais",
-    "manuals.terms.label": "Termos Críticos:",
-    "manuals.results.title": "Ocorrências Encontradas para a Consulta",
-    "manuals.results.loading": "Indexando fluxos de texto dos PDFs...",
-    "manuals.results.empty": "Nenhuma referência encontrada para o termo pesquisado. Tente outro código da lista rápida acima.",
-    "manuals.results.pages": "páginas",
-    "manuals.results.occurrences": "OCORRÊNCIAS",
-    "manuals.meta.title": "Metadados do Documento & Diagnósticos",
-    "manuals.meta.selectPrompt": "Selecione um manual à esquerda para inspecionar metadados.",
-    "manuals.meta.openExternal": "Abrir no Visualizador Externo",
-    "manuals.meta.totalDocs": "Documentos Indexados",
-    "manuals.meta.totalPages": "Total de Páginas",
-    "manuals.meta.fileSize": "Tamanho em Disco",
-    "manuals.meta.chipsTitle": "CIs Críticos e Conectores no Manual:",
-
-    // Zero-Error RAG Technical Assistant
-    "rag.title": "Assistente Técnico RAG Zero-Erro",
-    "rag.badge": "CRAG & SELF-RAG FUNDAMENTADO",
-    "rag.subtitle": "Fundamentação epistêmica em múltiplos estágios, verificação de citações e invariantes de segurança",
-    "rag.inputPlaceholder": "Faça uma pergunta técnica (ex: Como recuperar do erro U99 com segurança?)...",
-    "rag.askButton": "Verificar com RAG",
-    "rag.asking": "Executando auditoria em 6 camadas...",
-    "rag.groundedBadge": "100% FUNDAMENTADO NO CORPUS",
-    "rag.hallucinationWarning": "ALUCINAÇÃO DETECTADA PELO CRITIC",
-    "rag.safetyPassed": "INVARIANTES DE HARDWARE VERIFICADOS (<= 3.3V, IPL PROTEGIDO)",
-    "rag.safetyBlocked": "BLOQUEADO PELO ESCUDO DE SEGURANÇA",
-    "rag.confidence": "Score de Confiança:",
-    "rag.latency": "Latência:",
-    "rag.chunksCount": "Trechos Citados:",
-    "rag.citationsTitle": "Citações Documentais Verificadas & Linhas",
-    "rag.line": "Linhas",
-    "rag.criticReportTitle": "Relatório de Auditoria FactCritic (Self-RAG)",
-    "rag.verifiedEntities": "Entidades Verificadas no Contexto:",
-    "rag.ungroundedEntities": "Fabricações Não Verificadas:",
-    "rag.abstentionTitle": "Abstenção Epistêmica Formal",
-    "rag.emptyPrompt": "Faça qualquer pergunta técnica de hardware, firmware ou armazenamento. O motor RAG impede qualquer extrapolação.",
-
-    // Common Actions
-    "common.close": "Fechar",
-    "common.copy": "Copiar",
-    "common.copied": "Copiado!",
-    "common.execute": "Executar",
-    "common.searching": "Buscando...",
-    "common.cancel": "Cancelar",
-    "common.ok": "OK",
-    "common.error": "Erro",
-    "common.success": "Sucesso",
-  },
+  'en-US': flattenObject(enUSJson),
+  'pt-BR': flattenObject(ptBRJson),
 } as const;
 
-export type TranslationKey = keyof typeof translations["en-US"];
+export type TranslationKey = keyof typeof translations['en-US'];

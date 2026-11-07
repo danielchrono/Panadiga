@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useHddStorageViewModel, HddTab } from '@/viewmodels/useHddStorageViewModel';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Modal } from '@/components/Modal';
+import { MbrSectorDetailsCard } from '@/components/hdd/MbrSectorDetailsCard';
 import { useTranslation } from '@/i18n/useTranslation';
 import {
   HardDrive,
@@ -49,7 +49,7 @@ export const HddStorageView: React.FC = () => {
   if (loading || !hddReport) {
     return (
       <div className="flex items-center justify-center h-full text-slate-500 font-mono text-xs">
-        Lendo imagem física do HD (104.857.600 bytes) via zero-copy mmap...
+        {t('hdd.loading', 'Lendo imagem física do HD (104.857.600 bytes) via zero-copy mmap...')}
       </div>
     );
   }
@@ -65,12 +65,12 @@ export const HddStorageView: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-100">
-                Hitachi PATA 100 MB Forensic Image (MEIHDFS)
+                {t('hdd.title', 'Hitachi PATA 100 MB Forensic Image (MEIHDFS)')}
               </h2>
-              <StatusBadge variant="success" label="MBR & ESPELHO 100% OK" />
+              <StatusBadge variant="success" label={t('hdd.badgeOk', 'MBR & ESPELHO 100% OK')} />
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              panasonic DMR EH-55 Firmware hdd_100.bin • 204.800 setores LBA de 512 bytes
+              {t('hdd.subtitle', 'panasonic DMR EH-55 Firmware hdd_100.bin • 204.800 setores LBA de 512 bytes')}
             </p>
           </div>
         </div>
@@ -80,14 +80,14 @@ export const HddStorageView: React.FC = () => {
           <button
             onClick={extractPartitions}
             disabled={extracting}
-            className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-cyan-950/50 transition-all"
+            className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-cyan-950/50 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-300"
           >
             {extracting ? (
-              <span>Extraindo Partições...</span>
+              <span>{t('hdd.extracting', 'Extraindo Partições...')}</span>
             ) : (
               <>
                 <Download className="w-4 h-4" />
-                <span>Extrair Partições (SHA256SUMS)</span>
+                <span>{t('hdd.extractButton', 'Extrair Partições (SHA256SUMS)')}</span>
               </>
             )}
           </button>
@@ -97,14 +97,14 @@ export const HddStorageView: React.FC = () => {
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
-          title="Tamanho da Imagem"
+          title={t('hdd.metrics.imageSize', 'Tamanho da Imagem')}
           value="100.00"
           unit="MB"
           subtitle="104.857.600 bytes exatos"
           variant="cyan"
         />
         <MetricCard
-          title="Validação MBR / Espelho"
+          title={t('hdd.metrics.mirrorMbr', 'Validação MBR / Espelho')}
           value="LBA 57.344"
           unit="(28 MB)"
           subtitle="Identical Bit-for-Bit Replica"
@@ -128,71 +128,83 @@ export const HddStorageView: React.FC = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs">
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2 text-xs" role="tablist" aria-label="Navegação de Forense do Disco">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'overview'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             activeTab === 'overview'
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
-          <span>Visão Geral do Disco</span>
+          <span>{t('hdd.tabs.overview', 'Visão Geral do Disco')}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('mbr')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'mbr'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             activeTab === 'mbr'
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <FileCheck className="w-3.5 h-3.5" />
-          <span>MBR vs Espelho LBA 57.344</span>
+          <span>{t('hdd.tabs.mbr', 'MBR vs Espelho LBA 57.344')}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('meihdfs')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'meihdfs'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             activeTab === 'meihdfs'
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Table className="w-3.5 h-3.5" />
-          <span>256 Registros MEIHDFS (XOR 0xFF)</span>
+          <span>{t('hdd.tabs.meihdfs', '256 Registros MEIHDFS (XOR 0xFF)')}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('journal')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'journal'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             activeTab === 'journal'
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <BookOpen className="w-3.5 h-3.5" />
-          <span>Journal WAL (10 Blocos)</span>
+          <span>{t('hdd.tabs.journal', 'Journal WAL (10 Blocos)')}</span>
         </button>
 
         <button
           onClick={() => setActiveTab('density')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+          role="tab"
+          aria-selected={activeTab === 'density'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
             activeTab === 'density'
               ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
               : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <BarChart3 className="w-3.5 h-3.5" />
-          <span>Mapa de Densidade (100 MB)</span>
+          <span>{t('hdd.tabs.density', 'Mapa de Densidade (100 MB)')}</span>
         </button>
 
         {manifest && (
           <button
             onClick={() => setActiveTab('extract')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+            role="tab"
+            aria-selected={activeTab === 'extract'}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
               activeTab === 'extract'
                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                 : 'text-slate-400 hover:text-slate-200'
@@ -304,69 +316,33 @@ export const HddStorageView: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
-            {/* Primary MBR */}
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-cyan-400">MBR Primário (LBA 0 - Offset 0x0000_0000)</span>
-                <StatusBadge variant="info" label="SETOR 0" />
-              </div>
-              <div className="space-y-1.5 text-slate-400">
-                <div className="flex justify-between">
-                  <span>Assinatura Hex:</span>
-                  <span className="text-slate-200">{hddReport.mbr_tables.lba0_hex_signature}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Magic ASCII:</span>
-                  <span className="text-emerald-400 font-bold">{hddReport.mbr_tables.magic_ascii}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Disk GUID:</span>
-                  <span className="text-slate-200">{hddReport.mbr_tables.disk_volume_guid}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>IBM PC Boot (0x55AA):</span>
-                  <span className="text-slate-400">AUSENTE (Proteção contra PC OS)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SHA-256:</span>
-                  <span className="text-slate-300 truncate max-w-[200px]" title={hddReport.mbr_tables.lba0_sha256}>
-                    {hddReport.mbr_tables.lba0_sha256}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <MbrSectorDetailsCard
+              title="MBR Primário (LBA 0 - Offset 0x0000_0000)"
+              titleColor="text-cyan-400"
+              badgeLabel="SETOR 0"
+              badgeVariant="info"
+              rows={[
+                { label: 'Assinatura Hex:', value: hddReport.mbr_tables.lba0_hex_signature },
+                { label: 'Magic ASCII:', value: hddReport.mbr_tables.magic_ascii, valueClassName: 'text-emerald-400 font-bold' },
+                { label: 'Disk GUID:', value: hddReport.mbr_tables.disk_volume_guid },
+                { label: 'IBM PC Boot (0x55AA):', value: 'AUSENTE (Proteção contra PC OS)', valueClassName: 'text-slate-400' },
+                { label: 'SHA-256:', value: hddReport.mbr_tables.lba0_sha256, valueClassName: 'text-slate-300 truncate max-w-[200px]', title: hddReport.mbr_tables.lba0_sha256 },
+              ]}
+            />
 
-            {/* Mirror MBR */}
-            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="font-bold text-emerald-400">Espelho de Backup (LBA 57.344 - 28.00 MB)</span>
-                <StatusBadge variant="success" label="ESPELHO LBA 57344" />
-              </div>
-              <div className="space-y-1.5 text-slate-400">
-                <div className="flex justify-between">
-                  <span>Offset Físico:</span>
-                  <span className="text-slate-200">0x01C0_0000 (29.360.128 bytes)</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Comparação Bit-a-Bit:</span>
-                  <span className="text-emerald-400 font-bold">100% IDÊNTICO AO SETOR 0</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Disk GUID:</span>
-                  <span className="text-slate-200">{hddReport.mbr_tables.disk_volume_guid}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>MD5:</span>
-                  <span className="text-slate-300">{hddReport.mbr_tables.mirror_md5}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>SHA-256:</span>
-                  <span className="text-slate-300 truncate max-w-[200px]" title={hddReport.mbr_tables.mirror_sha256}>
-                    {hddReport.mbr_tables.mirror_sha256}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <MbrSectorDetailsCard
+              title="Espelho de Backup (LBA 57.344 - 28.00 MB)"
+              titleColor="text-emerald-400"
+              badgeLabel="ESPELHO LBA 57344"
+              badgeVariant="success"
+              rows={[
+                { label: 'Offset Físico:', value: '0x01C0_0000 (29.360.128 bytes)' },
+                { label: 'Comparação Bit-a-Bit:', value: '100% IDÊNTICO AO SETOR 0', valueClassName: 'text-emerald-400 font-bold' },
+                { label: 'Disk GUID:', value: hddReport.mbr_tables.disk_volume_guid },
+                { label: 'MD5:', value: hddReport.mbr_tables.mirror_md5, valueClassName: 'text-slate-300' },
+                { label: 'SHA-256:', value: hddReport.mbr_tables.mirror_sha256, valueClassName: 'text-slate-300 truncate max-w-[200px]', title: hddReport.mbr_tables.mirror_sha256 },
+              ]}
+            />
           </div>
         </div>
       )}
@@ -394,6 +370,7 @@ export const HddStorageView: React.FC = () => {
                   placeholder="Filtrar por tag ou hex..."
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
+                  aria-label="Filtrar registros MEIHDFS por tag ou hex"
                   className="pl-8 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-cyan-500"
                 />
               </div>
@@ -401,6 +378,7 @@ export const HddStorageView: React.FC = () => {
               <select
                 value={tagFilter}
                 onChange={e => setTagFilter(e.target.value)}
+                aria-label="Filtrar por tipo de tag MEIHDFS"
                 className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-cyan-500"
               >
                 <option value="all">Todas as Tags</option>
@@ -414,14 +392,14 @@ export const HddStorageView: React.FC = () => {
 
           {/* Table */}
           <div className="overflow-x-auto max-h-[500px] scrollbar-thin scrollbar-thumb-slate-800">
-            <table className="w-full text-left text-xs font-mono">
+            <table className="w-full text-left text-xs font-mono" aria-label="Tabela de Alocações MEIHDFS">
               <thead className="sticky top-0 bg-bench-950 border-b border-slate-800 text-slate-400 uppercase text-[10px]">
                 <tr>
-                  <th className="py-2 px-3">Idx</th>
-                  <th className="py-2 px-3">Tag Decodificada</th>
-                  <th className="py-2 px-3">Hex Bruto (0xFF Invertido)</th>
-                  <th className="py-2 px-3">Parâmetros (Setores / LBA)</th>
-                  <th className="py-2 px-3">Descrição Forense</th>
+                  <th scope="col" className="py-2 px-3">Idx</th>
+                  <th scope="col" className="py-2 px-3">Tag Decodificada</th>
+                  <th scope="col" className="py-2 px-3">Hex Bruto (0xFF Invertido)</th>
+                  <th scope="col" className="py-2 px-3">Parâmetros (Setores / LBA)</th>
+                  <th scope="col" className="py-2 px-3">Descrição Forense</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">

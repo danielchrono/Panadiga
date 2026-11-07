@@ -115,6 +115,7 @@ export const ManualsView: React.FC = () => {
               value={ragQuery}
               onChange={e => setRagQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleRagSubmit()}
+              aria-label="Pergunta técnica para o assistente de IA"
               className="w-full pl-4 pr-4 py-2.5 rounded-xl bg-bench-900 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
             />
           </div>
@@ -230,6 +231,7 @@ export const ManualsView: React.FC = () => {
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && executeSearch(searchQuery)}
+              aria-label="Pesquisar nos manuais de serviço"
               className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
             />
           </div>

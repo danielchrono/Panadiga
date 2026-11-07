@@ -65,8 +65,9 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onClear}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
             title="Limpar buffer"
+            aria-label="Limpar buffer de eventos do terminal"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Limpar</span>
@@ -77,7 +78,11 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
       {/* Terminal Log Stream */}
       <div
         ref={scrollRef}
-        className="flex-1 p-3 overflow-y-auto space-y-1 text-xs select-text scrollbar-thin scrollbar-thumb-slate-800"
+        role="log"
+        aria-live="polite"
+        tabIndex={0}
+        aria-label="Console de telemetria serial DWire32A"
+        className="flex-1 p-3 overflow-y-auto space-y-1 text-xs select-text scrollbar-thin scrollbar-thumb-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-700"
       >
         {logs.length === 0 ? (
           <div className="flex items-center justify-center h-32 text-slate-600 text-xs italic">

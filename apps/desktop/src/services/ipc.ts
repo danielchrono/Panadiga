@@ -56,14 +56,9 @@ export async function invokeCommand<T>(cmd: string, args?: Record<string, unknow
     return handleMockCommand<T>(cmd, args);
   }
 
-  try {
-    // Dynamic import to prevent bundler errors if @tauri-apps/api/core is only present at runtime
-    const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<T>(cmd, args);
-  } catch (err) {
-    console.warn(`[IPC] Tauri command "${cmd}" failed or unavailable. Falling back to Mock data.`, err);
-    return handleMockCommand<T>(cmd, args);
-  }
+  // In Live Hardware mode inside Tauri, execute real command and propagate any failure
+  const { invoke } = await import('@tauri-apps/api/core');
+  return await invoke<T>(cmd, args);
 }
 
 /**

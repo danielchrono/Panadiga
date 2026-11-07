@@ -1,0 +1,234 @@
+{
+  "app": {
+    "title": "Panasonic DMR-EH55 DIGA Engineering Suite",
+    "subtitle": "Reverse Engineering Bench, Cryptanalysis & Hardware Repair",
+    "demoMode": "Demo Mode",
+    "liveMode": "Live Hardware",
+    "loading": "Loading engineering subsystem...",
+    "subsystemFailure": "Critical Subsystem Failure",
+    "reloadSubsystem": "Reload Subsystem"
+  },
+  "nav": {
+    "dashboard": "Overview",
+    "dashboard.sub": "Recorder Status & Binaries",
+    "nvram": "Flash & NVRAM",
+    "nvram.sub": "Spansion SA134..SA141 U99",
+    "hdd": "HDD Storage",
+    "hdd.sub": "MEIHDFS Partitions & MBR",
+    "picobench": "Pico Bench",
+    "picobench.sub": "DWire32A & GDB Server",
+    "frmcrypto": "PANA_DVD Crypto",
+    "frmcrypto.sub": "ECB Codebook & Entropy",
+    "manuals": "Service Manuals",
+    "manuals.sub": "15 PDFs & Schematics",
+    "hexinspector": "Hex Inspector",
+    "hexinspector.sub": "LBA Alignment & Offsets"
+  },
+  "dashboard": {
+    "alertTitle": "CRITICAL DIAGNOSIS: {{errorCode}}",
+    "alertBadge": "AUTO-CHECK TIMEOUT",
+    "cleanButton": "Perform Surgical Clean",
+    "metricSpansion": "Spansion NOR Flash",
+    "metricSpansionSub": "Top-Boot (SA134..SA141 EEMUL)",
+    "metricSpansionBadge": "SA134 CORRUPTED",
+    "metricHdd": "HDD Head Dump",
+    "metricHddSub": "MEIHDFS 204,800 LBA sectors",
+    "metricHddBadge": "MBR SH VERIFIED",
+    "metricFrm": "PANA_DVD.FRM Entropy",
+    "metricFrmSub": "ECB Feistel 64-bit KPA Cipher",
+    "metricFrmBadge": "3 CPUs TOC",
+    "metricDwire": "DWire32A Interface",
+    "metricDwireSub": "RP2040 Synchronous OCD Master",
+    "metricDwireBadge": "3.28V LVTTL OK",
+    "loading": "Loading DMR-EH55 bench telemetry and system health..."
+  },
+  "hdd": {
+    "title": "Hitachi PATA 100 MB Forensic Image (MEIHDFS)",
+    "badgeOk": "MBR & MIRROR 100% OK",
+    "subtitle": "panasonic DMR EH-55 Firmware hdd_100.bin • 204,800 LBA sectors of 512 bytes",
+    "extractButton": "Extract Partitions (SHA256SUMS)",
+    "extracting": "Extracting Partitions...",
+    "loading": "Reading physical HDD image (104,857,600 bytes) via zero-copy mmap...",
+    "metrics": {
+      "imageSize": "Image Size",
+      "imageSizeSub": "Hitachi PATA IDE (100.00 MB)",
+      "totalLba": "Total LBA Sectors",
+      "totalLbaSub": "512 Bytes / Sector (Logical)",
+      "primaryMbr": "Primary MBR (LBA 0)",
+      "primaryMbrSub": "Matsushita 'SH' Signature OK",
+      "mirrorMbr": "Mirror MBR (28 MB)",
+      "mirrorMbrSub": "LBA 57,344 (100% Verified Match)"
+    },
+    "tabs": {
+      "overview": "Disk Overview",
+      "mbr": "MBR vs Mirror LBA 57,344",
+      "meihdfs": "256 MEIHDFS Records (XOR 0xFF)",
+      "journal": "Journal WAL (10 Blocks)",
+      "density": "LBA Density Map",
+      "extract": "Partition Manifest"
+    },
+    "mbrSection": {
+      "primaryTitle": "Sector LBA 0 (Offset 0x0000_0000)",
+      "primaryBadge": "PRIMARY",
+      "mirrorTitle": "Backup Mirror (LBA 57,344 - 28.00 MB)",
+      "mirrorBadge": "MIRROR LBA 57344",
+      "hexSignature": "Hex Signature:",
+      "magicAscii": "Magic ASCII:",
+      "diskGuid": "Disk GUID:",
+      "ibmBoot": "IBM PC Boot (0x55AA):",
+      "ibmBootVal": "ABSENT (PC OS Write Protection)",
+      "sha256": "SHA-256:",
+      "physicalOffset": "Physical Offset:",
+      "bitComparison": "Bit-by-Bit Comparison:",
+      "bitComparisonVal": "100% IDENTICAL TO SECTOR 0",
+      "md5": "MD5:"
+    },
+    "manifest": {
+      "title": "Partitions Extracted Successfully (SHA256SUMS Manifest)",
+      "subtitle": "Saved in {{dir}} • Independent hash verification ready.",
+      "copySha": "Copy SHA256SUMS",
+      "copiedSha": "Copied!"
+    }
+  },
+  "crypto": {
+    "title": "PANA_DVD.FRM Optical Container Cryptanalysis",
+    "badge": "ECB LEAK CONFIRMED",
+    "subtitle": "Feistel Symmetric Block Cipher (64 bits / 8 bytes) • 3 Heterogeneous Co-Processors",
+    "signature": "Global Signature:",
+    "loading": "Analyzing PANA_DVD.FRM optical container (7,531,744 bytes) and ECB correlations...",
+    "metrics": {
+      "entropy": "Shannon Entropy",
+      "entropySub": "Near-pure random (7.99958/8.00)",
+      "ecbLeaks": "Detected ECB Leaks",
+      "ecbLeaksSub": "Virgin 0xFF pattern discovered",
+      "ecbBadge": "KPA PROVEN",
+      "size": "Container Size",
+      "sizeSub": "PANA_DVD.FRM (7.18 MB)",
+      "cpus": "CPUs in Periodic TOC",
+      "cpusSub": "AM34 + MN102 + MN103S",
+      "cpusBadge": "48B TOC"
+    },
+    "tabs": {
+      "toc": "Periodic TOC (48B Entries)",
+      "codebook": "ECB Codebook Frequency",
+      "entropy": "Entropy Graph",
+      "kpa": "Known-Plaintext Attack"
+    }
+  },
+  "hex": {
+    "title": "Firmware & LBA Forensics Hex Inspector",
+    "badge": "16 BYTES/ROW",
+    "subtitle": "Dual addressing (Physical Hex Offset & 512-Byte LBA Sector) with ASCII Decoding",
+    "jumpPlaceholder": "0x00000000...",
+    "jumpButton": "Jump",
+    "prev": "Previous",
+    "next": "Next",
+    "bookmarks": "Quick Bookmarks:"
+  },
+  "pico": {
+    "title": "Raspberry Pi Pico Bench & DWire32A OCD Master",
+    "port": "Serial COM Port",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "connected": "CONNECTED",
+    "disconnected": "DISCONNECTED",
+    "targetRail": "Target Board Rail (VDD)",
+    "targetState": "AM34 Core State",
+    "chipId": "Chip Identifier",
+    "inCircuitErase": "Inject Loader & Erase NVRAM",
+    "erasing": "Executing In-Circuit Erase...",
+    "gdbServer": "GDB Remote RSP Server (TCP Port 3333)",
+    "gdbStart": "Start GDB Server",
+    "gdbStop": "Stop GDB Server",
+    "gdbListening": "LISTENING (3333)",
+    "gdbOffline": "OFFLINE",
+    "gdbClientActive": "CLIENT ACTIVE",
+    "extTools": "Ecosystem & External Tools:",
+    "launchGdb": "GDB Multiarch",
+    "launchOpenocd": "OpenOCD AM34",
+    "launchGhidra": "Ghidra Scripts",
+    "launchHxd": "HxD Editor",
+    "launchTerminal": "PowerShell"
+  },
+  "nvram": {
+    "title": "Spansion S29JL064H Flash & NVRAM U99 Surgery",
+    "cleanButton": "Perform Dump Surgery",
+    "cleaning": "Sanitizing Micro-Sectors...",
+    "statusClean": "NVRAM SANITIZED (U99 RESOLVED)",
+    "statusCorrupted": "NVRAM CORRUPTED (U99 ERROR ACTIVE)",
+    "microsectorsTitle": "Boot Micro-Sectors Map (SA134 to SA141)",
+    "auditButton": "View Audit & SHA-256 Hashes"
+  },
+  "manuals": {
+    "header": {
+      "title": "Technical Library & Circuit Schematics (15 Service Manuals)",
+      "badge": "LOCAL RAPID INDEXING",
+      "subtitle": "Instant lookup for ICs, test pins, self-check routines, and bench error codes",
+      "size": "62.1 MB of Indexed Technical Documentation"
+    },
+    "search": {
+      "placeholder": "Search by part/error code (U99, S29JL064, CN55001, IC5001)...",
+      "emptyQuery": "Please enter a search keyword or part code.",
+      "button": "Search Manuals"
+    },
+    "terms": {
+      "label": "Critical Diagnostic Terms:"
+    },
+    "results": {
+      "title": "Matches Found for Search Query",
+      "loading": "Indexing PDF document text streams...",
+      "empty": "No matching references found. Try another diagnostic code from the quick pills above.",
+      "pages": "pages",
+      "occurrences": "OCCURRENCES"
+    },
+    "meta": {
+      "title": "Document Metadata & Diagnostics",
+      "selectPrompt": "Select a service manual from the results on the left to inspect schematic metadata.",
+      "openExternal": "Open in External Viewer",
+      "totalDocs": "Indexed Documents",
+      "totalPages": "Total Pages",
+      "fileSize": "Corpus Size",
+      "chipsTitle": "Critical Silicon & Connectors in Manual:"
+    }
+  },
+  "rag": {
+    "title": "Zero-Error AI Engineering Assistant",
+    "badge": "GROUNDED CRAG & SELF-RAG",
+    "subtitle": "Epistemic grounding, citation verification, and hardware safety invariant enforcement",
+    "inputPlaceholder": "Ask a technical question (e.g. How to recover error U99 safely?)...",
+    "askButton": "Verify with RAG",
+    "asking": "Auditing across 6 defense layers...",
+    "groundedBadge": "100% GROUNDED IN CORPUS",
+    "hallucinationWarning": "HALLUCINATION DETECTED BY CRITIC",
+    "safetyPassed": "HARDWARE INVARIANTS VERIFIED (<= 3.3V, IPL PROTECTED)",
+    "safetyBlocked": "BLOCKED BY HARDWARE SAFETY SHIELD",
+    "confidence": "Confidence Score:",
+    "latency": "Latency:",
+    "chunksCount": "Chunks Cited:",
+    "citationsTitle": "Verified Documentary Citations & Line Numbers",
+    "line": "Lines",
+    "criticReportTitle": "FactCritic (Self-RAG) Verification Report",
+    "verifiedEntities": "Verified Entities in Context:",
+    "ungroundedEntities": "Unverified Fabrications:",
+    "abstentionTitle": "Formal Epistemic Abstention",
+    "emptyPrompt": "Ask any low-level hardware, firmware, or storage question. The RAG engine enforces zero extrapolation."
+  },
+  "terminal": {
+    "title": "DWire32A Bus Monitor / OCD CDC Console",
+    "events": "{{count}} events",
+    "clear": "Clear",
+    "empty": "No events registered on the serial channel. Awaiting bus activity...",
+    "autoScroll": "Auto-Scroll Active"
+  },
+  "common": {
+    "close": "Close",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "execute": "Execute",
+    "searching": "Searching...",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "error": "Error",
+    "success": "Success"
+  }
+}

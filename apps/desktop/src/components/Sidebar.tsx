@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   LayoutDashboard,
   Cpu,
@@ -117,7 +118,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Items */}
-        <nav className="p-3 space-y-1">
+        <nav className="p-3 space-y-1" aria-label="Navegação Principal do Sistema">
           {navItems.length === 0 ? (
             <div className="p-4 text-center text-xs text-slate-500 font-mono">
               Nenhum módulo de bancada disponível
@@ -128,9 +129,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <button
                   key={item.key}
+                  data-testid={`nav-${item.key}`}
                   onClick={() => onSelectView(item.key)}
+                  aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150',
+                    'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
                     isActive
                       ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-950/20'
                       : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'

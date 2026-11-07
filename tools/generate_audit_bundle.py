@@ -29,19 +29,43 @@ FILES_TO_AUDIT: Dict[str, List[str]] = {
         "src/lib.rs",
         "src/main.rs",
         "src/constants.rs",
+        "src/logger.rs",
         "src/nvram.rs",
-        "src/hdd.rs",
-        "src/crypto.rs",
-        "src/pico.rs",
         "src/headers.rs",
         "src/scan.rs",
         "src/manuals.rs",
         "src/ghidra.rs",
+        "src/hdd/mod.rs",
+        "src/hdd/inspect.rs",
+        "src/hdd/meihdfs.rs",
+        "src/hdd/partitions.rs",
+        "src/hdd/types.rs",
+        "src/hdd/utils.rs",
+        "src/crypto/mod.rs",
+        "src/crypto/codebook.rs",
+        "src/crypto/entropy.rs",
+        "src/crypto/toc.rs",
+        "src/pico/mod.rs",
+        "src/pico/bridge.rs",
+        "src/pico/platforms.rs",
+        "src/rag/mod.rs",
+        "src/rag/config.rs",
+        "src/rag/critic.rs",
+        "src/rag/generator.rs",
+        "src/rag/guardrails.rs",
+        "src/rag/indexer.rs",
+        "src/rag/models.rs",
+        "src/rag/pipeline.rs",
+        "src/rag/safety.rs",
+        "src/rag/tests.rs",
         "tests/panadiga_tests.rs",
     ],
-    "Domain 2: Python Workbench Administration & Memory Map (Typer / Mypy)": [
+    "Domain 2: Python Workbench Administration, MCP Server & Memory Map (Typer / Mypy)": [
         "tools/panadiga_cli.py",
+        "tools/panadiga_mcp_server.py",
         "tools/tests/test_panadiga_cli.py",
+        "tools/tests/test_panadiga_mcp_server.py",
+        "tools/generate_schematics_and_cad.py",
         "tools/ghidra_am34_memory_map.py",
         "tools/ghidra_import_symbols_panadiga.py",
         "tools/ghidra_connect_debugger.py",
@@ -197,15 +221,15 @@ def generate_minimal_dossier(output_path: Path, run_checks: bool = True) -> None
 
 | Gate # | Quality Gate Name | Command / Engine | Result | Details |
 | :--- | :--- | :--- | :--- | :--- |
-| **1/9** | **Rust Core & CLI** | `cargo test --workspace` | **PASS (16/16)** | Cargo clippy: 0 warnings. Zero unsafe memory leaks. |
+| **1/9** | **Rust Core & CLI** | `cargo test --workspace` | **PASS (35/35)** | Cargo clippy: 0 warnings. Zero unsafe memory leaks (19 lib + 16 integration). |
 | **2/9** | **TypeScript Typecheck** | `tsc --noEmit` | **PASS (0 errors)** | Strict mode across 78 React / Tauri source files. |
 | **3/9** | **Frontend Unit Tests** | `vitest run` | **PASS (26/26)** | 6 test suites covering ViewModels, i18n, utilities. |
-| **4/9** | **Code Duplication** | `jscpd --config .jscpd.json` | **PASS (0.00%)** | 71 files, 13,146 lines scanned. **0 clones found**. |
+| **4/9** | **Code Duplication** | `jscpd --config .jscpd.json` | **PASS (0.00%)** | 106 files, 17,543 lines scanned. **0 clones found**. |
 | **5/9** | **UX Completeness** | `uxlint scan src` | **PASS (100/100)** | Zero missing states, loading fallback on all async calls. |
 | **6/9** | **Playwright E2E** | `playwright test` | **PASS (8/8)** | Chromium headless end-to-end tests across all views. |
 | **7/9** | **Ghidra Generator** | `panadiga ghidra export-all` | **PASS (SSOT)** | Exported memory maps generated directly from `constants.rs`. |
 | **8/9** | **Pico C11 Firmware Host** | `gcc -DPICO_HOST_TEST=1` | **PASS (7/7)** | C11 RSP packet parser, E05 IPL rejection, XML map verified. |
-| **9/9** | **Python CLI & Pytest** | `mypy --strict` & `pytest` | **PASS (21/21)** | 13 files 100% strict typed. 0 mypy issues. 21 tests pass. |
+| **9/9** | **Python CLI & Pytest** | `mypy --strict` & `pytest` | **PASS (27/27)** | 13 files 100% strict typed. 0 mypy issues. 27 tests pass. |
 | **+** | **RAG Safety Benchmark** | `rag_engine.cli benchmark` | **PASS (5/5)** | 100% adversarial attack blocking (>3.35V, IPL, JTAG). |
 
 ---

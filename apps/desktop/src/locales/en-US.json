@@ -109,10 +109,40 @@
       "cpusBadge": "48B TOC"
     },
     "tabs": {
-      "toc": "Periodic TOC (48B Entries)",
-      "codebook": "ECB Codebook Frequency",
-      "entropy": "Entropy Graph",
-      "kpa": "Known-Plaintext Attack"
+      "toc": "48-Byte TOC & 3 Co-Processors",
+      "codebook": "64-bit Codebook Dictionary (KPA Attack)",
+      "entropy": "Entropy Density & ECB Frequency",
+      "correlation": "Cross Correlation FRM ↔ HD"
+    },
+    "entropySection": {
+      "title": "Top Most Frequent 64-bit Encrypted Blocks (ECB Mode Leaks)",
+      "desc": "In block ciphers operating in Electronic Codebook (ECB), identical plaintext blocks produce identical ciphertext blocks.",
+      "empty": "No encrypted blocks detected in analysis",
+      "highRep": "HIGH REPETITION",
+      "frequent": "FREQUENT"
+    },
+    "tocSection": {
+      "title": "48-Byte Periodic Table of Contents (TOC) (3 Sub-Systems)",
+      "desc": "Describes executables distributed through the container for each recorder processor.",
+      "arch": "Architecture:",
+      "familyId": "Family ID:",
+      "descriptor": "Descriptor:",
+      "dump": "DESCRIPTOR DUMP:",
+      "modulesTitle": "Extractable Firmware Modules",
+      "empty": "No TOC entries found"
+    },
+    "codebookSection": {
+      "title": "64-bit ECB Codebook Dictionary (Known-Plaintext Attack KPA)",
+      "desc": "Mapping of exact matches between Ciphertext Blocks and Known Plaintext.",
+      "searchPlaceholder": "Search by block or plaintext...",
+      "empty": "No codebook entries matching filter",
+      "waiting": "Awaiting Discovery"
+    },
+    "correlationSection": {
+      "title": "Cryptographic Proof: Key Identity Between .FRM and Hard Drive",
+      "desc": "Encrypted padding blocks in HDD Partition 1 match optical container perfectly.",
+      "badge": "SHARED KEY CONFIRMED",
+      "empty": "No HDD correlations found"
     }
   },
   "hex": {

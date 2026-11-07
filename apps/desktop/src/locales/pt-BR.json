@@ -109,10 +109,40 @@
       "cpusBadge": "48B TOC"
     },
     "tabs": {
-      "toc": "TOC Periódico (Entradas 48B)",
-      "codebook": "Frequência de Codebook ECB",
-      "entropy": "Gráfico de Entropia",
-      "kpa": "Ataque de Texto-Plano Conhecido"
+      "toc": "TOC de 48 Bytes & 3 Co-Processadores",
+      "codebook": "Dicionário Codebook 64-bit (KPA Attack)",
+      "entropy": "Densidade de Entropia & Frequência ECB",
+      "correlation": "Correlação Cruzada FRM ↔ HD"
+    },
+    "entropySection": {
+      "title": "Top Blocos Cifrados de 64 bits Mais Frequentes (Vazamentos de Modo ECB)",
+      "desc": "Em cifras de bloco operando em Electronic Codebook (ECB), blocos idênticos de texto claro produzem blocos idênticos de texto cifrado.",
+      "empty": "Nenhum bloco cifrado detectado na análise",
+      "highRep": "ALTA REPETIÇÃO",
+      "frequent": "FREQUENTE"
+    },
+    "tocSection": {
+      "title": "Tabela Periódica de Conteúdo (TOC) de 48 Bytes (3 Sub-Sistemas)",
+      "desc": "Descreve os executáveis distribuídos pelo contêiner para cada um dos processadores do gravador.",
+      "arch": "Arquitetura:",
+      "familyId": "Family ID:",
+      "descriptor": "Descriptor:",
+      "dump": "DUMP DO DESCRITOR:",
+      "modulesTitle": "Módulos de Firmware Extraíveis",
+      "empty": "Nenhuma entrada no TOC encontrada"
+    },
+    "codebookSection": {
+      "title": "Dicionário Codebook ECB de 64 bits (Known-Plaintext Attack KPA)",
+      "desc": "Mapeamento das correspondências exatas entre Blocos Cifrados e Texto Claro Conhecido.",
+      "searchPlaceholder": "Buscar por bloco ou texto claro...",
+      "empty": "Nenhum bloco encontrado para o filtro aplicado",
+      "waiting": "Aguardando Descoberta"
+    },
+    "correlationSection": {
+      "title": "Prova Criptográfica: Identidade de Chaves Entre .FRM e Disco Rígido",
+      "desc": "Os blocos de padding cifrados na Partição 1 do HD coincidem perfeitamente com o contêiner óptico.",
+      "badge": "CHAVE COMPARTILHADA CONFIRMADA",
+      "empty": "Nenhuma correlação cruzada encontrada"
     }
   },
   "hex": {

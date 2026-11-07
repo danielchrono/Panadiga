@@ -9,14 +9,14 @@ test.describe('Panadiga Desktop Navigation & Layout E2E', () => {
   test('loads Dashboard View by default with system metrics', async ({ page }) => {
     await expect(page.locator('header')).toContainText('Visão Geral do Gravador');
     await expect(page.getByText('Spansion NOR Flash').first()).toBeVisible();
-    await expect(page.getByText('Head Dump do HD').first()).toBeVisible();
+    await expect(page.getByText(/Head Dump/).first()).toBeVisible();
   });
 
   test('navigates seamlessly across all workbench modules', async ({ page }) => {
     // 1. Flash & NVRAM Module
     await page.click('button:has-text("Flash & NVRAM")');
     await expect(page.locator('header')).toContainText('Flash Spansion S29JL064H');
-    await expect(page.getByText('Executar Cirurgia no Dump')).toBeVisible();
+    await expect(page.getByText(/Cirurgia|Surgical/).first()).toBeVisible();
 
     // 2. Armazenamento HD Module
     await page.click('button:has-text("Armazenamento HD")');

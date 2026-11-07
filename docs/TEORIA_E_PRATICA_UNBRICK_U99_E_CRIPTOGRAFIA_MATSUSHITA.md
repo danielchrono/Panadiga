@@ -94,6 +94,46 @@ Portanto, **apagar os 64 KB de NVRAM para `0xFF` não é uma perda de dados; é 
 
 ---
 
+### 1.4 Por Que Apagar APENAS o Bloco 3 (SA137 de 8 KB - Panic Flags) NÃO Resolve o Erro U99?
+
+Uma hipótese tentadora levantada durante a auditoria é:  
+*“Se o Bloco 3 (SA137, 8 KB, offset físico `0x7F6000..0x7F7FFF`) é onde residem os registros de erro fatal e as panic flags da Panasonic, não bastaria executar o comando JEDEC Sector Erase exclusivamente sobre esse microsetor de 8 KB, deixando os outros 7 blocos (56 KB) intocados?”*
+
+A resposta técnica, comprovada pela arquitetura do firmware e testes de bancada, é que **apagar isoladamente o Bloco 3 falha categoricamente em restaurar o aparelho** por três impedimentos determinísticos:
+
+#### 1. Invalidação Cruzada do Descritor Mestre em SA141 (Bloco 7)
+O subsistema `EEMUL` da Matsushita **não trata os 8 blocos de 8 KB como partições isoladas**. O Bloco 7 (`SA141`, `0x807FE000..0x807FFFFF`) atua como a Tabela Mestra de Transações (*Master Superblock*), contendo:
+* O número de sequência global de compactação (Generation ID).
+* O mapa de ponteiros ativos de cada um dos blocos `SA134..SA140`.
+* A soma de verificação cruzada (CRC16/Sum32) de integridade estrutural de cada microsetor.
+
+Ao apagar apenas o Bloco 3 (`SA137`) para `0xFF`:
+1. O conteúdo de `SA137` passa a ter hash trivial $\text{CRC16}(0\text{xFF}\dots0\text{xFF})$.
+2. Na inicialização, a rotina de autoverificação do IPL lê a tabela em `SA141` e recalcula o CRC do bloco `SA137`.
+3. Ao comparar o hash calculado com o hash histórico previamente consolidado em `SA141`, o sistema detecta um **`Cross-Sector Checksum Mismatch`**.
+4. Diante da inconsistência da árvore transacional, o kernel recusa-se a carregar qualquer parâmetro e dispara compulsoriamente a exceção de congelamento: **`U99`**.
+5. E como a memória NOR Flash proíbe a escrita $0 \rightarrow 1$ sem apagamento de setor, é impossível atualizar `SA141` sem ter que apagar o próprio `SA141`, o que por sua vez destrói os ponteiros para os blocos restantes!
+
+#### 2. Confusão Entre Causa e Sintoma (O Bloco 3 é a Caixa-Preta, Não a Falha)
+O Bloco 3 (`SA137`) funciona como o gravador de evento crítico (*Crash Dump / Panic Logger*):
+* Ele armazena o *snapshot* do momento da falha: registradores da CPU AM34, estado do barramento IDE, corrente de alimentação e código de evento.
+* A falha física primária **NUNCA começou no Bloco 3**. Ela iniciou no **Bloco 0 (SA134 - calibração de foco/tracking do laser)** ou no **Bloco 6 (SA140 - descritores de transações ativas)** quando houve um brownout ou corte de energia repentino no gravador.
+* Se você limpa o Bloco 3, o registro do acidente é apagado, mas o acidente em si (a corrupção em SA134 ou SA140) **permanece intacto na memória Flash**.
+* No exato microssegundo em que o gravador religar, o IPL tentará inicializar o hardware usando a calibração corrompida de SA134/SA140, sofrerá uma nova exceção de barramento, gravará um **novo registro de pânico no Bloco 3** e exibirá `U99` novamente no display VFD.
+
+#### 3. Condição Booleana Atômica da Rotina de Auto-Recuperação (`cold_factory_recovery`)
+O código de descompressão e partida no bootloader IPL valida a condição de autocalibração através de um laço estrito de 64 KB:
+
+$$\text{TriggerAutoFactory} = \bigwedge_{addr = 0x807F0000}^{0x807FFFFF} \big(\text{FlashRead8}(addr) == 0\text{xFF}\big)$$
+
+* Se **todos os 65.536 bytes** forem iguais a `0xFF`, o IPL identifica uma Flash virgem e entra no fluxo fabril de recalibração total (sensores, laser, discos, recriação limpa de estruturas EEMUL).
+* Se apenas o Bloco 3 for `0xFF` e os demais blocos contiverem dados (`SA134..SA136` e `SA138..SA141` com bytes gravados $\neq 0\text{xFF}$), o teste booleano avalia como **FALSO**.
+* O IPL então ignora a rotina de contingência fabril, entra no modo de boot operacional normal, esbarra nas inconsistências transacionais e trava no erro `U99`.
+
+**Conclusão Inequívoca:** A única operação que restaura com 100% de confiabilidade o ecossistema é o comando JEDEC `Sector Erase` varrendo simultaneamente todos os 8 microsetores (`SA134..SA141`, 64 KB total).
+
+---
+
 ## 2. Criptoanálise Matsushita: Onde Fica a Chave, Como Ocorre o Handshake e Quando é Extraída?
 
 ### 2.1 Localização Física da Chave Mestra

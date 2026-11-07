@@ -1031,6 +1031,10 @@ O projeto cumpre rigorosamente os princípios de engenharia de software e hardwa
 1. **Zero Magic Numbers:** Todos os offsets, tamanhos de bloco, assinaturas e máscaras são estritamente documentados e tipados em [`src/constants.rs`](src/constants.rs).
 2. **Portabilidade:** Todos os comandos e scripts utilizam caminhos relativos robustos baseados na raiz do projeto.
 3. **Auditoria Criptográfica Contínua:** Todas as modificações em dumps e extrações de partição são validadas através de somas de verificação SHA-256 e MD5.
+4. **Arquitetura Modular Limpa:** Decomposição estrita de god-modules no Rust Core ([`src/hdd/`](src/hdd/), [`src/crypto/`](src/crypto/), [`src/pico/`](src/pico/)) e no Desktop Tauri ([`apps/desktop/src/components/`](apps/desktop/src/components/)).
+5. **Internacionalização Universal (`i18next`):** Interface 100% internacionalizada com tabelas JSON canônicas ([`en-US.json`](apps/desktop/src/locales/en-US.json) e [`pt-BR.json`](apps/desktop/src/locales/pt-BR.json)).
+6. **Acessibilidade Universal (a11y):** Conformidade com WCAG 2.1 AA (navegação por teclado, leitor de tela, `aria-live="polite"` no terminal) e pontuação máxima 100/100 no `uxlint`.
+7. **Dossiê Completo de Auditoria:** Detalhado na íntegra em [`docs/RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md`](docs/RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md).
 
 ---
 

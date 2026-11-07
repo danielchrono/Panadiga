@@ -12,6 +12,13 @@ A ferramenta permite:
 2. Depurar o firmware original via servidor **GDB RSP** na porta TCP 3333.
 3. Injetar o microcódigo autônomo `ram_loader` na SRAM interna (`0x00004000`) para executar o apagamento cirúrgico dos microsetores de NVRAM `SA134..SA141` (`0x807F0000..0x807FFFFF`) na memória Flash Spansion `S29JL064H`, sanando definitivamente o erro **`U99`** sem necessidade de dessoldagem do encapsulamento TSOP-48.
 
+> [!NOTE]
+> ### Rigor Técnico de Bancada vs. Ilustrações Estilizadas (Refutação de Gráficos "PowerPoint")
+> Ilustrações conceituais com tema escuro, efeitos visuais estilizados ou aproximações artísticas geradas por IA foram **terminantemente refutadas e descartadas desta documentação técnica**.  
+> Em bancada de laboratório de hardware e microeletrônica, suposições visuais levam à queima de semicondutores. Todos os diagramas neste guia foram substituídos por:
+> 1. **Desenhos Mecânicos CAD Baseados em Datasheet Oficial (JST ZR `B6B-ZR-3R4`)**: Geometria real da carcaça plástica, fenda central da trava, parede frontal fina vs. parede traseira reforçada grossa, chanfro a 45° no pino 1 e distinção de pads na PCB (pad quadrado no pino 1 vs. pads redondos nos pinos 2 a 6).
+> 2. **Esquemáticos Elétricos em Conformidade com Normas IEEE Std 315 e IEC 60617**: Simbologia padrão internacional sobre papel técnico branco, blocos de título de engenharia (Title Block), rastreamento de nós, redes de amortecimento de impedância e clara distinção entre Terra de Sinal (IEEE Triangle) e Terra de Chassi Metálico (IEEE Chassis Ground).
+
 ---
 
 ## 2. AVISO CRÍTICO DE BANCADA: Identificação Inequívoca do Pino de Terra (GND)
@@ -47,20 +54,42 @@ Abaixo está o registro fotográfico de alta resolução extraído diretamente d
 
 ---
 
-### 3.2 Topografia Física na Face Superior da Placa VEP79138
-O conector ou ilhas SMD de teste situam-se na borda superior da placa digital, delimitados por dois cabos flat vitais:
+### 3.2 Topografia Física na Face Superior da Placa VEP79138 e Especificação CAD JST ZR
+
+O conector de teste **`P7501`** (ou suas ilhas SMD quando despopulado em unidades comerciais) situa-se na borda superior da placa digital `VEP79138`, delimitado com precisão milimétrica entre dois conectores flat vitais:
+* **À Esquerda:** Conector flat de 10 vias **`FP50003`** (responsável pelo motor spindle da unidade óptica).
+* **À Direita:** Conector flat de 8 vias **`FP50004`** (responsável pelo motor da gaveta e sensores de fim de curso).
+
+Abaixo está o desenho mecânico vetorial de engenharia, extraído diretamente da especificação geométrica do fabricante JST e do footprint IPC-7351 da placa:
 
 ![Topografia Física e Pinagem VEP79138](images/panasonic_dmr_eh55_pcb_p7501_orientation.png)
 
+#### Critérios Mecânicos e Invariantes Físicas do Conector JST ZR (B6B-ZR-3R4):
+1. **Janela da Trava Plástica (Locking Notch)**:  
+   A trava plástica do conector fêmea `ZHR-6` engata na **janela retangular vazada situada na parede frontal** (voltada para a borda externa da PCB). O clique de travamento deve ocorrer voltado para a borda frontal do chassi.
+2. **Diferença de Parede (Parede Grossa vs. Parede Fina)**:  
+   A carcaça de poliamida JST possui assimetria mecânica intencional:
+   - **Parede Traseira (Grossa / Reforçada)**: Mede $0.60\text{ mm}$ de espessura de resina sólida, voltada para o miolo da placa VEP79138.
+   - **Parede Frontal (Fina)**: Mede $0.45\text{ mm}$ de espessura para acomodar a flexão da lingüeta de retenção da trava do plugue `ZHR-6`.
+3. **Chanfro Angular de 45° no Pino 1 (Molding Chamfer)**:  
+   O canto externo plástico no lado do pino 1 possui um chanfro mecânico moldado a $45^\circ$, servindo como guia tátil e visual na montagem de bancada.
+4. **Assinatura de PCB: Pad Quadrado no Pino 1 vs. Pads Redondos nos Pinos 2..6**:  
+   Caso o conector plástico não esteja soldado na sua placa e você precise soldar fios diretamente nas ilhas de teste:
+   - **Pino 1 Físico**: O pad de cobre é estritamente **QUADRADO** ($0.50 \times 0.50\text{ mm}$), indicando o pino 1 segundo a norma de fabricação IPC.
+   - **Pinos 2 a 6 Físicos**: Os pads de cobre são estritamente **CIRCULARES / REDONDOS** ($\varnothing 0.50\text{ mm}$).
+   - Isso elimina qualquer dúvida sobre qual lado é o pino 1, mesmo que a máscara de serigrafia esteja desgastada.
+5. **Pitch (Passo Entre Pinos)**:  
+   Exatos **$1.50\text{ mm}$** centro-a-centro. Comprimento total da carcaça plástica: $10.50\text{ mm}$.
+
 ```text
-       ORIENTAÇÃO FÍSICA NA PLACA VEP79138 (CONTAGEM DE 10V PARA 8V)
+       ORIENTAÇÃO FÍSICA NA PLACA VEP79138 (CONTAGEM DA ESQUERDA P/ A DIREITA: 10V -> 8V)
             ┌───────────┐
-     Pino 1 │ ● EXTRG   │ Gatilho Externo OCD / Breakpoint [Pino 6 do Manual]
-     Pino 2 │ ● SCLK    │ Clock Síncrono DWire32A (Master 1.0 MHz) [Pino 5 do Manual]
-     Pino 3 │ ● GND     │ Ground Comum (0.0Ω para o Chassi Metálico!) [Pino 4 do Manual]
-     Pino 4 │ ● SDATA   │ Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V) [Pino 3 do Manual]
-     Pino 5 │ ● nRESET  │ Linha de Reset Mestre (Controle Open-Drain) [Pino 2 do Manual]
-     Pino 6 │ ● VDD     │ Target Power Sense (+3.3V Referência) [Pino 1 do Manual]
+     Pino 1 │ ■ EXTRG   │ [PAD QUADRADO] Gatilho Externo OCD / Break [Pino 6 do Manual]
+     Pino 2 │ ● SCLK    │ [Pad Circular] Clock Síncrono DWire32A (Master 1.0 MHz) [Pino 5 do Manual]
+     Pino 3 │ ● GND     │ [Pad Circular] Ground Comum (0.0Ω COM A LATA DO CHASSI!) [Pino 4 do Manual]
+     Pino 4 │ ● SDATA   │ [Pad Circular] Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V) [Pino 3 do Manual]
+     Pino 5 │ ● nRESET  │ [Pad Circular] Linha de Reset Mestre (Open-Drain) [Pino 2 do Manual]
+     Pino 6 │ ● VDD     │ [Pad Circular] Target Power Sense (+3.3V Referência) [Pino 1 do Manual]
             └───────────┘
 ```
 
@@ -68,20 +97,34 @@ O conector ou ilhas SMD de teste situam-se na borda superior da placa digital, d
 
 ## 4. Esquema Elétrico de Montagem da Sonda (RP2040 $\leftrightarrow$ P7501)
 
-Abaixo está o diagrama elétrico completo para confecção da placa adaptadora ou chicote de bancada:
+Abaixo está o diagrama elétrico oficial de engenharia, desenhado rigorosamente sob os padrões **IEEE Std 315 / IEC 60617** sobre papel milimetrado branco, com bloco de títulos e legendas normatizadas:
 
 ![Esquema Elétrico de Montagem da Sonda Pico](images/dwire32a_pico_probe_assembly_schematic.png)
 
-### 4.1 Tabela de Conexões e Componentes de Proteção
+#### Fundamentação Elétrica do Acoplamento & Veredito sobre Resistores:
+1. **Veredito de Bancada: Precisa ou Não Ligar Resistores?**  
+   - **MODO DIRETO (SEM RESISTORES / FIO DIRETO):**  
+     Para testes rápidos de bancada com cabos curtos ($L \le 15\text{ cm}$), **NÃO É OBRIGATÓRIO instalar os resistores**. O RP2040 e a CPU Matsushita UniPhier operam nativamente na mesma tensão lógica de $3.3\text{V}$ LVTTL. Além disso, o microcódigo PIO do RP2040 ativa via software o pull-up interno no pino `SDATA` (`gpio_pull_up`), permitindo que a linha funcione com fio direto em cabos curtos.
+   - **MODO PROTEGIDO (COM RESISTORES — RECOMENDADO EM FERRAMENTAS DEFINITIVAS):**  
+     Para quem deseja montar uma ferramenta de bancada permanente e blindada:
+     - **$R_1 \dots R_4 = 100\,\Omega$ [OPCIONAL / RECOMENDADO]:** Amortecem reflexões de alta frequência (*ringing*) causadas pela indutância dos cabos e limitam a corrente de transiente nos buffers CMOS caso haja colisão de barramento durante comutações de direção.
+     - **$R_{\text{pu}} = 4.7\text{ k}\Omega$ [RECOMENDADO EM CABOS LONGOS]:** Garante subida rápida ($t_r < 200\text{ ns}$) no barramento bidirecional de 1.0 MHz, superando o pull-up interno fraco ($\approx 50\text{ k}\Omega$) do RP2040 em cabos acima de 15 cm.
+     - **$R_{\text{sense}} = 1.0\text{ k}\Omega$ [OPCIONAL]:** Filtro passa-baixa e limitador de corrente para a entrada analógica ADC0 do Pico.
+2. **Estágio Open-Drain em `nRESET` (`GP5`):**  
+   O microcontrolador RP2040 comanda o pino `nRESET` estritamente drenando para $0\text{V}$ (nível baixo ativo) e soltando o pino em Alta Impedância (Hi-Z) para liberar a linha. **NUNCA configure o `GP5` como Push-Pull em nível alto (+3.3V)**, pois isso causaria curto com o supervisor de reset da placa VEP79138!
+3. **Distinção de Terras Normatizada:**  
+   O esquemático diferencia o Terra de Sinal do RP2040 (símbolo IEEE triangular) e o Terra de Chassi Metálico da Panasonic (símbolo IEEE de carcaça). A malha deve ser unificada em conexão equipotencial direta de baixíssima resistência ($< 0.1\,\Omega$).
 
-| Pino RP2040 (Pico) | Pino Esquemático P7501 (Manual) | Pino Físico (10V $\rightarrow$ 8V) | Sinal Matsushita | Rede de Proteção / Condicionamento | Comportamento Elétrico |
+### 4.1 Tabela de Conexões e Mapeamento Sequencial Pino a Pino (1 a 6)
+
+| Pino Esquemático P7501 (Manual) | Pino Físico (10V $\rightarrow$ 8V) | Sinal Matsushita | Pino RP2040 (Pico) | Rede de Proteção (Bancada) | Veredito de Bancada |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Pino 38 (`GND`)** | **Pino 4** | **Pino 3** | **`GND`** | **Ligação direta de baixa impedância** | **Referência de 0.0V ($0.0\,\Omega$ com a carcaça de lata do gravador).** |
-| `GP4` (Pino 6) | Pino 3 | Pino 4 | `SDATA` | Resistor série de $100\,\Omega$ + Resistor pull-up de $4.7\text{ k}\Omega$ para 3.3V | Barramento bidirecional half-duplex síncrono. |
-| `GP3` (Pino 5) | Pino 5 | Pino 2 | `SCLK` | Resistor série de $100\,\Omega$ | Linha de clock serial master gerada pelo RP2040 ($1.0\text{ MHz}$). |
-| `GP2` (Pino 4) | Pino 6 | Pino 1 | `EXTRG` | Resistor série de $100\,\Omega$ | Gatilho externo para forçar interrupção OCD na CPU. |
-| `GP5` (Pino 7) | Pino 2 | Pino 5 | `nRESET` | Resistor série de $100\,\Omega$ (**Configurado estritamente em Open-Drain**) | Linha de reset mestre `XRST`. **JAMAIS injetar 3.3V push-pull!** |
-| `GP26 / ADC0` (Pino 31) | Pino 1 | Pino 6 | `VDD Sense` | Resistor série de $1.0\text{ k}\Omega$ | Sensor de tensão para garantir estabilidade da alimentação (+3.3V DC). |
+| **Pino 1** | **Pino 6** | `VDD Sense` | `GP26 / ADC0` (Pino 31) | Resistor série de $1.0\text{ k}\Omega$ | **OPCIONAL** (Monitoramento da linha de 3.3V; pode ligar direto) |
+| **Pino 2** | **Pino 5** | `nRESET` | `GP5` (Pino 7) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Modo Open-Drain obrigatório; jumper direto OK) |
+| **Pino 3** | **Pino 4** | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ | **RECOMENDADO** (Fio direto OK se cabo $\le 15\text{cm}$ com pull-up interno) |
+| **Pino 4** | **Pino 3** | **`GND`** | **Pino 38 (`GND`)** | **Ligação direta de baixa impedância** | **MANDATÓRIO: $0.0\,\Omega$ com a lata metálica do chassi!** |
+| **Pino 5** | **Pino 2** | `SCLK` | `GP3` (Pino 5) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Clock master 1.0 MHz; jumper direto OK) |
+| **Pino 6** | **Pino 1** | `EXTRG` | `GP2` (Pino 4) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Pad quadrado na PCB; jumper direto OK) |
 
 ---
 

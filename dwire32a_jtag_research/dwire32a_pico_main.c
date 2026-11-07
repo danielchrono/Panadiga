@@ -27,6 +27,7 @@
 #include "dwire32a_types.h"
 #include "dwire32a_hw.h"
 #include "ram_loader_payload.h"
+#include "gdb_rsp.h"
 
 /* =========================================================================
  * Scanner Data Structures & Configuration
@@ -59,7 +60,7 @@ static void ui_print_banner(void) {
     printf("   Architecture : Matsushita AM34 / MN103S (UniPhier 32-bit RISC)\n");
     printf("   Target SoC   : MN2DS0016 (Panasonic DMR-EH55 Digital Board VEP79138)\n");
     printf("   Flash Memory : Spansion S29JL064H70TFI00 (64 Mbit / 8 MB TSOP-48)\n");
-    printf("   Host Control : Raspberry Pi Pico (RP2040) via PIO0 Transceiver\n");
+    printf("   Host Control : %s\n", gdb_rsp_get_status_info());
     printf("   C Standard   : ISO C11 Embedded System Architecture\n");
     printf("====================================================================\n");
     printf(" Type HELP for a list of available serial commands.\n\n");
@@ -83,6 +84,7 @@ static void ui_print_help(void) {
     printf("  SCAN              - Full automated sweep across all modes & opcodes\n");
     printf("  INJECT_LOADER CONFIRM - Inject AM34 JEDEC RAM loader into SRAM at 0x00004000\n");
     printf("  ERASE_NVRAM CONFIRM   - Execute RAM loader to erase SA134..SA141 (U99 fix)\n");
+    printf("  GDB               - Enter GDB Remote Serial Protocol (RSP) server mode\n");
     printf("  HELP              - Display this command reference\n");
     printf("--------------------------------------------------\n\n");
 }
@@ -410,6 +412,12 @@ static void process_serial_command(char *line) {
             printf("ERASE_NVRAM: ERROR (Code %d)\n", (int)status);
         }
     }
+    else if (strcmp(cmd, "GDB") == 0) {
+        printf("[GDB RSP] Entering GDB Remote Serial Protocol mode (%s).\n", gdb_rsp_get_status_info());
+        printf("[GDB RSP] Auto-ready for mn10300-elf-gdb / gdb-multiarch.\n");
+        gdb_rsp_set_active(true);
+        return;
+    }
     else if (strcmp(cmd, "HELP") == 0) {
         ui_print_help();
     }
@@ -442,6 +450,10 @@ int main(void) {
     }
     printf("[Init] Hardware abstraction layer initialized successfully.\n");
 
+    /* Initialize GDB Remote Serial Protocol subsystem */
+    gdb_rsp_init();
+    printf("[Init] GDB RSP server ready: %s\n", gdb_rsp_get_status_info());
+
     /* Sample and display target power reference */
     const float initial_vdd = dwire_hw_read_vdd();
     printf("[Init] Target VDD Rail: %.2f V (%s)\n",
@@ -459,6 +471,19 @@ int main(void) {
     while (true) {
         const int ch = getchar_timeout_us(1000);
         if (ch == PICO_ERROR_TIMEOUT) {
+            continue;
+        }
+
+        /* If GDB RSP mode is currently active, route bytes directly to RSP parser */
+        if (gdb_rsp_is_active()) {
+            gdb_rsp_process_char((char)ch);
+            continue;
+        }
+
+        /* Auto-switch to GDB RSP mode on standard GDB packet header '$' or Ctrl-C */
+        if (ch == '$' || ch == 0x03) {
+            gdb_rsp_set_active(true);
+            gdb_rsp_process_char((char)ch);
             continue;
         }
 

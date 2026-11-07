@@ -9,4 +9,5 @@ pub mod hdd;
 pub mod headers;
 pub mod manuals;
 pub mod nvram;
+pub mod pico;
 pub mod scan;

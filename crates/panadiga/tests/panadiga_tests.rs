@@ -7,6 +7,10 @@ use panadiga::hdd::{calculate_entropy, decode_descriptors, decode_meihdfs_descri
 use panadiga::headers::{hex_dump, inspect_firmware_headers};
 use panadiga::manuals::search_manuals;
 use panadiga::nvram::clean_flash_nvram;
+use panadiga::pico::{
+    list_pico_devices, PicoArchitecture, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
+    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID,
+};
 use panadiga::scan::scan_data_strings;
 
 #[test]
@@ -339,4 +343,29 @@ fn test_decode_meihdfs_descriptors_full_hdd_with_journal() {
         assert!(jb.is_active_header);
         assert_eq!(jb.transaction_seq, (idx + 1) as u32);
     }
+}
+
+#[test]
+fn test_pico_architecture_and_device_listing() {
+    assert_eq!(RASPBERRY_PI_VID, 0x2E8A);
+    assert_eq!(PICO_RP2040_CDC_PID, 0x000A);
+    assert_eq!(PICO_RP2350_CDC_PID, 0x000F);
+    assert_eq!(PICO_BOOTSEL_PID, 0x0003);
+
+    assert_eq!(
+        PicoArchitecture::Rp2040.to_string(),
+        "Raspberry Pi Pico (RP2040)"
+    );
+    assert_eq!(
+        PicoArchitecture::Rp2350.to_string(),
+        "Raspberry Pi Pico 2 (RP2350)"
+    );
+    assert_eq!(
+        PicoArchitecture::Bootloader.to_string(),
+        "Raspberry Pi BOOTSEL Mode"
+    );
+
+    // Enumerating system serial devices must execute cleanly without crashing
+    let devices = list_pico_devices();
+    assert!(devices.is_ok());
 }

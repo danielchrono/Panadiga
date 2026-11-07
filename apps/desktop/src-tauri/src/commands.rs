@@ -129,3 +129,9 @@ pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String,
 pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String> {
     crate::pico_serial::pico_execute_in_circuit_erase(port_name)
 }
+
+/// Switches the Pico firmware into GDB Remote Serial Protocol bridge mode.
+#[tauri::command]
+pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
+    crate::pico_serial::pico_switch_to_gdb_mode(port_name)
+}

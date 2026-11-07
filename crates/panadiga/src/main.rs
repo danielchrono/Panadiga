@@ -13,6 +13,7 @@ use panadiga::hdd::{decode_meihdfs_descriptors, extract_hdd_partitions, inspect_
 use panadiga::headers::{dump_file_hex, inspect_firmware_headers};
 use panadiga::manuals::search_manuals;
 use panadiga::nvram::clean_flash_nvram;
+use panadiga::pico::{list_pico_devices, ping_pico, run_gdb_bridge};
 use panadiga::scan::{run_deep_scan, scan_all_default};
 
 #[derive(Parser, Debug)]
@@ -47,6 +48,9 @@ enum Commands {
 
     /// Index and search service manuals and schematics (PDF)
     Manuals(ManualsArgs),
+
+    /// Hardware host controller (RP2040 / RP2350) and GDB RSP bridge
+    Pico(PicoArgs),
 }
 
 // ============================================================================
@@ -283,6 +287,48 @@ struct ManualsArgs {
 }
 
 // ============================================================================
+// Pico Hardware Controller & GDB RSP Bridge Subcommand Definitions
+// ============================================================================
+
+#[derive(Args, Debug)]
+struct PicoArgs {
+    #[command(subcommand)]
+    action: PicoActions,
+}
+
+#[derive(Subcommand, Debug)]
+enum PicoActions {
+    /// Lists all attached serial COM ports and identifies RP2040 vs RP2350 Pico 2 hardware
+    List,
+
+    /// Probes a Pico board, verifies communication, and reads target 3.3V VDD rail voltage
+    Ping {
+        /// Serial port identifier (e.g. COM3 or /dev/ttyACM0)
+        #[arg(short, long, value_name = "PORT")]
+        port: String,
+
+        /// Baud rate (defaults to 115200)
+        #[arg(short, long, default_value_t = 115200)]
+        baud: u32,
+    },
+
+    /// Starts a TCP-to-Serial GDB Remote Serial Protocol (RSP) bridge server
+    GdbBridge {
+        /// Serial port identifier connected to Raspberry Pi Pico (e.g. COM3)
+        #[arg(short, long, value_name = "PORT")]
+        port: String,
+
+        /// Serial baud rate (defaults to 115200)
+        #[arg(short, long, default_value_t = 115200)]
+        baud: u32,
+
+        /// TCP listener address and port for incoming GDB connections
+        #[arg(short, long, default_value = "127.0.0.1:3333")]
+        listen: String,
+    },
+}
+
+// ============================================================================
 // Entrypoint
 // ============================================================================
 
@@ -364,6 +410,35 @@ fn main() -> Result<()> {
             };
             search_manuals(&manuals_args.dir, custom_terms, manuals_args.filter.as_deref())?;
         }
+        Commands::Pico(pico_args) => match pico_args.action {
+            PicoActions::List => {
+                let devices = list_pico_devices()?;
+                println!("====================================================================");
+                println!("   PANADIGA HARDWARE DISCOVERY: SERIAL COM PORTS & PICO CONTROLLERS");
+                println!("====================================================================");
+                if devices.is_empty() {
+                    println!("No USB serial devices detected on system.");
+                } else {
+                    for dev in &devices {
+                        println!("Port: {:<10} | {:<32} | VID:{:04X} PID:{:04X} | {}",
+                            dev.port_name,
+                            dev.architecture.to_string(),
+                            dev.vid,
+                            dev.pid,
+                            dev.description
+                        );
+                    }
+                }
+                println!("--------------------------------------------------------------------");
+            }
+            PicoActions::Ping { port, baud } => {
+                let report = ping_pico(&port, baud)?;
+                println!("{}", report);
+            }
+            PicoActions::GdbBridge { port, baud, listen } => {
+                run_gdb_bridge(&port, baud, &listen)?;
+            }
+        },
     }
 
     Ok(())

@@ -1,9 +1,10 @@
-//! Panasonic DMR-EH55 DIGA Suite - RP2040 (Raspberry Pi Pico) Serial Controller
+//! Panasonic DMR-EH55 DIGA Suite - RP2040 & RP2350 Serial Controller
 //!
-//! Provides bidirectional USB CDC communication with the RP2040 host controller
-//! managing the Panasonic DWire32A On-Chip Debug (OCD) interface on connector CN55001.
+//! Provides bidirectional USB CDC communication with the Raspberry Pi Pico (RP2040)
+//! and Raspberry Pi Pico 2 (RP2350) host controllers managing the Panasonic DWire32A
+//! On-Chip Debug (OCD) interface on connector CN55001.
 //!
-//! Includes a bench simulation / mock mode for testing without physical hardware.
+//! Includes bench simulation / mock mode for testing without physical hardware.
 
 use std::io::{Read, Write};
 use std::time::Duration;
@@ -12,8 +13,12 @@ use serialport::SerialPortType;
 
 /// Raspberry Pi USB Vendor ID
 pub const RASPBERRY_PI_VID: u16 = 0x2E8A;
-/// Standard Raspberry Pi Pico SDK USB CDC Serial Product ID
-pub const PICO_CDC_PID: u16 = 0x000A;
+/// Standard Raspberry Pi Pico (RP2040) USB CDC Serial Product ID
+pub const PICO_RP2040_CDC_PID: u16 = 0x000A;
+/// Standard Raspberry Pi Pico 2 (RP2350) USB CDC Serial Product ID
+pub const PICO_RP2350_CDC_PID: u16 = 0x000F;
+/// Raspberry Pi BOOTSEL Mode Product ID
+pub const PICO_BOOTSEL_PID: u16 = 0x0003;
 
 /// Diagnostic connection and telemetry response from the Pico controller.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,16 +42,30 @@ pub fn extract_port_name(input: &str) -> String {
     trimmed.split_whitespace().next().unwrap_or(trimmed).to_string()
 }
 
-/// Lists all available serial COM ports, tagging recognized RP2040 hardware,
-/// and includes a high-fidelity bench simulator option.
+/// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
+/// and includes high-fidelity bench simulator options.
 pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
     let mut ports = Vec::new();
     if let Ok(available) = serialport::available_ports() {
         for p in available {
             let mut label = p.port_name.clone();
             if let SerialPortType::UsbPort(info) = &p.port_type {
-                if info.vid == RASPBERRY_PI_VID && (info.pid == PICO_CDC_PID || info.pid == 0x0003) {
-                    label = format!("{} [RP2040 Pico DWire32A - VID:2E8A PID:{:04X}]", p.port_name, info.pid);
+                if info.vid == RASPBERRY_PI_VID {
+                    match info.pid {
+                        PICO_RP2040_CDC_PID => {
+                            label = format!("{} [Raspberry Pi Pico (RP2040) DWire32A - VID:2E8A PID:000A]", p.port_name);
+                        }
+                        PICO_RP2350_CDC_PID => {
+                            label = format!("{} [Raspberry Pi Pico 2 (RP2350) DWire32A - VID:2E8A PID:000F]", p.port_name);
+                        }
+                        PICO_BOOTSEL_PID => {
+                            label = format!("{} [Raspberry Pi BOOTSEL Mode - VID:2E8A PID:0003]", p.port_name);
+                        }
+                        other => {
+                            let desc = info.product.as_deref().unwrap_or("Raspberry Pi Device");
+                            label = format!("{} [{} - VID:2E8A PID:{:04X}]", p.port_name, desc, other);
+                        }
+                    }
                 } else {
                     let desc = info.product.as_deref().unwrap_or("USB Serial Device");
                     label = format!("{} [{} - {:04X}:{:04X}]", p.port_name, desc, info.vid, info.pid);
@@ -55,24 +74,38 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
             ports.push(label);
         }
     }
-    // Always provide the Bench Simulator option
-    ports.push("MOCK [RP2040 DWire32A Bench Simulator]".to_string());
+    // Always provide Bench Simulator options for both architectures
+    ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
+    ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
     Ok(ports)
 }
 
 /// Connects to a serial port (or initializes mock simulator) and retrieves device telemetry.
 pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoStatusResponse, String> {
     let clean = extract_port_name(&port_name);
-    if clean == "MOCK" {
+    if clean.starts_with("MOCK") {
+        let is_rp2350 = clean.contains("2350") || port_name.contains("2350");
+        let (soc_name, sram_desc) = if is_rp2350 {
+            ("RP2350 (Pico 2)", "520 KB SRAM / 64 KB Cache Setor")
+        } else {
+            ("RP2040 (Pico 1)", "264 KB SRAM / 8 KB Cache Microsetor")
+        };
+
         return Ok(PicoStatusResponse {
             connected: true,
-            port_name: "MOCK (RP2040 Simulator)".to_string(),
+            port_name: format!("{} Simulator", soc_name),
             baud_rate,
             vdd_voltage: 3.32,
             target_powered: true,
-            firmware_banner: "PANASONIC DWIRE32A / OCD INTERFACE RECONSTRUCTION ENGINE v1.2 (RP2040 Bench Simulator)".to_string(),
+            firmware_banner: format!(
+                "PANASONIC DWIRE32A / OCD ENGINE v2.0 ({}, {})",
+                soc_name, sram_desc
+            ),
             is_mock: true,
-            message: "Conectado ao Simulador de Bancada RP2040. Barramento DWire32A e alvo DMR-EH55 MN2DS0016 prontos para comandos.".to_string(),
+            message: format!(
+                "Conectado ao Simulador de Bancada {}. Barramento DWire32A e alvo DMR-EH55 MN2DS0016 prontos para comandos e ponte GDB.",
+                soc_name
+            ),
         });
     }
 
@@ -88,7 +121,7 @@ pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoSt
     let response_text = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
 
     // Query VDD voltage
-    let _ = port.write_all(b"GET_VDD\r\n");
+    let _ = port.write_all(b"STATUS\r\n");
     let mut vdd_buf = [0u8; 512];
     let vdd_read = port.read(&mut vdd_buf).unwrap_or(0);
     let vdd_text = String::from_utf8_lossy(&vdd_buf[..vdd_read]).to_string();
@@ -101,8 +134,11 @@ pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoSt
         }
     }
 
+    let is_pico2 = response_text.contains("RP2350") || response_text.contains("Pico 2");
+    let dev_label = if is_pico2 { "Raspberry Pi Pico 2 (RP2350)" } else { "Raspberry Pi Pico (RP2040)" };
+
     let banner = if response_text.is_empty() {
-        format!("RP2040 Connected on {}", clean)
+        format!("{} Conectado em {}", dev_label, clean)
     } else {
         response_text.trim().to_string()
     };
@@ -115,7 +151,7 @@ pub fn pico_connect_and_test(port_name: String, baud_rate: u32) -> Result<PicoSt
         target_powered: vdd_volts >= 2.8,
         firmware_banner: banner,
         is_mock: false,
-        message: format!("Pico RP2040 operacional. VDD detectado: {:.2}V.", vdd_volts),
+        message: format!("{} operacional na porta. VDD detectado: {:.2}V.", dev_label, vdd_volts),
     })
 }
 
@@ -199,6 +235,28 @@ pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String
     let mut buffer = [0u8; 8192];
     let bytes_read = port.read(&mut buffer)
         .map_err(|e| format!("Falha aguardando conclusão do erase no Pico: {}", e))?;
+
+    Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
+}
+
+/// Switches the Pico firmware into GDB Remote Serial Protocol (RSP) bridge mode.
+pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
+    let clean = extract_port_name(&port_name);
+    if clean.starts_with("MOCK") {
+        return Ok("[GDB Bridge] Modo GDB RSP ativado no Simulador de Bancada. Pronto para conexão do GNU Debugger (mn10300-elf-gdb).".to_string());
+    }
+
+    let mut port = serialport::new(&clean, 115200)
+        .timeout(Duration::from_millis(2000))
+        .open()
+        .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean, e))?;
+
+    port.write_all(b"GDB\r\n")
+        .map_err(|e| format!("Falha ao enviar comando GDB: {}", e))?;
+
+    let mut buffer = [0u8; 1024];
+    let bytes_read = port.read(&mut buffer)
+        .map_err(|e| format!("Falha aguardando confirmação do modo GDB: {}", e))?;
 
     Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
 }

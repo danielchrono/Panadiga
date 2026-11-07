@@ -56,12 +56,12 @@ pub fn search_manuals(
             .collect(),
     };
 
-    println!("================================================================================");
-    println!(" PANASONIC DMR-EH55 SERVICE MANUALS & SCHEMATICS INDEXER");
-    println!("================================================================================");
-    println!(" Directory : {}", manuals_dir.display());
-    println!(" Terms     : {}", terms.join(", "));
-    println!("--------------------------------------------------------------------------------");
+    log_println!("================================================================================");
+    log_println!(" PANASONIC DMR-EH55 SERVICE MANUALS & SCHEMATICS INDEXER");
+    log_println!("================================================================================");
+    log_println!(" Directory : {}", manuals_dir.display());
+    log_println!(" Terms     : {}", terms.join(", "));
+    log_println!("--------------------------------------------------------------------------------");
 
     if !manuals_dir.exists() {
         anyhow::bail!("Manuals directory not found: {}", manuals_dir.display());
@@ -88,7 +88,7 @@ pub fn search_manuals(
     pdf_files.sort();
 
     if pdf_files.is_empty() {
-        println!("[!] No PDF documents matched the criteria in {}", manuals_dir.display());
+        log_println!("[!] No PDF documents matched the criteria in {}", manuals_dir.display());
         return Ok(Vec::new());
     }
 
@@ -96,26 +96,26 @@ pub fn search_manuals(
 
     for pdf_path in &pdf_files {
         let file_name = pdf_path.file_name().unwrap().to_string_lossy().to_string();
-        println!("\n[*] Indexing PDF: {}", file_name);
+        log_println!("\n[*] Indexing PDF: {}", file_name);
 
         let doc = match Document::load(pdf_path) {
             Ok(d) => d,
             Err(e) => {
-                println!("    [!] Could not parse PDF: {}", e);
+                log_println!("    [!] Could not parse PDF: {}", e);
                 continue;
             }
         };
 
         let pages = doc.get_pages();
         let total_pages = pages.len();
-        println!("    Total Pages: {}", total_pages);
+        log_println!("    Total Pages: {}", total_pages);
 
         let mut term_matches: BTreeMap<String, Vec<u32>> = BTreeMap::new();
         for t in &terms {
             term_matches.insert(t.clone(), Vec::new());
         }
 
-        for (&page_num, _) in &pages {
+        for &page_num in pages.keys() {
             if let Ok(text) = doc.extract_text(&[page_num]) {
                 let text_upper = text.to_uppercase();
                 for t in &terms {
@@ -133,7 +133,7 @@ pub fn search_manuals(
                 found_count += 1;
                 let preview: Vec<String> = pages_found.iter().take(10).map(|p| p.to_string()).collect();
                 let more = if pages_found.len() > 10 { "..." } else { "" };
-                println!(
+                log_println!(
                     "    [{}] {} occurrences on pages: {}{}",
                     t,
                     pages_found.len(),
@@ -144,7 +144,7 @@ pub fn search_manuals(
         }
 
         if found_count == 0 {
-            println!("    (No target terms found in text stream)");
+            log_println!("    (No target terms found in text stream)");
         }
 
         all_results.push(PdfSearchResult {
@@ -155,6 +155,6 @@ pub fn search_manuals(
         });
     }
 
-    println!("\n================================================================================");
+    log_println!("\n================================================================================");
     Ok(all_results)
 }

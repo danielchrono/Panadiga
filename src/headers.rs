@@ -67,9 +67,9 @@ pub fn dump_file_hex(file_path: &Path, offset: usize, length: usize) -> Result<(
     let mut buf = vec![0u8; to_read];
     f.read_exact(&mut buf)?;
 
-    println!("=== Hex Dump of {} ===", resolved.display());
-    println!("Offset: 0x{:08X} ({} bytes)", offset, to_read);
-    println!("{}", hex_dump(&buf, offset, to_read));
+    log_println!("=== Hex Dump of {} ===", resolved.display());
+    log_println!("Offset: 0x{:08X} ({} bytes)", offset, to_read);
+    log_println!("{}", hex_dump(&buf, offset, to_read));
 
     Ok(())
 }
@@ -86,13 +86,13 @@ pub fn inspect_firmware_headers(
     let default_frm = PathBuf::from("firmware_and_images/PANA_DVD.FRM");
     let frm_file = frm_path.unwrap_or(&default_frm);
 
-    println!("================================================================================");
-    println!(" PANASONIC DMR-EH55 CRITICAL FIRMWARE HEADERS & CONTAINER INSPECTION");
-    println!("================================================================================");
+    log_println!("================================================================================");
+    log_println!(" PANASONIC DMR-EH55 CRITICAL FIRMWARE HEADERS & CONTAINER INSPECTION");
+    log_println!("================================================================================");
 
     // 1. HDD Inspection
     if let Ok(resolved_hdd) = resolve_input_path(hdd_file) {
-        println!("[*] HDD Image: {}", resolved_hdd.display());
+        log_println!("[*] HDD Image: {}", resolved_hdd.display());
         let mut f = File::open(&resolved_hdd)?;
 
         // Partition 1 at 32MB (0x0200_0000)
@@ -101,11 +101,11 @@ pub fn inspect_firmware_headers(
         f.read_exact(&mut hdr32)?;
 
         let p1_magic_ok = hdr32.starts_with(&PANASONIC_HDD_PARTITION_MAGIC);
-        println!(
+        log_println!(
             "\n--- HDD Partition 1 Header (32 MB / LBA {} / 0x{:08X}) ---",
             LBA_PARTITION_1_SECTOR, LBA_PARTITION_1_OFFSET
         );
-        println!(
+        log_println!(
             "Magic Signature: {} [{}]",
             hex::encode_upper(&hdr32[..8]),
             if p1_magic_ok {
@@ -114,7 +114,7 @@ pub fn inspect_firmware_headers(
                 "UNKNOWN"
             }
         );
-        println!("{}", hex_dump(&hdr32, LBA_PARTITION_1_OFFSET as usize, length));
+        log_println!("{}", hex_dump(&hdr32, LBA_PARTITION_1_OFFSET as usize, length));
 
         // Partition 2 at 64MB (0x0400_0000)
         let mut hdr64 = vec![0u8; length];
@@ -122,11 +122,11 @@ pub fn inspect_firmware_headers(
         f.read_exact(&mut hdr64)?;
 
         let p2_magic_ok = hdr64.starts_with(&PANASONIC_HDD_PARTITION_MAGIC);
-        println!(
+        log_println!(
             "\n--- HDD Partition 2 Header (64 MB / LBA {} / 0x{:08X}) ---",
             LBA_PARTITION_2_SECTOR, LBA_PARTITION_2_OFFSET
         );
-        println!(
+        log_println!(
             "Magic Signature: {} [{}]",
             hex::encode_upper(&hdr64[..8]),
             if p2_magic_ok {
@@ -135,24 +135,24 @@ pub fn inspect_firmware_headers(
                 "UNKNOWN"
             }
         );
-        println!("{}", hex_dump(&hdr64, LBA_PARTITION_2_OFFSET as usize, length));
+        log_println!("{}", hex_dump(&hdr64, LBA_PARTITION_2_OFFSET as usize, length));
     } else {
-        println!("[!] HDD image not found at {}", hdd_file.display());
+        log_println!("[!] HDD image not found at {}", hdd_file.display());
     }
 
     // 2. Optical Container PANA_DVD.FRM
     if let Ok(resolved_frm) = resolve_input_path(frm_file) {
-        println!("\n[*] Optical Update Container: {}", resolved_frm.display());
+        log_println!("\n[*] Optical Update Container: {}", resolved_frm.display());
         let mut f = File::open(&resolved_frm)?;
         let mut frm_hdr = vec![0u8; length];
         f.read_exact(&mut frm_hdr)?;
 
-        println!("\n--- PANA_DVD.FRM Container Header (first {} bytes) ---", length);
-        println!("{}", hex_dump(&frm_hdr, 0, length));
+        log_println!("\n--- PANA_DVD.FRM Container Header (first {} bytes) ---", length);
+        log_println!("{}", hex_dump(&frm_hdr, 0, length));
     } else {
-        println!("[!] PANA_DVD.FRM not found at {}", frm_file.display());
+        log_println!("[!] PANA_DVD.FRM not found at {}", frm_file.display());
     }
 
-    println!("\n================================================================================");
+    log_println!("\n================================================================================");
     Ok(())
 }

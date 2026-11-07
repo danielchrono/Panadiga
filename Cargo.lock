@@ -2565,6 +2565,7 @@ dependencies = [
  "lopdf",
  "md-5 0.10.6",
  "memmap2",
+ "regex",
  "serde",
  "serde_json",
  "serialport",

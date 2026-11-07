@@ -15,6 +15,7 @@ use panadiga::manuals::search_manuals;
 use panadiga::nvram::clean_flash_nvram;
 use panadiga::pico::{list_pico_devices, ping_pico, run_gdb_bridge};
 use panadiga::scan::{run_deep_scan, scan_all_default};
+use panadiga::{log_error, log_info, log_println};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -54,6 +55,21 @@ enum Commands {
 
     /// Ghidra reverse engineering script generation directly from Rust SSOT
     Ghidra(GhidraArgs),
+
+    /// Native 6-layer Zero-Error RAG Engine for reverse engineering queries
+    Rag(RagArgs),
+
+    /// Display or export official AM34 / UniPhier MN2DS0016 memory map
+    #[command(name = "memory-map", alias = "memory_map")]
+    MemoryMap(MemoryMapArgs),
+
+    /// Cryptographic artifact SHA-256 verification and assertion
+    #[command(name = "verify-artifact", alias = "verify")]
+    VerifyArtifact(VerifyArtifactArgs),
+
+    /// GDB RSP bridge network and serial connection parameters
+    #[command(name = "gdb-config", alias = "gdb_config")]
+    GdbConfig(GdbConfigArgs),
 }
 
 // ============================================================================
@@ -366,6 +382,67 @@ enum GhidraActions {
 }
 
 // ============================================================================
+// RAG, Memory Map, Verification & GDB Config Subcommand Definitions
+// ============================================================================
+
+#[derive(Args, Debug)]
+struct RagArgs {
+    #[command(subcommand)]
+    action: RagActions,
+}
+
+#[derive(Subcommand, Debug)]
+enum RagActions {
+    /// Query the deterministic 6-layer Zero-Error RAG Engine
+    Query {
+        /// Technical question or prompt
+        #[arg(value_name = "QUERY")]
+        query: String,
+
+        /// Output full JSON result
+        #[arg(short, long)]
+        json: bool,
+    },
+}
+
+#[derive(Args, Debug)]
+struct MemoryMapArgs {
+    /// Target output file path (.json or table)
+    #[arg(short, long, value_name = "PATH")]
+    output: Option<PathBuf>,
+
+    /// Output format: json, table, markdown
+    #[arg(short, long, default_value = "json", value_name = "FORMAT")]
+    format: String,
+}
+
+#[derive(Args, Debug)]
+struct VerifyArtifactArgs {
+    /// Path to firmware, NVRAM or HDD partition binary
+    #[arg(value_name = "FILE")]
+    file: PathBuf,
+
+    /// Expected SHA-256 hash for strict assertion
+    #[arg(short, long, value_name = "HEX")]
+    sha256: Option<String>,
+}
+
+#[derive(Args, Debug)]
+struct GdbConfigArgs {
+    /// Serial port name (e.g. COM5, /dev/ttyACM0)
+    #[arg(short, long, default_value = "COM5", value_name = "PORT")]
+    port: String,
+
+    /// TCP port for GDB remote protocol
+    #[arg(short, long, default_value_t = 3333, value_name = "TCP_PORT")]
+    tcp_port: u16,
+
+    /// TCP listen host address
+    #[arg(short = 'H', long, default_value = "127.0.0.1", value_name = "HOST")]
+    host: String,
+}
+
+// ============================================================================
 // Entrypoint
 // ============================================================================
 
@@ -450,14 +527,14 @@ fn main() -> Result<()> {
         Commands::Pico(pico_args) => match pico_args.action {
             PicoActions::List => {
                 let devices = list_pico_devices()?;
-                println!("====================================================================");
-                println!("   PANADIGA HARDWARE DISCOVERY: SERIAL COM PORTS & PICO CONTROLLERS");
-                println!("====================================================================");
+                log_println!("====================================================================");
+                log_println!("   PANADIGA HARDWARE DISCOVERY: SERIAL COM PORTS & PICO CONTROLLERS");
+                log_println!("====================================================================");
                 if devices.is_empty() {
-                    println!("No USB serial devices detected on system.");
+                    log_println!("No USB serial devices detected on system.");
                 } else {
                     for dev in &devices {
-                        println!("Port: {:<10} | {:<32} | VID:{:04X} PID:{:04X} | {}",
+                        log_println!("Port: {:<10} | {:<32} | VID:{:04X} PID:{:04X} | {}",
                             dev.port_name,
                             dev.architecture.to_string(),
                             dev.vid,
@@ -466,11 +543,11 @@ fn main() -> Result<()> {
                         );
                     }
                 }
-                println!("--------------------------------------------------------------------");
+                log_println!("--------------------------------------------------------------------");
             }
             PicoActions::Ping { port, baud } => {
                 let report = ping_pico(&port, baud)?;
-                println!("{}", report);
+                log_println!("{}", report);
             }
             PicoActions::GdbBridge { port, baud, listen } => {
                 run_gdb_bridge(&port, baud, &listen)?;
@@ -480,17 +557,201 @@ fn main() -> Result<()> {
             GhidraActions::Map { output } => {
                 let script = panadiga::ghidra::generate_ghidra_memory_map();
                 std::fs::write(&output, script)?;
-                println!("[OK] Ghidra Memory Map script generated at: {:?}", output);
+                log_info!("[OK] Ghidra Memory Map script generated at: {:?}", output);
             }
             GhidraActions::Symbols { output } => {
                 let script = panadiga::ghidra::generate_ghidra_symbols();
                 std::fs::write(&output, script)?;
-                println!("[OK] Ghidra Symbols script generated at: {:?}", output);
+                log_info!("[OK] Ghidra Symbols script generated at: {:?}", output);
             }
             GhidraActions::ExportAll { dir } => {
                 panadiga::ghidra::export_all_ghidra_scripts(&dir)?;
-                println!("[OK] All Ghidra scripts generated into directory: {:?}", dir);
+                log_info!("[OK] All Ghidra scripts generated into directory: {:?}", dir);
             }
+        },
+        Commands::Rag(rag_args) => match rag_args.action {
+            RagActions::Query { query, json } => {
+                let ans = panadiga::rag::query(&query);
+                if json {
+                    let dto = ans.to_query_result();
+                    log_println!("{}", serde_json::to_string_pretty(&dto)?);
+                } else {
+                    log_println!("====================================================================");
+                    log_println!("         PANADIGA ZERO-ERROR RAG ENGINE (NATIVE RUST)");
+                    log_println!("====================================================================");
+                    log_println!("Query:              {}", query);
+                    log_println!("Groundedness Score: {:.2}%", ans.groundedness_score * 100.0);
+                    log_println!("Confidence:         {:.2}%", ans.confidence * 100.0);
+                    if ans.is_abstained {
+                        log_println!("Status:             ABSTAINED");
+                        if let Some(reason) = &ans.abstention_reason {
+                            log_println!("Reason:             {}", reason);
+                        }
+                    } else {
+                        log_println!("Status:             ANSWERED");
+                    }
+                    if let Some(s) = &ans.safety_report {
+                        log_println!("Safety Check:       {}", if s.is_safe { "PASS (SAFE)" } else { "FAIL (HAZARD DETECTED)" });
+                        for v in &s.violations {
+                            log_println!("  [!] VIOLATION: {}", v);
+                        }
+                        for a in &s.critical_alerts {
+                            log_println!("  [*] ALERT: {}", a);
+                        }
+                    }
+                    if let Some(c) = &ans.critic_report {
+                        log_println!("Critic Faithful:    {}", if c.is_faithful { "YES" } else { "NO" });
+                        if !c.ungrounded_entities.is_empty() {
+                            log_println!("  [?] Ungrounded:   {:?}", c.ungrounded_entities);
+                        }
+                    }
+                    log_println!("--------------------------------------------------------------------");
+                    log_println!("ANSWER:\n{}", ans.answer_text);
+                    if !ans.citations.is_empty() {
+                        log_println!("--------------------------------------------------------------------");
+                        log_println!("CITATIONS:");
+                        for (idx, cit) in ans.citations.iter().enumerate() {
+                            log_println!("  [{}] {} | Section: {} | Lines: {}", idx + 1, cit.doc_title, cit.section_title, cit.line_range);
+                            log_println!("      Excerpt: \"{}\"", cit.excerpt);
+                        }
+                    }
+                    log_println!("====================================================================");
+                }
+            }
+        },
+        Commands::MemoryMap(args) => {
+            let regions = [
+                serde_json::json!({
+                    "name": "INTERNAL_SRAM",
+                    "start": "0x00000000",
+                    "end": "0x0003FFFF",
+                    "size_kb": 256,
+                    "perms": "rwx"
+                }),
+                serde_json::json!({
+                    "name": "CORE_MMIO",
+                    "start": "0x10000000",
+                    "end": "0x1000FFFF",
+                    "size_kb": 64,
+                    "perms": "rw-"
+                }),
+                serde_json::json!({
+                    "name": "MAIN_SDRAM",
+                    "start": "0x40000000",
+                    "end": "0x43FFFFFF",
+                    "size_kb": 65536,
+                    "perms": "rwx"
+                }),
+                serde_json::json!({
+                    "name": "FLASH_NOR_IPL",
+                    "start": "0x80000000",
+                    "end": "0x807EFFFF",
+                    "size_kb": 8128,
+                    "perms": "r-x"
+                }),
+                serde_json::json!({
+                    "name": "NVRAM_U99",
+                    "start": "0x807F0000",
+                    "end": "0x807FFFFF",
+                    "size_kb": 64,
+                    "perms": "rw-"
+                }),
+                serde_json::json!({
+                    "name": "SYSTEM_MMIO",
+                    "start": "0xC0000000",
+                    "end": "0xC0003FFF",
+                    "size_kb": 16,
+                    "perms": "rw-"
+                }),
+                serde_json::json!({
+                    "name": "DWIRE32A_OCD",
+                    "start": "0xC0004000",
+                    "end": "0xC00040FF",
+                    "size_kb": 1,
+                    "perms": "rw-"
+                }),
+                serde_json::json!({
+                    "name": "ATA_IDE_MMIO",
+                    "start": "0xD4000000",
+                    "end": "0xD4000FFF",
+                    "size_kb": 4,
+                    "perms": "rw-"
+                }),
+            ];
+
+            if args.format.to_lowercase() == "json" {
+                let data = serde_json::to_string_pretty(&regions)?;
+                if let Some(out_p) = args.output {
+                    std::fs::write(&out_p, &data)?;
+                    log_println!("Memory map written to {:?}", out_p);
+                } else {
+                    log_println!("{}", data);
+                }
+            } else {
+                let mut out = String::new();
+                out.push_str("+------------------+---------------+---------------+-----------+-------------+\n");
+                out.push_str("| Region           | Start Address | End Address   | Size (KB) | Permissions |\n");
+                out.push_str("+------------------+---------------+---------------+-----------+-------------+\n");
+                for r in &regions {
+                    out.push_str(&format!(
+                        "| {:<16} | {:<13} | {:<13} | {:>9} | {:<11} |\n",
+                        r["name"].as_str().unwrap(),
+                        r["start"].as_str().unwrap(),
+                        r["end"].as_str().unwrap(),
+                        r["size_kb"].as_i64().unwrap(),
+                        r["perms"].as_str().unwrap()
+                    ));
+                }
+                out.push_str("+------------------+---------------+---------------+-----------+-------------+\n");
+                if let Some(out_p) = args.output {
+                    std::fs::write(&out_p, &out)?;
+                    log_println!("Memory map written to {:?}", out_p);
+                } else {
+                    print!("{}", out);
+                }
+            }
+        },
+        Commands::VerifyArtifact(args) => {
+            if !args.file.exists() {
+                log_error!("ERROR: File not found: {:?}", args.file);
+                std::process::exit(1);
+            }
+            let data = std::fs::read(&args.file)?;
+            let size = data.len();
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(&data);
+            let computed_sha256 = hex::encode(hasher.finalize());
+
+            log_println!("====================================================================");
+            log_println!("            CRYPTOGRAPHIC ARTIFACT VERIFICATION");
+            log_println!("====================================================================");
+            log_println!("File:     {}", args.file.file_name().and_then(|n| n.to_str()).unwrap_or(""));
+            log_println!("Size:     {} bytes ({:.2} KB)", size, size as f64 / 1024.0);
+            log_println!("SHA-256:  {}", computed_sha256);
+            log_println!("--------------------------------------------------------------------");
+
+            if let Some(expected) = args.sha256 {
+                if computed_sha256.eq_ignore_ascii_case(&expected) {
+                    log_println!("✔ HASH CONFIRMED SUCCESSFULLY!");
+                } else {
+                    log_error!("✖ HASH MISMATCH! Expected: {}", expected);
+                    std::process::exit(2);
+                }
+            }
+        },
+        Commands::GdbConfig(args) => {
+            log_println!("====================================================================");
+            log_println!("          DWire32A GDB RSP Bridge Configuration");
+            log_println!("====================================================================");
+            log_println!("• Serial Port:   {}", args.port);
+            log_println!("• Listen Socket: {}:{}", args.host, args.tcp_port);
+            log_println!();
+            log_println!("GDB Command to Connect:");
+            log_println!("  (gdb) target remote {}:{}", args.host, args.tcp_port);
+            log_println!("  (gdb) set architecture am34");
+            log_println!("  (gdb) info registers");
+            log_println!("====================================================================");
         },
     }
 

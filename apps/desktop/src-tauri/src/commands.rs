@@ -209,3 +209,10 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
         )),
     }
 }
+
+/// Queries the deterministic 6-layer Zero-Error RAG Engine natively in-process.
+#[tauri::command]
+pub fn query_rag_engine(query: String) -> Result<panadiga::rag::models::RagQueryResultDto, String> {
+    let answer = panadiga::rag::query(&query);
+    Ok(answer.to_query_result())
+}

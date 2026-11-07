@@ -81,7 +81,7 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                 l
             }
             Err(e) => {
-                eprintln!("[GDB Bridge] Falha ao vincular porta TCP {}: {}", thread_addr, e);
+                panadiga::log_warn!("[GDB Bridge] Falha ao vincular porta TCP {}: {}", thread_addr, e);
                 running_flag.store(false, Ordering::Relaxed);
                 return;
             }
@@ -140,7 +140,7 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
             {
                 Ok(p) => p,
                 Err(e) => {
-                    eprintln!("[GDB Bridge] Falha ao abrir porta serial {}: {}", thread_port, e);
+                    panadiga::log_warn!("[GDB Bridge] Falha ao abrir porta serial {}: {}", thread_port, e);
                     running_flag.store(false, Ordering::Relaxed);
                     return;
                 }

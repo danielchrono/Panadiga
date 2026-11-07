@@ -27,6 +27,7 @@ pub fn run() {
             get_gdb_bridge_status_command,
             get_am34_registers_command,
             launch_external_tool_command,
+            query_rag_engine,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

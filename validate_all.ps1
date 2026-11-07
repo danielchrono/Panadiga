@@ -44,7 +44,7 @@ try {
     Assert-LastExitCode "Cargo Check"
     cargo test --workspace --verbose
     Assert-LastExitCode "Cargo Test"
-    Write-Success "Rust engine compiled cleanly and all 16 tests passed!"
+    Write-Success "Rust engine compiled cleanly and all 33 tests passed (17 lib/RAG + 16 integration)!"
 
     # -------------------------------------------------------------------------
     # 2. TypeScript Strict Type-Check (tsc --noEmit)

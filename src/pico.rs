@@ -508,7 +508,7 @@ fn pump_stream<R: Read, W: Write>(
         match reader.read(&mut buf) {
             Ok(0) => {
                 if let Some(msg) = on_eof_msg {
-                    println!("{}", msg);
+                    log_println!("{}", msg);
                 }
                 break;
             }
@@ -526,12 +526,12 @@ fn pump_stream<R: Read, W: Write>(
 
 /// Runs bidirectional TCP-to-Serial GDB Remote Serial Protocol (RSP) bridge
 pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Result<()> {
-    println!("====================================================================");
-    println!("   PANASONIC AM34 / DWIRE32A GDB REMOTE SERIAL PROTOCOL (RSP) BRIDGE");
-    println!("   Host Architecture: Multi-Platform (RP2040 / RP2350 Dual-Core)");
-    println!("   Serial Interface : {} @ {} baud", port_name, baud_rate);
-    println!("   TCP GDB Listener : {}", listen_addr);
-    println!("====================================================================");
+    log_println!("====================================================================");
+    log_println!("   PANASONIC AM34 / DWIRE32A GDB REMOTE SERIAL PROTOCOL (RSP) BRIDGE");
+    log_println!("   Host Architecture: Multi-Platform (RP2040 / RP2350 Dual-Core)");
+    log_println!("   Serial Interface : {} @ {} baud", port_name, baud_rate);
+    log_println!("   TCP GDB Listener : {}", listen_addr);
+    log_println!("====================================================================");
 
     let mut serial_port = serialport::new(port_name, baud_rate)
         .timeout(Duration::from_millis(100))
@@ -539,23 +539,23 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
         .with_context(|| format!("Failed to open serial port '{}'", port_name))?;
 
     // Request firmware switch to GDB mode
-    println!("[Bridge] Requesting controller firmware enter GDB RSP server mode...");
+    log_info!("[Bridge] Requesting controller firmware enter GDB RSP server mode...");
     let _ = serial_port.write_all(b"\r\nGDB\r\n");
     thread::sleep(Duration::from_millis(100));
 
     let listener = TcpListener::bind(listen_addr)
         .with_context(|| format!("Failed to bind TCP listener on '{}'", listen_addr))?;
 
-    println!("[Bridge] Listening for GDB debugger connections on {}...", listen_addr);
-    println!("[Bridge] In your debugger terminal, run:");
-    println!("         (gdb) target remote {}", listen_addr);
-    println!("--------------------------------------------------------------------");
+    log_println!("[Bridge] Listening for GDB debugger connections on {}...", listen_addr);
+    log_println!("[Bridge] In your debugger terminal, run:");
+    log_println!("         (gdb) target remote {}", listen_addr);
+    log_println!("--------------------------------------------------------------------");
 
     for stream_res in listener.incoming() {
         match stream_res {
             Ok(mut tcp_stream) => {
                 let peer_addr = tcp_stream.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "unknown".to_string());
-                println!("[Bridge] GDB client connected from: {}", peer_addr);
+                log_info!("[Bridge] GDB client connected from: {}", peer_addr);
 
                 let running = Arc::new(AtomicBool::new(true));
 
@@ -577,10 +577,10 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
                 );
 
                 let _ = s2t_handle.join();
-                println!("[Bridge] Session finished. Waiting for next GDB connection...");
+                log_info!("[Bridge] Session finished. Waiting for next GDB connection...");
             }
             Err(e) => {
-                eprintln!("[Bridge] Warning: TCP connection failed: {}", e);
+                log_warn!("[Bridge] TCP connection failed: {}", e);
             }
         }
     }

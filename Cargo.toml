@@ -19,6 +19,7 @@ anyhow = "1.0"
 thiserror = "2.0"
 lopdf = "0.47.0"
 serialport = "4.5"
+regex = "1.10"
 
 [workspace]
 members = [

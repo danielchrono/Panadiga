@@ -1,0 +1,19 @@
+# Panadiga Cursor Rules
+
+You are working on the Panadiga engineering repository (Panasonic DMR-EH55 reverse engineering, MEIHFS storage forensics, and DWire32A hardware protocol suite).
+
+## Core Principles
+1. **Safety First**:
+   - Maximum allowed bench voltage for CN55001 is 3.3V (LVTTL). Never suggest 5V or higher.
+   - Flash write protection: Address range 0x80000000..0x807EFFFF is read-only IPL/bootloader. Only 0x807F0000..0x807FFFFF (64KB NVRAM/EEMUL) may be sanitized for U99 unbrick.
+   - Never modify original HDD dumps in-place.
+2. **Quality Gates**:
+   - Before suggesting code changes as complete, ensure they pass `validate_all.ps1`.
+   - Maintain 0% duplicate code (`.jscpd.json` has threshold: 0).
+   - Maintain `mypy --strict` compliance on all Python tools.
+   - Maintain Rust idioms, no unused imports or clippy warnings.
+   - Maintain TypeScript strict mode in `apps/desktop`.
+3. **Specialized Agents & Runbooks**:
+   - Check `.agents/agents/` for domain-specific subagent roles.
+   - Check `.agents/skills/` for step-by-step procedures.
+   - Check `docs/` for deep technical schematics and forensics dossiers.

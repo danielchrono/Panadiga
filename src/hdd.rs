@@ -217,7 +217,7 @@ pub fn export_report_to_json<T: serde::Serialize>(
         .with_context(|| format!("Failed serializing {report_desc} to JSON"))?;
     fs::write(json_path, json_data)
         .with_context(|| format!("Failed writing JSON report to {}", json_path.display()))?;
-    println!(
+    log_println!(
         "\n[+] Structured JSON report exported: {}",
         json_path.display()
     );
@@ -237,22 +237,22 @@ pub fn inspect_hdd_image(
 
     let (global_md5, global_sha256) = calculate_hashes(&mmap);
 
-    println!("================================================================================");
-    println!(" PANASONIC DMR-EH55 HDD FORENSIC PARSER & STORAGE ARCHITECTURE AUDITOR          ");
-    println!("================================================================================");
-    println!(" Arquivo da Imagem : {}", resolved_path.display());
-    println!(
+    log_println!("================================================================================");
+    log_println!(" PANASONIC DMR-EH55 HDD FORENSIC PARSER & STORAGE ARCHITECTURE AUDITOR          ");
+    log_println!("================================================================================");
+    log_println!(" Arquivo da Imagem : {}", resolved_path.display());
+    log_println!(
         " Tamanho Total     : {:>11} bytes ({:.2} MB)",
         file_size,
         file_size as f64 / (1024.0 * 1024.0)
     );
-    println!(
+    log_println!(
         " Total de Setores  : {:>11} LBAs ({} bytes/setor)",
         total_sectors, LBA_SECTOR_SIZE_BYTES
     );
-    println!(" MD5 Global        : {}", global_md5);
-    println!(" SHA-256 Global    : {}", global_sha256);
-    println!("--------------------------------------------------------------------------------");
+    log_println!(" MD5 Global        : {}", global_md5);
+    log_println!(" SHA-256 Global    : {}", global_sha256);
+    log_println!("--------------------------------------------------------------------------------");
 
     // 1. Inspect MBR (LBA 0)
     if mmap.len() < LBA_SECTOR_SIZE_BYTES {
@@ -264,7 +264,7 @@ pub fn inspect_hdd_image(
     let format_version = LittleEndian::read_u16(&lba0[4..6]);
     let magic_ascii = String::from_utf8_lossy(&lba0[6..8]).to_string();
     let volume_guid = hex::encode_upper(&lba0[8..16]);
-    let has_55aa = &lba0[510..512] == STANDARD_MBR_BOOT_SIGNATURE;
+    let has_55aa = lba0[510..512] == STANDARD_MBR_BOOT_SIGNATURE;
     let zeros_clean = lba0[16..512].iter().all(|&b| b == 0);
 
     // 2. Inspect Mirror MBR (LBA 57344)
@@ -294,27 +294,27 @@ pub fn inspect_hdd_image(
         mirror_sha256: mirror_sha256.clone(),
     };
 
-    println!("\n[+] ESTRUTURA DO MASTER BOOT RECORD & TABELA ESPELHO (LBA 0 & LBA 57344)");
-    println!("  * LBA 0 (Offset 0x00000000):");
-    println!("    - Assinatura Bruta  : {}", hex::encode_upper(&lba0[..16]));
-    println!("    - Versao de Formato : Rev {}.0 (0x{:04X})", format_version, format_version);
-    println!("    - Magic Tag ASCII   : '{}' (System Storage Header)", magic_ascii);
-    println!("    - Disk Volume GUID  : {} (Identificador de Formatacao)", volume_guid);
-    println!(
+    log_println!("\n[+] ESTRUTURA DO MASTER BOOT RECORD & TABELA ESPELHO (LBA 0 & LBA 57344)");
+    log_println!("  * LBA 0 (Offset 0x00000000):");
+    log_println!("    - Assinatura Bruta  : {}", hex::encode_upper(&lba0[..16]));
+    log_println!("    - Versao de Formato : Rev {}.0 (0x{:04X})", format_version, format_version);
+    log_println!("    - Magic Tag ASCII   : '{}' (System Storage Header)", magic_ascii);
+    log_println!("    - Disk Volume GUID  : {} (Identificador de Formatacao)", volume_guid);
+    log_println!(
         "    - MBR Padrao 0x55AA : {}",
         if has_55aa { "SIM" } else { "NAO (Assinatura Proprietaria Panasonic MEIHDFS RAW)" }
     );
-    println!(
+    log_println!(
         "    - Zeros em 16..511  : {}",
         if zeros_clean { "100% Zeros limpos" } else { "Contem dados adicionais" }
     );
-    println!("    - SHA-256 LBA 0     : {}", lba0_sha256);
+    log_println!("    - SHA-256 LBA 0     : {}", lba0_sha256);
 
-    println!(
+    log_println!(
         "  * LBA {} (Offset 0x{:08X} = 28.00 MB):",
         LBA_MIRROR_MBR_SECTOR, LBA_MIRROR_MBR_OFFSET
     );
-    println!(
+    log_println!(
         "    - Status do Espelho : {}",
         if mirror_identical {
             "IDENTICO BIT-A-BIT AO LBA 0 (Integridade Confirmada)"
@@ -322,7 +322,7 @@ pub fn inspect_hdd_image(
             "DIVERGENCIA DETECTADA"
         }
     );
-    println!("    - SHA-256 LBA Mirror: {}", mirror_sha256);
+    log_println!("    - SHA-256 LBA Mirror: {}", mirror_sha256);
 
     // 3. Inspect Allocation Descriptors & Transactional Journal
     let alloc_start = ALLOCATION_DESCRIPTORS_OFFSET as usize;
@@ -341,12 +341,12 @@ pub fn inspect_hdd_image(
     let j_max_index = LittleEndian::read_u32(&journal_cat[4..8]);
 
     let mut journal_trailers = Vec::new();
-    println!("\n[+] METADADOS DE ALOCACAO & JOURNAL TRANSACIONAL");
-    println!(
+    log_println!("\n[+] METADADOS DE ALOCACAO & JOURNAL TRANSACIONAL");
+    log_println!(
         "  * Descritores Setores 24..31 (0x{:08X}, {} bytes):",
         alloc_start, ALLOCATION_DESCRIPTORS_SIZE
     );
-    println!(
+    log_println!(
         "    - Espelho em LBA 57368 (0x{:08X}): {}",
         alloc_mirror_start,
         if alloc_mirror_identical {
@@ -355,15 +355,15 @@ pub fn inspect_hdd_image(
             "Divergente"
         }
     );
-    println!("    - SHA-256 Descritores  : {}", alloc_sha256);
+    log_println!("    - SHA-256 Descritores  : {}", alloc_sha256);
 
-    println!(
+    log_println!(
         "  * LBA 16384 (Offset 0x{:08X} = 8.00 MB):",
         journal_cat_start
     );
-    println!("    - Catalogo Journal     : {} blocos (Max Index: {})", j_total_blocks, j_max_index);
+    log_println!("    - Catalogo Journal     : {} blocos (Max Index: {})", j_total_blocks, j_max_index);
 
-    println!(
+    log_println!(
         "  * Regiao de Journal (0x{:08X} a 0x{:08X} = {} bytes):",
         JOURNAL_AREA_OFFSET, JOURNAL_AREA_END_OFFSET, JOURNAL_AREA_SIZE
     );
@@ -380,7 +380,7 @@ pub fn inspect_hdd_image(
             "0000000000000000".to_string()
         };
         let start_lba = blk_start / LBA_SECTOR_SIZE_BYTES;
-        println!(
+        log_println!(
             "    - Bloco {:2} | LBA {:5} (0x{:08X}) | Trailer: {}",
             i, start_lba, blk_start, trailer_hex
         );
@@ -390,8 +390,8 @@ pub fn inspect_hdd_image(
     let state_marker_offset = LBA_STATE_TRANSITION_MARKER_OFFSET as usize;
     let state_marker = &mmap[state_marker_offset..state_marker_offset + 24];
     let state_marker_hex = hex::encode_upper(state_marker);
-    println!("  * LBA 49152 (Offset 0x{:08X} = 24.00 MB):", state_marker_offset);
-    println!("    - Marcador de Transicao: {}", state_marker_hex);
+    log_println!("  * LBA 49152 (Offset 0x{:08X} = 24.00 MB):", state_marker_offset);
+    log_println!("    - Marcador de Transicao: {}", state_marker_hex);
 
     let alloc_journal_report = AllocationJournalReport {
         descriptors_offset: ALLOCATION_DESCRIPTORS_OFFSET,
@@ -412,7 +412,7 @@ pub fn inspect_hdd_image(
     // Check Partition 1 (Offset 0x0200_0000 / 32 MB)
     let p1_offset = LBA_PARTITION_1_OFFSET as usize;
     if mmap.len() >= p1_offset + LBA_PARTITION_1_ALIGNED_SIZE
-        && &mmap[p1_offset..p1_offset + 8] == PANASONIC_HDD_PARTITION_MAGIC
+        && mmap[p1_offset..p1_offset + 8] == PANASONIC_HDD_PARTITION_MAGIC
     {
         let payload = &mmap[p1_offset..p1_offset + LBA_PARTITION_1_PAYLOAD_SIZE];
         let aligned = &mmap[p1_offset..p1_offset + LBA_PARTITION_1_ALIGNED_SIZE];
@@ -430,7 +430,7 @@ pub fn inspect_hdd_image(
             exact_payload_size: LBA_PARTITION_1_PAYLOAD_SIZE,
             sector_aligned_size: LBA_PARTITION_1_ALIGNED_SIZE,
             sectors_count: LBA_PARTITION_1_ALIGNED_SIZE / LBA_SECTOR_SIZE_BYTES,
-            signature_hex: hex::encode_upper(&PANASONIC_HDD_PARTITION_MAGIC),
+            signature_hex: hex::encode_upper(PANASONIC_HDD_PARTITION_MAGIC),
             entropy: (ent * 10000.0).round() / 10000.0,
             exact_md5,
             exact_sha256,
@@ -443,7 +443,7 @@ pub fn inspect_hdd_image(
     // Check Partition 2 (Offset 0x0400_0000 / 64 MB)
     let p2_offset = LBA_PARTITION_2_OFFSET as usize;
     if mmap.len() >= p2_offset + LBA_PARTITION_2_PAYLOAD_SIZE
-        && &mmap[p2_offset..p2_offset + 8] == PANASONIC_HDD_PARTITION_MAGIC
+        && mmap[p2_offset..p2_offset + 8] == PANASONIC_HDD_PARTITION_MAGIC
     {
         let payload = &mmap[p2_offset..p2_offset + LBA_PARTITION_2_PAYLOAD_SIZE];
         let (exact_md5, exact_sha256) = calculate_hashes(payload);
@@ -459,7 +459,7 @@ pub fn inspect_hdd_image(
             exact_payload_size: LBA_PARTITION_2_PAYLOAD_SIZE,
             sector_aligned_size: LBA_PARTITION_2_PAYLOAD_SIZE,
             sectors_count: LBA_PARTITION_2_PAYLOAD_SIZE / LBA_SECTOR_SIZE_BYTES,
-            signature_hex: hex::encode_upper(&PANASONIC_HDD_PARTITION_MAGIC),
+            signature_hex: hex::encode_upper(PANASONIC_HDD_PARTITION_MAGIC),
             entropy: (ent * 10000.0).round() / 10000.0,
             exact_md5,
             exact_sha256,
@@ -469,32 +469,32 @@ pub fn inspect_hdd_image(
         });
     }
 
-    println!("\n[+] PARTICÕES DE FIRMWARE PROPRIETÁRIAS (Magic: 51 87 13 8D 5B 0A FB 22)");
+    log_println!("\n[+] PARTICÕES DE FIRMWARE PROPRIETÁRIAS (Magic: 51 87 13 8D 5B 0A FB 22)");
     for p in &partitions {
-        println!("  ------------------------------------------------------------------------");
-        println!("  PARTICAO {}: {}", p.partition_id, p.name);
-        println!("  ------------------------------------------------------------------------");
-        println!("  Offset Inicial    : {} (LBA {})", p.offset_hex, p.lba_start);
-        println!(
+        log_println!("  ------------------------------------------------------------------------");
+        log_println!("  PARTICAO {}: {}", p.partition_id, p.name);
+        log_println!("  ------------------------------------------------------------------------");
+        log_println!("  Offset Inicial    : {} (LBA {})", p.offset_hex, p.lba_start);
+        log_println!(
             "  Tamanho Util      : {:>10} bytes ({:.3} MB / 0x{:X})",
             p.exact_payload_size,
             p.exact_payload_size as f64 / (1024.0 * 1024.0),
             p.exact_payload_size
         );
-        println!(
+        log_println!(
             "  Setores Ocupados  : {:>10} LBAs ({} bytes)",
             p.sectors_count,
             p.sectors_count * LBA_SECTOR_SIZE_BYTES
         );
-        println!("  Assinatura Magic  : {}", p.signature_hex);
-        println!(
+        log_println!("  Assinatura Magic  : {}", p.signature_hex);
+        log_println!(
             "  Entropia Shannon  : {:.4} bits/byte (Alta Densidade / Criptografia Feistel)",
             p.entropy
         );
-        println!("  MD5 Payload Util  : {}", p.exact_md5);
-        println!("  SHA-256 Util      : {}", p.exact_sha256);
+        log_println!("  MD5 Payload Util  : {}", p.exact_md5);
+        log_println!("  SHA-256 Util      : {}", p.exact_sha256);
         if let Some(sha_al) = &p.aligned_sha256 {
-            println!("  SHA-256 Alinhado  : {}", sha_al);
+            log_println!("  SHA-256 Alinhado  : {}", sha_al);
         }
     }
 
@@ -504,7 +504,7 @@ pub fn inspect_hdd_image(
     let total_chunks = (file_size as usize) / chunk_size;
 
     if show_density {
-        println!("\n[+] MAPEAMENTO VISUAL DE DENSIDADE (Blocos de 1 MB):");
+        log_println!("\n[+] MAPEAMENTO VISUAL DE DENSIDADE (Blocos de 1 MB):");
     }
 
     for mb in 0..total_chunks {
@@ -517,7 +517,7 @@ pub fn inspect_hdd_image(
         if show_density && non_zero > 0 {
             let bar_len = (pct / 5.0).round() as usize;
             let bar: String = "#".repeat(bar_len);
-            println!(
+            log_println!(
                 "  MB {:02} (0x{:08X}): {:>9} bytes [{:<20}] ({:5.1}%)",
                 mb, start, non_zero, bar, pct
             );
@@ -548,9 +548,9 @@ pub fn inspect_hdd_image(
         export_report_to_json(&report, json_path, "HDD analysis report")?;
     }
 
-    println!("================================================================================");
-    println!(" ANALISE ESTRUTURAL DE HDD CONCLUIDA COM SUCESSO                                ");
-    println!("================================================================================");
+    log_println!("================================================================================");
+    log_println!(" ANALISE ESTRUTURAL DE HDD CONCLUIDA COM SUCESSO                                ");
+    log_println!("================================================================================");
 
     Ok(report)
 }
@@ -567,12 +567,12 @@ pub fn extract_hdd_partitions(
     fs::create_dir_all(output_dir)
         .with_context(|| format!("Failed creating output directory: {}", output_dir.display()))?;
 
-    println!("================================================================================");
-    println!(" PANASONIC DMR-EH55 PARTITION & DESCRIPTOR SURGICAL EXTRACTOR                   ");
-    println!("================================================================================");
-    println!(" Imagem Fonte : {}", resolved_path.display());
-    println!(" Destino      : {}", output_dir.display());
-    println!("--------------------------------------------------------------------------------");
+    log_println!("================================================================================");
+    log_println!(" PANASONIC DMR-EH55 PARTITION & DESCRIPTOR SURGICAL EXTRACTOR                   ");
+    log_println!("================================================================================");
+    log_println!(" Imagem Fonte : {}", resolved_path.display());
+    log_println!(" Destino      : {}", output_dir.display());
+    log_println!("--------------------------------------------------------------------------------");
 
     let mut manifest_entries: Vec<(String, String)> = Vec::new();
     let mut extracted_reports: Vec<ExtractedPartitionReport> = Vec::new();
@@ -590,7 +590,7 @@ pub fn extract_hdd_partitions(
         size_bytes: mbr_data.len(),
         sha256: mbr_sha256,
     });
-    println!("  [+] Extraido MBR Master  : hdd_mbr_master_lba0.bin (512 bytes)");
+    log_println!("  [+] Extraido MBR Master  : hdd_mbr_master_lba0.bin (512 bytes)");
 
     // 2. Mirror MBR (LBA 57344)
     let mirror_start = LBA_MIRROR_MBR_OFFSET as usize;
@@ -606,7 +606,7 @@ pub fn extract_hdd_partitions(
         size_bytes: mirror_data.len(),
         sha256: mirror_sha256,
     });
-    println!("  [+] Extraido MBR Mirror  : hdd_mbr_mirror_lba57344.bin (512 bytes)");
+    log_println!("  [+] Extraido MBR Mirror  : hdd_mbr_mirror_lba57344.bin (512 bytes)");
 
     // 3. Allocation Descriptors (0x00003000)
     let alloc_start = ALLOCATION_DESCRIPTORS_OFFSET as usize;
@@ -622,7 +622,7 @@ pub fn extract_hdd_partitions(
         size_bytes: alloc_data.len(),
         sha256: alloc_sha256,
     });
-    println!("  [+] Extraido Descritores : hdd_allocation_descriptors_0x00003000.bin (4,096 bytes)");
+    log_println!("  [+] Extraido Descritores : hdd_allocation_descriptors_0x00003000.bin (4,096 bytes)");
 
     // 4. Journal Area (0x00820000 - 0x00960000)
     let j_start = JOURNAL_AREA_OFFSET as usize;
@@ -638,7 +638,7 @@ pub fn extract_hdd_partitions(
         size_bytes: j_data.len(),
         sha256: j_sha256,
     });
-    println!("  [+] Extraido Journal     : hdd_journal_blocks_0x00820000.bin (1,310,720 bytes)");
+    log_println!("  [+] Extraido Journal     : hdd_journal_blocks_0x00820000.bin (1,310,720 bytes)");
 
     // 5. Firmware Partition 1 - Exact Payload (0x5E3250)
     let p1_start = LBA_PARTITION_1_OFFSET as usize;
@@ -654,7 +654,7 @@ pub fn extract_hdd_partitions(
         size_bytes: p1_data.len(),
         sha256: p1_sha256,
     });
-    println!("  [+] Extraida Particao 1  : hdd_partition_firmware_0x02000000.bin (6,173,264 bytes)");
+    log_println!("  [+] Extraida Particao 1  : hdd_partition_firmware_0x02000000.bin (6,173,264 bytes)");
 
     // 6. Firmware Partition 1 - Sector Aligned (0x5E3400)
     let p1_s_data = &mmap[p1_start..p1_start + LBA_PARTITION_1_ALIGNED_SIZE];
@@ -669,7 +669,7 @@ pub fn extract_hdd_partitions(
         size_bytes: p1_s_data.len(),
         sha256: p1_s_sha256,
     });
-    println!("  [+] Extraida P1 Alinhada : hdd_partition_firmware_0x02000000_sector_aligned.bin (6,173,696 bytes)");
+    log_println!("  [+] Extraida P1 Alinhada : hdd_partition_firmware_0x02000000_sector_aligned.bin (6,173,696 bytes)");
 
     // 7. Firmware Partition 2 - Exact Payload (0xB0000)
     let p2_start = LBA_PARTITION_2_OFFSET as usize;
@@ -685,7 +685,7 @@ pub fn extract_hdd_partitions(
         size_bytes: p2_data.len(),
         sha256: p2_sha256,
     });
-    println!("  [+] Extraida Particao 2  : hdd_partition_firmware_0x04000000.bin (720,896 bytes)");
+    log_println!("  [+] Extraida Particao 2  : hdd_partition_firmware_0x04000000.bin (720,896 bytes)");
 
     // Write SHA256SUMS.txt
     let manifest_path = output_dir.join("SHA256SUMS.txt");
@@ -693,17 +693,17 @@ pub fn extract_hdd_partitions(
     for (filename, sha) in &manifest_entries {
         writeln!(manifest_file, "{}  {}", sha, filename)?;
     }
-    println!("--------------------------------------------------------------------------------");
-    println!("  [+] Manifesto Criptografico: {}", manifest_path.display());
+    log_println!("--------------------------------------------------------------------------------");
+    log_println!("  [+] Manifesto Criptografico: {}", manifest_path.display());
 
     // Also run inspect to generate json report if requested
     if let Some(jpath) = json_export_path {
         let _ = inspect_hdd_image(&resolved_path, false, Some(jpath))?;
     }
 
-    println!("================================================================================");
-    println!(" EXTRAÇÃO CIRÚRGICA CONCLUÍDA COM TOTAL FIDELIDADE                             ");
-    println!("================================================================================");
+    log_println!("================================================================================");
+    log_println!(" EXTRAÇÃO CIRÚRGICA CONCLUÍDA COM TOTAL FIDELIDADE                             ");
+    log_println!("================================================================================");
 
     Ok(extracted_reports)
 }
@@ -932,28 +932,28 @@ pub fn decode_meihdfs_descriptors(
     }
 
     // Print Rich Console Telemetry
-    println!("================================================================================");
-    println!(" PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER             ");
-    println!("================================================================================");
-    println!(" Arquivo Analisado : {}", resolved.display());
-    println!(" Modo de Origem    : {}", if is_full_image { "Imagem Completa de HDD (100 MB)" } else { "Tabela Extraida de Descritores (4,096 bytes)" });
+    log_println!("================================================================================");
+    log_println!(" PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER             ");
+    log_println!("================================================================================");
+    log_println!(" Arquivo Analisado : {}", resolved.display());
+    log_println!(" Modo de Origem    : {}", if is_full_image { "Imagem Completa de HDD (100 MB)" } else { "Tabela Extraida de Descritores (4,096 bytes)" });
     if is_full_image {
-        println!(" Validacao Espelho : LBA 24..31 vs LBA 57368..57375 -> {}", if mirror_verified { "100% IDENTICO BIT-A-BIT (Integridade Confirmada)" } else { "DIVERGENCIA DETECTADA" });
+        log_println!(" Validacao Espelho : LBA 24..31 vs LBA 57368..57375 -> {}", if mirror_verified { "100% IDENTICO BIT-A-BIT (Integridade Confirmada)" } else { "DIVERGENCIA DETECTADA" });
     }
-    println!(" SHA-256 Descritor : {}", descriptors_sha256);
-    println!(" Total de Registros: {} registros (16 bytes cada, decodificados via NOT/XOR 0xFF)", records.len());
-    println!("--------------------------------------------------------------------------------");
-    println!(" DISTRIBUICAO DE TAGS DECRIPTO-FORENSES (ONE'S COMPLEMENT):");
+    log_println!(" SHA-256 Descritor : {}", descriptors_sha256);
+    log_println!(" Total de Registros: {} registros (16 bytes cada, decodificados via NOT/XOR 0xFF)", records.len());
+    log_println!("--------------------------------------------------------------------------------");
+    log_println!(" DISTRIBUICAO DE TAGS DECRIPTO-FORENSES (ONE'S COMPLEMENT):");
     for (tag_name, count) in &tag_distribution {
         let pct = (*count as f64 / records.len() as f64) * 100.0;
-        println!("   * {:<24} : {:>3} registros ({:5.2}%)", tag_name, count, pct);
+        log_println!("   * {:<24} : {:>3} registros ({:5.2}%)", tag_name, count, pct);
     }
-    println!("--------------------------------------------------------------------------------");
-    println!(" MAPEAMENTO CONSOLIDADO DE EXTENTS & ARMAZENAMENTO MEIHDFS:");
-    println!("   ID Extent | Segmentos | Total Setores | Tamanho Util | Status / Descricao");
-    println!("   ----------+-----------+---------------+--------------+-------------------------------");
+    log_println!("--------------------------------------------------------------------------------");
+    log_println!(" MAPEAMENTO CONSOLIDADO DE EXTENTS & ARMAZENAMENTO MEIHDFS:");
+    log_println!("   ID Extent | Segmentos | Total Setores | Tamanho Util | Status / Descricao");
+    log_println!("   ----------+-----------+---------------+--------------+-------------------------------");
     for ext in extents.iter().filter(|e| e.segments_count > 0 || e.header_record_index.is_some()) {
-        println!(
+        log_println!(
             "   {:<9} | {:>9} | {:>13} | {:>10} B | {}",
             ext.extent_id_hex,
             ext.segments_count,
@@ -968,12 +968,12 @@ pub fn decode_meihdfs_descriptors(
     }
 
     if !journal_blocks.is_empty() {
-        println!("--------------------------------------------------------------------------------");
-        println!(" AUDITORIA DO POOL DE JOURNAL TRANSACIONAL DE 10 BLOCOS (LBA 16640..19199):");
-        println!("   Bloco | LBA Base | Offset     | Header Ativo | Seq ID | Pool | Checksum CRC | Payload");
-        println!("   ------+----------+------------+--------------+--------+------+--------------+---------");
+        log_println!("--------------------------------------------------------------------------------");
+        log_println!(" AUDITORIA DO POOL DE JOURNAL TRANSACIONAL DE 10 BLOCOS (LBA 16640..19199):");
+        log_println!("   Bloco | LBA Base | Offset     | Header Ativo | Seq ID | Pool | Checksum CRC | Payload");
+        log_println!("   ------+----------+------------+--------------+--------+------+--------------+---------");
         for jb in &journal_blocks {
-            println!(
+            log_println!(
                 "   {:>5} | {:>8} | {} | {:>12} | {:>6} | {:>4} | {:>12} | ~{} set",
                 jb.block_index,
                 jb.start_lba,
@@ -1003,9 +1003,9 @@ pub fn decode_meihdfs_descriptors(
         export_report_to_json(&report, json_path, "MEIHDFS allocation report")?;
     }
 
-    println!("================================================================================");
-    println!(" DECODIFICACAO DE METADADOS MEIHDFS CONCLUIDA COM TOTAL FIDELIDADE              ");
-    println!("================================================================================");
+    log_println!("================================================================================");
+    log_println!(" DECODIFICACAO DE METADADOS MEIHDFS CONCLUIDA COM TOTAL FIDELIDADE              ");
+    log_println!("================================================================================");
 
     Ok(report)
 }

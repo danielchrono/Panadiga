@@ -102,14 +102,14 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         .unwrap_or_else(|| Path::new("."));
     let backup_nvram_path = backup_dir.join("nvram_corrupt_backup.bin");
 
-    println!("======================================================================");
-    println!("   PANASONIC DMR-EH55 NVRAM CLEANER & FLASH INTEGRITY ARCHITECT      ");
-    println!("            Spansion S29JL064H NOR Flash (8 MB / 64 Mbit)             ");
-    println!("======================================================================");
-    println!("  Input File   : {}", resolved_input.display());
-    println!("  Output File  : {}", resolved_output.display());
-    println!("  Backup File  : {}", backup_nvram_path.display());
-    println!("----------------------------------------------------------------------");
+    log_println!("======================================================================");
+    log_println!("   PANASONIC DMR-EH55 NVRAM CLEANER & FLASH INTEGRITY ARCHITECT      ");
+    log_println!("            Spansion S29JL064H NOR Flash (8 MB / 64 Mbit)             ");
+    log_println!("======================================================================");
+    log_println!("  Input File   : {}", resolved_input.display());
+    log_println!("  Output File  : {}", resolved_output.display());
+    log_println!("  Backup File  : {}", backup_nvram_path.display());
+    log_println!("----------------------------------------------------------------------");
 
     // Read input binary
     let mut flash_bytes = Vec::with_capacity(SPANSION_FLASH_SIZE_BYTES);
@@ -128,10 +128,10 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     }
 
     let (orig_md5, orig_sha256) = calculate_hashes(&flash_bytes);
-    println!("  Dump Size    : {} bytes (8.00 MB / 64 Mbit)", flash_bytes.len());
-    println!("  Original MD5 : {}", orig_md5);
-    println!("  Orig SHA-256 : {}", orig_sha256);
-    println!("----------------------------------------------------------------------");
+    log_println!("  Dump Size    : {} bytes (8.00 MB / 64 Mbit)", flash_bytes.len());
+    log_println!("  Original MD5 : {}", orig_md5);
+    log_println!("  Orig SHA-256 : {}", orig_sha256);
+    log_println!("----------------------------------------------------------------------");
 
     // Extract raw NVRAM block (0x007F_0000 .. 0x0080_0000)
     let nvram_slice = &flash_bytes[SPANSION_NVRAM_BASE_OFFSET..SPANSION_NVRAM_END_OFFSET];
@@ -142,12 +142,12 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         )
     })?;
 
-    println!(
+    log_println!(
         "[OK] Corrupted NVRAM sector (0x{:06X} - 0x{:06X}) extracted to:",
         SPANSION_NVRAM_BASE_OFFSET,
         SPANSION_NVRAM_END_OFFSET - 1
     );
-    println!("     -> {} ({} bytes)", backup_nvram_path.display(), nvram_slice.len());
+    log_println!("     -> {} ({} bytes)", backup_nvram_path.display(), nvram_slice.len());
 
     // Perform deep content audit on the NVRAM block
     let non_ff = nvram_slice.iter().filter(|&&b| b != FLASH_ERASED_BYTE).count();
@@ -155,13 +155,13 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     let pct_non_ff = (non_ff as f64 / SPANSION_NVRAM_SIZE_BYTES as f64) * 100.0;
     let pct_non_zero = (non_zero as f64 / SPANSION_NVRAM_SIZE_BYTES as f64) * 100.0;
 
-    println!("\n[+] ANALISE ESTRUTURAL DA NVRAM CORROMPIDA:");
-    println!("    * Bytes nao-FF (dados gravados) : {:6} / {} ({:.2}%)", non_ff, SPANSION_NVRAM_SIZE_BYTES, pct_non_ff);
-    println!("    * Bytes nao-zero                : {:6} / {} ({:.2}%)", non_zero, SPANSION_NVRAM_SIZE_BYTES, pct_non_zero);
-    println!("\n    * Auditoria Detalhada dos 8 Micro-Setores (SA134 a SA141 - 8 KB cada):");
-    println!("    +-------+----------+--------------------+-------------------------+");
-    println!("    | Setor |  Offset  | Ativos (Nao-0xFF)  | Header (Primeiros 8B)   |");
-    println!("    +-------+----------+--------------------+-------------------------+");
+    log_println!("\n[+] ANALISE ESTRUTURAL DA NVRAM CORROMPIDA:");
+    log_println!("    * Bytes nao-FF (dados gravados) : {:6} / {} ({:.2}%)", non_ff, SPANSION_NVRAM_SIZE_BYTES, pct_non_ff);
+    log_println!("    * Bytes nao-zero                : {:6} / {} ({:.2}%)", non_zero, SPANSION_NVRAM_SIZE_BYTES, pct_non_zero);
+    log_println!("\n    * Auditoria Detalhada dos 8 Micro-Setores (SA134 a SA141 - 8 KB cada):");
+    log_println!("    +-------+----------+--------------------+-------------------------+");
+    log_println!("    | Setor |  Offset  | Ativos (Nao-0xFF)  | Header (Primeiros 8B)   |");
+    log_println!("    +-------+----------+--------------------+-------------------------+");
 
     let mut microsectors = Vec::with_capacity(SPANSION_MICROSECTOR_COUNT);
     for idx in 0..SPANSION_MICROSECTOR_COUNT {
@@ -172,7 +172,7 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
         let sec_name = format!("SA{}", SPANSION_MICROSECTOR_BASE_INDEX + idx);
         let abs_offset = SPANSION_NVRAM_BASE_OFFSET + sec_offset;
 
-        println!(
+        log_println!(
             "    | {:<5} | 0x{:06X} | {:4} / {} ({:5.1}%) | {:<23} |",
             sec_name,
             abs_offset,
@@ -190,7 +190,7 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
             header_hex,
         });
     }
-    println!("    +-------+----------+--------------------+-------------------------+");
+    log_println!("    +-------+----------+--------------------+-------------------------+");
 
     // Preserve original OS and Bootloader byte sequence for strict immutability check
     let original_os_bytes = flash_bytes[..SPANSION_BOOTLOADER_SIZE_BYTES].to_vec();
@@ -204,23 +204,23 @@ pub fn clean_flash_nvram(input_path: &Path, output_path: Option<&Path>) -> Resul
     if flash_bytes[..SPANSION_BOOTLOADER_SIZE_BYTES] != original_os_bytes[..] {
         bail!("[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x007EFFFF) was modified during clean! Aborting.");
     }
-    println!("\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)", SPANSION_BOOTLOADER_SIZE_BYTES);
-    println!("     Bit-a-bit 100% IDENTICA E IMUTAVEL.");
+    log_println!("\n[OK] Verificacao de Integridade: Area do Bootloader/OS (primeiros {} bytes)", SPANSION_BOOTLOADER_SIZE_BYTES);
+    log_println!("     Bit-a-bit 100% IDENTICA E IMUTAVEL.");
 
     // Write clean binary
     fs::write(&resolved_output, &flash_bytes)
         .with_context(|| format!("Failed writing clean binary to {}", resolved_output.display()))?;
 
     let (clean_md5, clean_sha256) = calculate_hashes(&flash_bytes);
-    println!("----------------------------------------------------------------------");
-    println!("[SUCESSO] Imagem limpa gerada com perfeicao:");
-    println!("  Arquivo Limpo: {}", resolved_output.display());
-    println!("  Clean MD5    : {}", clean_md5);
-    println!("  Clean SHA-256: {}", clean_sha256);
-    println!("======================================================================");
-    println!("PRONTO PARA REGRAVACAO NA MEMORIA TSOP-48 VIA XGECU T48 / TL866II / SVOD 4!");
-    println!("Ao inicializar, a CPU Panasonic AM34 recriara a NVRAM limpa de fabrica.");
-    println!("======================================================================");
+    log_println!("----------------------------------------------------------------------");
+    log_println!("[SUCESSO] Imagem limpa gerada com perfeicao:");
+    log_println!("  Arquivo Limpo: {}", resolved_output.display());
+    log_println!("  Clean MD5    : {}", clean_md5);
+    log_println!("  Clean SHA-256: {}", clean_sha256);
+    log_println!("======================================================================");
+    log_println!("PRONTO PARA REGRAVACAO NA MEMORIA TSOP-48 VIA XGECU T48 / TL866II / SVOD 4!");
+    log_println!("Ao inicializar, a CPU Panasonic AM34 recriara a NVRAM limpa de fabrica.");
+    log_println!("======================================================================");
 
     Ok(NvramCleanReport {
         input_file: resolved_input.to_string_lossy().to_string(),

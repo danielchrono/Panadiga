@@ -146,13 +146,13 @@ pub fn run_deep_scan(
             .collect(),
     };
 
-    println!("================================================================================");
-    println!(" PANASONIC FORENSIC ZERO-COPY BINARY SCANNER");
-    println!("================================================================================");
-    println!(" Target File     : {}", resolved.display());
-    println!(" File Size       : {} bytes", mmap.len());
-    println!(" Min String Len  : {} chars", min_length);
-    println!(
+    log_println!("================================================================================");
+    log_println!(" PANASONIC FORENSIC ZERO-COPY BINARY SCANNER");
+    log_println!("================================================================================");
+    log_println!(" Target File     : {}", resolved.display());
+    log_println!(" File Size       : {} bytes", mmap.len());
+    log_println!(" Min String Len  : {} chars", min_length);
+    log_println!(
         " Target Keywords : {}",
         if keywords.is_empty() {
             "NONE (all strings)".to_string()
@@ -160,11 +160,11 @@ pub fn run_deep_scan(
             keywords.join(", ")
         }
     );
-    println!("--------------------------------------------------------------------------------");
+    log_println!("--------------------------------------------------------------------------------");
 
     let (total_strings, matches) = scan_data_strings(&mmap, min_length, &keywords, limit);
 
-    println!(
+    log_println!(
         "Total valid strings extracted: {} | Matching keywords: {}",
         total_strings,
         matches.len()
@@ -175,14 +175,14 @@ pub fn run_deep_scan(
             Some(kw) => format!(" (Matched: '{}')", kw),
             None => String::new(),
         };
-        println!("  [{}] {}{}", m.offset_hex, m.text, kw_info);
+        log_println!("  [{}] {}{}", m.offset_hex, m.text, kw_info);
     }
 
     if limit > 0 && matches.len() >= limit {
-        println!("  ... [Output limited to {} matches. Use --limit 0 for all] ...", limit);
+        log_println!("  ... [Output limited to {} matches. Use --limit 0 for all] ...", limit);
     }
 
-    println!("================================================================================");
+    log_println!("================================================================================");
 
     let report = ScanReport {
         file_path: resolved.to_string_lossy().to_string(),
@@ -196,7 +196,7 @@ pub fn run_deep_scan(
     if let Some(jpath) = json_path {
         let json_text = serde_json::to_string_pretty(&report)?;
         std::fs::write(jpath, json_text)?;
-        println!("[+] Report written to JSON: {}", jpath.display());
+        log_println!("[+] Report written to JSON: {}", jpath.display());
     }
 
     Ok(report)
@@ -208,12 +208,12 @@ pub fn scan_all_default(min_length: usize, limit: usize) -> Result<()> {
     let frm_path = PathBuf::from("firmware_and_images/PANA_DVD.FRM");
 
     if hdd_path.exists() {
-        println!("\n>>> Scanning HDD Dump Image <<<");
+        log_println!("\n>>> Scanning HDD Dump Image <<<");
         let _ = run_deep_scan(&hdd_path, min_length, None, limit, None);
     }
 
     if frm_path.exists() {
-        println!("\n>>> Scanning Optical Container PANA_DVD.FRM <<<");
+        log_println!("\n>>> Scanning Optical Container PANA_DVD.FRM <<<");
         let _ = run_deep_scan(&frm_path, min_length, None, limit, None);
     }
 

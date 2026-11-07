@@ -2,6 +2,7 @@ import React from 'react';
 import { useHexInspectorViewModel } from '@/viewmodels/useHexInspectorViewModel';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   Binary,
   Bookmark,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export const HexInspectorView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     currentOffset,
     currentLba,

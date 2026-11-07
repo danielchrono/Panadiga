@@ -3,6 +3,7 @@ import { useDashboardViewModel } from '@/viewmodels/useDashboardViewModel';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { ViewKey } from '@/components/Sidebar';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   HardDrive,
   Cpu,
@@ -24,6 +25,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const { overview, loading } = useDashboardViewModel();
+  const { t } = useTranslation();
 
   if (loading || !overview) {
     return (

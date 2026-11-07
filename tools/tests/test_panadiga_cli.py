@@ -29,8 +29,8 @@ def test_memory_map_json_format(tmp_path: Path):
     data = json.loads(out_file.read_text(encoding="utf-8"))
     assert len(data) >= 5
     region_names = [r["name"] for r in data]
-    assert "FLASH_NOR" in region_names
-    assert "BOOT_ROM" in region_names
+    assert "FLASH_NOR_IPL" in region_names
+    assert "NVRAM_U99" in region_names
     assert "INTERNAL_SRAM" in region_names
 
 

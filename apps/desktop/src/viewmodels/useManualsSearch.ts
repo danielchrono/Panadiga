@@ -6,7 +6,7 @@
 import { useState, useCallback } from "react";
 import { ManualSearchResult, ExecutionStatus } from "../types/domain";
 import { digaApi } from "../services/digaApi";
-import { translate } from "../i18n/useTranslation";
+import { useTranslation, TranslationKey } from "../i18n/useTranslation";
 
 export interface ManualsSearchViewModel {
   readonly query: string;
@@ -19,26 +19,31 @@ export interface ManualsSearchViewModel {
 }
 
 export function useManualsSearch(): ManualsSearchViewModel {
+  const { t } = useTranslation();
   const [query, setQuery] = useState<string>("S29JL064H");
   const [status, setStatus] = useState<ExecutionStatus>(ExecutionStatus.IDLE);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
+  const [rawError, setRawError] = useState<string | null>(null);
   const [results, setResults] = useState<readonly ManualSearchResult[]>([]);
 
   const reset = useCallback(() => {
     setStatus(ExecutionStatus.IDLE);
-    setErrorMessage(null);
+    setErrorKey(null);
+    setRawError(null);
     setResults([]);
   }, []);
 
   const executeSearch = useCallback(async () => {
     if (!query || query.trim().length === 0) {
-      setErrorMessage(translate("manuals.search.emptyQuery"));
+      setErrorKey("manuals.search.emptyQuery");
+      setRawError(null);
       setStatus(ExecutionStatus.ERROR);
       return;
     }
 
     setStatus(ExecutionStatus.RUNNING);
-    setErrorMessage(null);
+    setErrorKey(null);
+    setRawError(null);
 
     const result = await digaApi.searchManuals(query);
 
@@ -46,10 +51,13 @@ export function useManualsSearch(): ManualsSearchViewModel {
       setResults(result.data);
       setStatus(ExecutionStatus.SUCCESS);
     } else {
-      setErrorMessage(result.error);
+      setErrorKey(null);
+      setRawError(result.error);
       setStatus(ExecutionStatus.ERROR);
     }
   }, [query]);
+
+  const errorMessage = errorKey ? t(errorKey) : rawError;
 
   return {
     query,

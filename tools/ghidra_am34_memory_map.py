@@ -16,8 +16,9 @@ def setup_memory_map():
     regions = [
         # (Name, StartHex, SizeBytes, Read, Write, Execute, IsVolatile)
         ("INTERNAL_SRAM", 0x00000000, 0x00040000, True, True, True, False),
-        ("SRAM_LOADER",   0x00004000, 0x00001000, True, True, True, False),
-        ("SPANSION_FLASH",0x80000000, 0x00800000, True, False, True, False),
+        ("CORE_MMIO",     0x10000000, 0x00010000, True, True, False, True),
+        ("MAIN_SDRAM",    0x40000000, 0x04000000, True, True, True, False),
+        ("FLASH_NOR_IPL", 0x80000000, 0x007F0000, True, False, True, False),
         ("NVRAM_EEMUL",   0x807F0000, 0x00010000, True, True, False, False),
         ("ASIC_MMIO",     0xC0000000, 0x00010000, True, True, False, True),
         ("ATA_IDE_MMIO",  0xD4000000, 0x00001000, True, True, False, True),

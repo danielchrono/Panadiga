@@ -124,6 +124,20 @@ class ZeroErrorRagEngine:
         is_abstained = False
         abstention_reason = None
 
+        # OPUS-08 FIX: When FactCritic detects hallucination, force epistemic abstention
+        if not critic_report.is_faithful:
+            is_abstained = True
+            abstention_reason = (
+                f"Self-RAG FactCritic detected ungrounded technical entities: "
+                f"{', '.join(critic_report.ungrounded_entities)}"
+            )
+            answer_text = (
+                "[EPISTEMIC ABSTENTION - UNGROUNDED ENTITY DETECTED]\n\n"
+                "The response was intercepted because the following technical entities were not grounded in the verified corpus:\n"
+                + "\n".join(f"• {e}" for e in critic_report.ungrounded_entities)
+                + "\n\nIn embedded hardware reverse engineering, answering with unverified parameters is strictly prohibited to prevent equipment damage."
+            )
+
         if not post_safety.is_safe:
             is_abstained = True
             abstention_reason = "Generated recommendations violated physical hardware safety invariants."
@@ -137,7 +151,7 @@ class ZeroErrorRagEngine:
             query=raw_query,
             answer_text=answer_text,
             citations=citations,
-            confidence=1.0 if (critic_report.is_faithful and post_safety.is_safe) else 0.5,
+            confidence=1.0 if (critic_report.is_faithful and post_safety.is_safe and not is_abstained) else 0.0,
             groundedness_score=critic_report.groundedness_score,
             critic_report=critic_report,
             safety_report=post_safety,

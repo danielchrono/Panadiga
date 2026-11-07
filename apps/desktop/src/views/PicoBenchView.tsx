@@ -9,6 +9,7 @@ import {
   ColdBreakinSelector,
   DwirePinoutCard,
 } from '@/components/pico';
+import { useTranslation } from '@/i18n/useTranslation';
 import { CheckCircle2, Send } from 'lucide-react';
 
 /**
@@ -16,6 +17,7 @@ import { CheckCircle2, Send } from 'lucide-react';
  * Cleanly composes presentation components and coordinates with usePicoBenchViewModel.
  */
 export const PicoBenchView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     deviceStatus,
     availablePorts,

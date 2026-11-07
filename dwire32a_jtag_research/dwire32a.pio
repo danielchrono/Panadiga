@@ -33,12 +33,14 @@ tx_loop:
     jmp start           side 0
 
 rx_mode:
-    set pindirs, 0      side 0 [1] ; Ensure SDATA is INPUT (Hi-Z) + turnaround delay (500ns)
+    set pindirs, 0      side 0 [1] ; Ensure SDATA is INPUT (Hi-Z) + bus turnaround delay (500ns)
 rx_loop:
-    nop                 side 1 [1] ; 2 cycles (500ns): SCLK=1 (Target drives SDATA)
-    in pins, 1          side 0     ; 1 cycle (250ns): SCLK=0, sample SDATA into ISR on falling edge
-    jmp x--, rx_loop    side 0     ; 1 cycle (250ns): SCLK=0 (Total SCLK low = 500ns, 50% duty cycle)
-    push block          side 0  ; Push received word from ISR to RX FIFO for ARM host
+    ; Target MN2DS0016 drives SDATA during SCLK High phase
+    nop                 side 1 [1] ; 2 cycles (500ns): SCLK=1 (Target outputs bit, signal settles)
+    ; Sample SDATA at SCLK falling edge transition (mid-point of stable eye diagram)
+    in pins, 1          side 0     ; 1 cycle (250ns): SCLK=0, sample SDATA into ISR (Setup: 500ns, Hold: 250ns)
+    jmp x--, rx_loop    side 0     ; 1 cycle (250ns): SCLK=0 (Total SCLK low = 500ns, exact 50% duty cycle at 1 MHz)
+    push block          side 0  ; Push received 32-bit word from ISR to RX FIFO for ARM/RISC-V host
 .wrap
 
 % c-sdk {

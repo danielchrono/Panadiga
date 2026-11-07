@@ -7,6 +7,7 @@ import re
 from typing import List, Pattern, Set
 
 from .models import Entity, EntityType, Query
+from .safety_invariants import extract_voltages_volts
 
 
 class QueryGuard:
@@ -108,13 +109,13 @@ class QueryGuard:
                 )
             )
 
-        # Voltages
-        for match in self.VOLTAGE_REGEX.finditer(sanitized):
+        # Voltages (normalized via universal voltage extractor)
+        for val, _, _, matched_str in extract_voltages_volts(sanitized):
             entities.append(
                 Entity(
-                    name=match.group(0).upper(),
+                    name=f"{val}V",
                     entity_type=EntityType.VOLTAGE,
-                    raw_value=match.group(0),
+                    raw_value=matched_str,
                 )
             )
 

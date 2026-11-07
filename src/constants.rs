@@ -271,19 +271,35 @@ pub const MEIHDFS_TAG_VIRTUAL_NODE_E1: u8 = MEIHDFS_TAG_VINODE_LINK;
 pub const AM34_INTERNAL_SRAM_BASE: u32 = 0x0000_0000;
 /// AM34 Internal Work SRAM Size (256 Kilobytes).
 pub const AM34_INTERNAL_SRAM_SIZE: u32 = 0x0004_0000;
+pub const AM34_SRAM_BASE: u32 = AM34_INTERNAL_SRAM_BASE;
+pub const AM34_SRAM_SIZE: u32 = AM34_INTERNAL_SRAM_SIZE;
 
 /// RAM Loader Injection Physical Address (0x0000_4000).
 pub const AM34_SRAM_LOADER_BASE: u32 = 0x0000_4000;
 /// RAM Loader Memory Size (4 Kilobytes).
 pub const AM34_SRAM_LOADER_SIZE: u32 = 0x0000_1000;
 
+/// Core MMIO Peripheral Bus Space (0x1000_0000).
+pub const AM34_MMIO_BASE: u32 = 0x1000_0000;
+/// Core MMIO Space Size (64 Kilobytes).
+pub const AM34_MMIO_SIZE: u32 = 0x0001_0000;
+
+/// External System SDRAM Base Address (0x4000_0000).
+pub const AM34_SDRAM_BASE: u32 = 0x4000_0000;
+/// External System SDRAM Size (64 Megabytes).
+pub const AM34_SDRAM_SIZE: u32 = 0x0400_0000;
+
 /// Spansion NOR Flash Hardware Mirror Base Address (0x8000_0000).
 pub const AM34_FLASH_BASE: u32 = 0x8000_0000;
-/// Spansion NOR Flash Memory Size (8 Megabytes).
+pub const AM34_FLASH_BUS_BASE: u32 = AM34_FLASH_BASE;
+/// Spansion NOR Flash Total Memory Aperture (8 Megabytes).
 pub const AM34_FLASH_SIZE: u32 = 0x0080_0000;
+/// Spansion NOR Flash Protected IPL / Kernel Size (SA0..SA133 = 8,128 Kilobytes).
+pub const AM34_FLASH_IPL_SIZE: u32 = 0x007F_0000;
 
 /// NVRAM Top-Boot Partition Base Physical Address (0x807F_0000).
 pub const AM34_NVRAM_BASE: u32 = 0x807F_0000;
+pub const AM34_NVRAM_BUS_BASE: u32 = AM34_NVRAM_BASE;
 /// NVRAM Parameter Storage Area Size (64 Kilobytes).
 pub const AM34_NVRAM_SIZE: u32 = 0x0001_0000;
 

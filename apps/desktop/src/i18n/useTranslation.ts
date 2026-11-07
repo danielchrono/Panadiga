@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { translations, Locale, TranslationKey } from './translations';
 
+export type { Locale, TranslationKey };
+
 let currentGlobalLocale: Locale = 'en-US';
 const listeners = new Set<(locale: Locale) => void>();
 

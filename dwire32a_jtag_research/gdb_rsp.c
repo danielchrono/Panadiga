@@ -18,6 +18,11 @@
 #include <string.h>
 #include <ctype.h>
 
+#if defined(PICO_HOST_TEST) && (PICO_HOST_TEST != 0)
+void sleep_ms(uint32_t ms);
+static void gdb_rsp_test_record_response(const char *payload);
+#endif
+
 /* =========================================================================
  * Internal State Machine & Caching Structures
  * ========================================================================= */
@@ -49,7 +54,9 @@ static bool               s_cache_valid = false;
 static const char * const GDB_XML_MEMORY_MAP =
     "l<memory-map>"
     "<memory type=\"ram\" start=\"0x00000000\" length=\"0x00040000\"/>"
-    "<memory type=\"rom\" start=\"0x80000000\" length=\"0x00800000\"/>"
+    "<memory type=\"ram\" start=\"0x10000000\" length=\"0x00010000\"/>"
+    "<memory type=\"ram\" start=\"0x40000000\" length=\"0x04000000\"/>"
+    "<memory type=\"rom\" start=\"0x80000000\" length=\"0x007F0000\"/>"
     "<memory type=\"flash\" start=\"0x807F0000\" length=\"0x00010000\">"
     "<property name=\"blocksize\">0x2000</property>"
     "</memory>"
@@ -151,13 +158,95 @@ static uint8_t memory_read_byte(uint32_t addr) {
     return (uint8_t)((word >> (byte_idx * 8U)) & 0xFFU);
 }
 
+static uint32_t reg_file_get(size_t idx) {
+    switch (idx) {
+        case AM34_REG_D0:  return s_reg_file.d[0];
+        case AM34_REG_D1:  return s_reg_file.d[1];
+        case AM34_REG_D2:  return s_reg_file.d[2];
+        case AM34_REG_D3:  return s_reg_file.d[3];
+        case AM34_REG_A0:  return s_reg_file.a[0];
+        case AM34_REG_A1:  return s_reg_file.a[1];
+        case AM34_REG_A2:  return s_reg_file.a[2];
+        case AM34_REG_A3:  return s_reg_file.a[3];
+        case AM34_REG_MDR: return s_reg_file.mdr;
+        case AM34_REG_PSW: return s_reg_file.psw;
+        case AM34_REG_PC:  return s_reg_file.pc;
+        case AM34_REG_SP:  return s_reg_file.sp;
+        default:           return 0U;
+    }
+}
+
+static void reg_file_set(size_t idx, uint32_t val) {
+    switch (idx) {
+        case AM34_REG_D0:  s_reg_file.d[0] = val; break;
+        case AM34_REG_D1:  s_reg_file.d[1] = val; break;
+        case AM34_REG_D2:  s_reg_file.d[2] = val; break;
+        case AM34_REG_D3:  s_reg_file.d[3] = val; break;
+        case AM34_REG_A0:  s_reg_file.a[0] = val; break;
+        case AM34_REG_A1:  s_reg_file.a[1] = val; break;
+        case AM34_REG_A2:  s_reg_file.a[2] = val; break;
+        case AM34_REG_A3:  s_reg_file.a[3] = val; break;
+        case AM34_REG_MDR: s_reg_file.mdr = val; break;
+        case AM34_REG_PSW: s_reg_file.psw = val; break;
+        case AM34_REG_PC:  s_reg_file.pc = val; break;
+        case AM34_REG_SP:  s_reg_file.sp = val; break;
+        default:           break;
+    }
+}
+
+static bool is_valid_write_address(uint32_t addr) {
+    /* PICO-02 & OPUS-07: Defense-in-depth hardware air-gap against IPL ROM writes (SA0..SA133) */
+    if (addr >= 0x80000000UL && addr <= 0x807EFFFFUL) {
+        return false;
+    }
+    /* NVRAM top microsectors SA134..SA141 (0x807F0000..0x807FFFFF): writable for U99 recovery */
+    if (addr >= 0x807F0000UL && addr <= 0x807FFFFFUL) {
+        return true;
+    }
+    /* Internal SRAM (0x00000000..0x0003FFFF): writable */
+    if (addr <= 0x0003FFFFUL) {
+        return true;
+    }
+    /* Core MMIO (0x10000000..0x1000FFFF): writable */
+    if (addr >= 0x10000000UL && addr <= 0x1000FFFFUL) {
+        return true;
+    }
+    /* System SDRAM (0x40000000..0x43FFFFFF): writable */
+    if (addr >= 0x40000000UL && addr <= 0x43FFFFFFUL) {
+        return true;
+    }
+    /* ASIC MMIO (0xC0000000..0xC000FFFF): writable */
+    if (addr >= 0xC0000000UL && addr <= 0xC000FFFFUL) {
+        return true;
+    }
+    /* PATA / IDE MMIO (0xD4000000..0xD4000FFF): writable */
+    if (addr >= 0xD4000000UL && addr <= 0xD4000FFFUL) {
+        return true;
+    }
+    return false;
+}
+
+static bool is_valid_write_range(uint32_t addr, uint32_t length) {
+    if (length == 0U) return false;
+    if (addr + length < addr) return false;
+    uint32_t end_addr = addr + length - 1U;
+
+    if ((addr >= 0x80000000UL && addr <= 0x807EFFFFUL) ||
+        (end_addr >= 0x80000000UL && end_addr <= 0x807EFFFFUL) ||
+        (addr < 0x80000000UL && end_addr >= 0x807EFFFFUL)) {
+        return false;
+    }
+
+    return is_valid_write_address(addr) && is_valid_write_address(end_addr);
+}
+
 /**
  * @brief Write single byte to target memory.
+ * @return true if written successfully, false if rejected due to hardware invariants.
  */
-static void memory_write_byte(uint32_t addr, uint8_t byte_val) {
-    /* PICO-02: Defense-in-depth hardware air-gap against IPL ROM writes (SA0..SA133) */
-    if (addr >= 0x80000000UL && addr <= 0x807EFFFFUL) {
-        return;
+static bool memory_write_byte(uint32_t addr, uint8_t byte_val) {
+    if (!is_valid_write_address(addr)) {
+        return false;
     }
 
     uint32_t aligned_addr = addr & ~0x03UL;
@@ -173,6 +262,7 @@ static void memory_write_byte(uint32_t addr, uint8_t byte_val) {
     if (s_cache_valid && addr >= s_cache_base_addr && addr < (s_cache_base_addr + GDB_SECTOR_CACHE_SIZE)) {
         s_sector_cache[addr - s_cache_base_addr] = byte_val;
     }
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -181,7 +271,10 @@ static void memory_write_byte(uint32_t addr, uint8_t byte_val) {
 
 static void sync_shadow_registers(void) {
     s_reg_file.is_halted = dwire_hw_is_cpu_halted();
-    // Default boot values if not read from hardware registers
+    uint32_t dcsr = dwire_hw_read_dcsr();
+    if (dcsr != DWIRE_BUS_RESP_OPEN_HIGH && dcsr != DWIRE_BUS_RESP_OPEN_LOW) {
+        s_reg_file.psw = (s_reg_file.psw & 0xFFFF0000UL) | (dcsr & 0x0000FFFFUL);
+    }
     if (s_reg_file.pc == 0U) {
         s_reg_file.pc = 0x80000000UL;
     }
@@ -228,6 +321,10 @@ const char *gdb_rsp_get_status_info(void) {
 void gdb_rsp_send_packet(const char *payload) {
     if (payload == NULL) return;
 
+#if defined(PICO_HOST_TEST) && (PICO_HOST_TEST != 0)
+    gdb_rsp_test_record_response(payload);
+#endif
+
     uint8_t csum = compute_checksum(payload);
 
     // Save for retransmission on NACK
@@ -253,8 +350,12 @@ static void handle_gdb_command(const char *cmd) {
     switch (cmd[0]) {
         /* Query Halt / Stop Reason */
         case '?': {
-            // Signal 5 = SIGTRAP (target halted at breakpoint or break-in)
-            gdb_rsp_send_packet("S05");
+            sync_shadow_registers();
+            if (s_reg_file.is_halted) {
+                gdb_rsp_send_packet("S05");
+            } else {
+                gdb_rsp_send_packet("S00");
+            }
             break;
         }
 
@@ -285,9 +386,8 @@ static void handle_gdb_command(const char *cmd) {
         case 'g': {
             sync_shadow_registers();
             char *ptr = resp_buf;
-            uint32_t *regs = (uint32_t *)&s_reg_file;
             for (size_t i = 0U; i < AM34_REG_COUNT; i++) {
-                uint32_t val = regs[i];
+                uint32_t val = reg_file_get(i);
                 // Output in little-endian byte order
                 for (int b = 0; b < 4; b++) {
                     uint8_t byte = (uint8_t)((val >> (b * 8)) & 0xFFU);
@@ -305,7 +405,6 @@ static void handle_gdb_command(const char *cmd) {
             const char *hex_str = &cmd[1];
             size_t hex_len = strlen(hex_str);
             if (hex_len >= (AM34_REG_COUNT * 8U)) {
-                uint32_t *regs = (uint32_t *)&s_reg_file;
                 for (size_t i = 0U; i < AM34_REG_COUNT; i++) {
                     uint32_t word = 0U;
                     for (int b = 0; b < 4; b++) {
@@ -316,7 +415,7 @@ static void handle_gdb_command(const char *cmd) {
                             word |= ((uint32_t)byte) << (b * 8);
                         }
                     }
-                    regs[i] = word;
+                    reg_file_set(i, word);
                 }
                 dwire_hw_set_pc(s_reg_file.pc);
                 gdb_rsp_send_packet("OK");
@@ -365,22 +464,38 @@ static void handle_gdb_command(const char *cmd) {
                 break;
             }
 
+            /* Pre-flight range validation: block any write touching protected IPL (0x80000000..0x807EFFFF) */
+            if (!is_valid_write_range(addr, length)) {
+                gdb_rsp_send_packet("E05");
+                break;
+            }
+
+            if (strlen(p) < (length * 2U)) {
+                gdb_rsp_send_packet("E04");
+                break;
+            }
+
+            bool write_ok = true;
             for (uint32_t i = 0U; i < length; i++) {
-                if (p[0] == '\0' || p[1] == '\0') {
-                    gdb_rsp_send_packet("E04");
-                    return;
-                }
                 int h = hex_char_to_nibble(*p++);
                 int l = hex_char_to_nibble(*p++);
                 if (h >= 0 && l >= 0) {
                     uint8_t byte = (uint8_t)((h << 4) | l);
-                    memory_write_byte(addr + i, byte);
+                    if (!memory_write_byte(addr + i, byte)) {
+                        write_ok = false;
+                        break;
+                    }
                 } else {
                     gdb_rsp_send_packet("E04");
                     return;
                 }
             }
-            gdb_rsp_send_packet("OK");
+
+            if (write_ok) {
+                gdb_rsp_send_packet("OK");
+            } else {
+                gdb_rsp_send_packet("E05");
+            }
             break;
         }
 
@@ -521,3 +636,32 @@ void gdb_rsp_process_char(char ch) {
         }
     }
 }
+
+#if defined(PICO_HOST_TEST) && (PICO_HOST_TEST != 0)
+static char s_test_last_resp[GDB_RSP_MAX_PACKET_LEN];
+
+void gdb_rsp_test_get_last_response(char *out, size_t max_len) {
+    if (out != NULL && max_len > 0) {
+        snprintf(out, max_len, "%s", s_test_last_resp);
+    }
+}
+
+static void gdb_rsp_test_record_response(const char *payload) {
+    if (payload != NULL) {
+        snprintf(s_test_last_resp, sizeof(s_test_last_resp), "%s", payload);
+    }
+}
+
+void gdb_rsp_test_inject_packet(const char *payload) {
+    if (payload == NULL) return;
+    gdb_rsp_process_char('$');
+    const char *p = payload;
+    while (*p != '\0') {
+        gdb_rsp_process_char(*p++);
+    }
+    gdb_rsp_process_char('#');
+    uint8_t csum = compute_checksum(payload);
+    gdb_rsp_process_char(nibble_to_hex_char((uint8_t)(csum >> 4)));
+    gdb_rsp_process_char(nibble_to_hex_char((uint8_t)(csum & 0x0FU)));
+}
+#endif

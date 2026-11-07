@@ -205,7 +205,8 @@ class HierarchicalIndexer:
         self.vector = VectorIndex()
 
     def determine_subsystem(self, file_path: str, content: str) -> SubsystemType:
-        fp_lower = file_path.lower()
+        # OPUS-11 FIX: Inspect filename only, not full directory path (avoiding false 'hdd' match from workspace root)
+        fp_lower = Path(file_path).name.lower()
         content_lower = content.lower()
         if "dwire" in fp_lower or "hardware" in fp_lower or "esquema" in fp_lower:
             return SubsystemType.HARDWARE

@@ -3,6 +3,7 @@ import { useHddStorageViewModel, HddTab } from '@/viewmodels/useHddStorageViewMo
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Modal } from '@/components/Modal';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   HardDrive,
   Copy,
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export const HddStorageView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     hddReport,
     meihdfsReport,

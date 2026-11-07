@@ -30,8 +30,9 @@ def setup_memory_map():
     regions = [
         # (Name, StartHex, SizeBytes, Read, Write, Execute, IsVolatile)
         ("INTERNAL_SRAM", 0x{sram_base:08X}, 0x{sram_size:08X}, True, True, True, False),
-        ("SRAM_LOADER",   0x{loader_base:08X}, 0x{loader_size:08X}, True, True, True, False),
-        ("SPANSION_FLASH",0x{flash_base:08X}, 0x{flash_size:08X}, True, False, True, False),
+        ("CORE_MMIO",     0x{core_mmio_base:08X}, 0x{core_mmio_size:08X}, True, True, False, True),
+        ("MAIN_SDRAM",    0x{sdram_base:08X}, 0x{sdram_size:08X}, True, True, True, False),
+        ("FLASH_NOR_IPL", 0x{flash_base:08X}, 0x{flash_ipl_size:08X}, True, False, True, False),
         ("NVRAM_EEMUL",   0x{nvram_base:08X}, 0x{nvram_size:08X}, True, True, False, False),
         ("ASIC_MMIO",     0x{mmio_base:08X}, 0x{mmio_size:08X}, True, True, False, True),
         ("ATA_IDE_MMIO",  0x{pata_base:08X}, 0x{pata_size:08X}, True, True, False, True),
@@ -63,10 +64,12 @@ if __name__ == "__main__":
 "#,
         sram_base = AM34_INTERNAL_SRAM_BASE,
         sram_size = AM34_INTERNAL_SRAM_SIZE,
-        loader_base = AM34_SRAM_LOADER_BASE,
-        loader_size = AM34_SRAM_LOADER_SIZE,
+        core_mmio_base = AM34_MMIO_BASE,
+        core_mmio_size = AM34_MMIO_SIZE,
+        sdram_base = AM34_SDRAM_BASE,
+        sdram_size = AM34_SDRAM_SIZE,
         flash_base = AM34_FLASH_BASE,
-        flash_size = AM34_FLASH_SIZE,
+        flash_ipl_size = AM34_FLASH_IPL_SIZE,
         nvram_base = AM34_NVRAM_BASE,
         nvram_size = AM34_NVRAM_SIZE,
         mmio_base = AM34_ASIC_MMIO_BASE,
@@ -181,12 +184,25 @@ pub fn export_all_ghidra_scripts(target_dir: &Path) -> Result<()> {
     }
 
     let map_path = target_dir.join("ghidra_am34_memory_map.py");
-    let sym_path = target_dir.join("ghidra_importar_simbolos_panadiga.py");
+    let sym_path_en = target_dir.join("ghidra_import_symbols_panadiga.py");
+    let sym_path_pt = target_dir.join("ghidra_importar_simbolos_panadiga.py");
 
     fs::write(&map_path, generate_ghidra_memory_map())
         .with_context(|| format!("Failed writing {:?}", map_path))?;
-    fs::write(&sym_path, generate_ghidra_symbols())
-        .with_context(|| format!("Failed writing {:?}", sym_path))?;
+    fs::write(&sym_path_en, generate_ghidra_symbols())
+        .with_context(|| format!("Failed writing {:?}", sym_path_en))?;
+
+    let wrapper_pt = r#"# Ghidra Script: Panasonic DMR-EH55 Symbol Importer (Backward-Compatibility Wrapper)
+# @category Forensics.Panasonic
+# @author Panadiga Engineering Team
+import runpy
+from pathlib import Path
+
+_target = Path(__file__).parent / "ghidra_import_symbols_panadiga.py"
+runpy.run_path(str(_target), run_name="__main__")
+"#;
+    fs::write(&sym_path_pt, wrapper_pt)
+        .with_context(|| format!("Failed writing {:?}", sym_path_pt))?;
 
     Ok(())
 }

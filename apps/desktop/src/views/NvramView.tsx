@@ -8,12 +8,14 @@ import {
   NvramMicrosectorsTable,
   NvramAuditDialog,
 } from '@/components/nvram';
+import { useTranslation } from '@/i18n/useTranslation';
 
 /**
  * Declarative MVVM View: Spansion NOR Flash S29JL064H & NVRAM U99 Sanitizer.
  * Fully decomposed following Single Responsibility, Functional Programming, and Radix UI.
  */
 export const NvramView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     report,
     sectorMap,

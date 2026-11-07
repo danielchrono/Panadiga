@@ -42,9 +42,11 @@ def generate_memory_map(
     Generate the official memory map specification for Matsushita AM34 / UniPhier MN2DS0016.
     """
     regions: List[MemoryRegion] = [
-        {"name": "FLASH_NOR", "start": "0x00000000", "end": "0x007FFFFF", "size_kb": 8192, "perms": "r-x"},
-        {"name": "INTERNAL_SRAM", "start": "0x10000000", "end": "0x1003FFFF", "size_kb": 256, "perms": "rwx"},
-        {"name": "BOOT_ROM", "start": "0x80000000", "end": "0x807FFFFF", "size_kb": 8192, "perms": "r-x"},
+        {"name": "INTERNAL_SRAM", "start": "0x00000000", "end": "0x0003FFFF", "size_kb": 256, "perms": "rwx"},
+        {"name": "CORE_MMIO", "start": "0x10000000", "end": "0x1000FFFF", "size_kb": 64, "perms": "rw-"},
+        {"name": "MAIN_SDRAM", "start": "0x40000000", "end": "0x43FFFFFF", "size_kb": 65536, "perms": "rwx"},
+        {"name": "FLASH_NOR_IPL", "start": "0x80000000", "end": "0x807EFFFF", "size_kb": 8128, "perms": "r-x"},
+        {"name": "NVRAM_U99", "start": "0x807F0000", "end": "0x807FFFFF", "size_kb": 64, "perms": "rw-"},
         {"name": "SYSTEM_MMIO", "start": "0xC0000000", "end": "0xC0003FFF", "size_kb": 16, "perms": "rw-"},
         {"name": "DWIRE32A_OCD", "start": "0xC0004000", "end": "0xC00040FF", "size_kb": 1, "perms": "rw-"},
         {"name": "ATA_IDE_MMIO", "start": "0xD4000000", "end": "0xD4000FFF", "size_kb": 4, "perms": "rw-"},

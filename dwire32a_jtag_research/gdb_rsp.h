@@ -93,6 +93,11 @@ typedef struct am34_reg_file {
  */
 void gdb_rsp_init(void);
 
+#if defined(PICO_HOST_TEST) && (PICO_HOST_TEST != 0)
+void gdb_rsp_test_inject_packet(const char *payload);
+void gdb_rsp_test_get_last_response(char *out, size_t max_len);
+#endif
+
 /**
  * @brief Check if GDB RSP server mode is currently active.
  *

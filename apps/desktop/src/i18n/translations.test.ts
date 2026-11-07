@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { translations, TranslationKey } from './translations';
 import { useTranslation, setGlobalLocale, getGlobalLocale } from './useTranslation';
+import { useManualsSearch } from '../viewmodels/useManualsSearch';
 import { renderHook, act } from '@testing-library/react';
 
 describe('i18n strictly-typed translations', () => {
@@ -41,5 +44,43 @@ describe('i18n strictly-typed translations', () => {
     expect(result.current.locale).toBe('pt-BR');
     expect(result.current.t('rag.title')).toBe('Assistente Técnico RAG Zero-Erro');
     expect(result.current.t('manuals.header.badge')).toBe('INDEXAÇÃO LOCAL RÁPIDA');
+  });
+
+  it('reactively updates ViewModel error message on locale switch (OPUS-09)', async () => {
+    const { result } = renderHook(() => useManualsSearch());
+
+    // Trigger error by searching empty query
+    act(() => {
+      result.current.setQuery('');
+    });
+
+    await act(async () => {
+      await result.current.executeSearch();
+    });
+
+    expect(result.current.errorMessage).toBe('Please enter a search keyword or part code.');
+
+    // Switch locale globally to pt-BR
+    act(() => {
+      setGlobalLocale('pt-BR');
+    });
+
+    expect(result.current.errorMessage).toBe('Por favor, digite uma palavra-chave ou código de componente.');
+  });
+
+  it('verifies all Views integrate useTranslation strictly (OPUS-09 Static Scanner)', () => {
+    const viewsDir = path.resolve(__dirname, '../views');
+    const files = fs.readdirSync(viewsDir).filter(f => f.endsWith('.tsx'));
+
+    expect(files.length).toBeGreaterThanOrEqual(6);
+
+    for (const file of files) {
+      const filePath = path.join(viewsDir, file);
+      const content = fs.readFileSync(filePath, 'utf-8');
+
+      // Every view must import and invoke useTranslation
+      expect(content).toContain('useTranslation');
+      expect(content).toMatch(/const\s+\{\s*t(?:\s*,\s*locale)?\s*\}\s*=\s*useTranslation\(\)/);
+    }
   });
 });

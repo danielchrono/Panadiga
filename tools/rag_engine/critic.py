@@ -14,6 +14,7 @@ from .config import (
 from .guardrails import QueryGuard
 from .indexer import STOPWORDS
 from .models import Chunk, CriticReport, EntityType, Query, RetrievalResult
+from .safety_invariants import extract_voltages_volts
 
 
 class RetrievalCritic:
@@ -105,17 +106,8 @@ class FactCritic:
 
     @staticmethod
     def _extract_voltages(text: str) -> Set[float]:
-        """Extracts voltage numbers as floating point values."""
-        matches = FactCritic.VOLTAGE_REGEX.findall(text)
-        volts: Set[float] = set()
-        for m in matches:
-            num = re.search(r"\d+(?:\.\d+)?", m)
-            if num:
-                try:
-                    volts.add(float(num.group(0)))
-                except ValueError:
-                    pass
-        return volts
+        """Extracts voltage numbers as normalized floating point values in Volts."""
+        return {v[0] for v in extract_voltages_volts(text)}
 
     def audit(self, generated_text: str, source_chunks: List[Chunk]) -> CriticReport:
         """Audits generated technical entities against retrieved source chunks."""

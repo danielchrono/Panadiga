@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useFrmCryptoViewModel, FrmTab } from '@/viewmodels/useFrmCryptoViewModel';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
+import { useTranslation } from '@/i18n/useTranslation';
 import {
   Lock,
   KeyRound,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react';
 
 export const FrmCryptoView: React.FC = () => {
+  const { t } = useTranslation();
   const {
     cryptReport,
     tocReport,

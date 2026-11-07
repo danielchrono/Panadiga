@@ -1,6 +1,7 @@
 //! Panasonic DMR-EH55 DIGA Engineering Suite - Desktop Backend Entrypoint
 
 pub mod commands;
+pub mod pico;
 pub mod pico_serial;
 
 use commands::*;

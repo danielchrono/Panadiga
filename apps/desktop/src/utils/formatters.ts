@@ -1,0 +1,53 @@
+/**
+ * Functional Programming (FP) Pure Formatting Utilities
+ * All functions are pure, deterministic, and free of side effects.
+ */
+
+/**
+ * Pure function: formats a 32-bit unsigned number into 8-digit uppercase hex representation with 0x prefix.
+ *
+ * @param val Number to format
+ * @param defaultVal Fallback string when undefined or null
+ * @returns Formatted hex string e.g. "0x80000000"
+ */
+export const formatHex32 = (val: number | undefined | null, defaultVal = '0x00000000'): string => {
+  if (val === undefined || val === null || isNaN(val)) {
+    return defaultVal;
+  }
+  return `0x${(val >>> 0).toString(16).padStart(8, '0').toUpperCase()}`;
+};
+
+/**
+ * Pure function: formats a float voltage into a 2-decimal string.
+ *
+ * @param volts Measured voltage
+ * @returns Formatted string e.g. "3.32"
+ */
+export const formatVoltage = (volts: number | undefined | null): string => {
+  if (volts === undefined || volts === null || isNaN(volts)) {
+    return '0.00';
+  }
+  return volts.toFixed(2);
+};
+
+/**
+ * Pure predicate: determines whether target reference voltage indicates a powered board.
+ *
+ * @param volts Measured voltage
+ * @param threshold Minimum voltage threshold (defaults to 2.5V)
+ * @returns boolean
+ */
+export const isTargetPowered = (volts: number | undefined | null, threshold = 2.5): boolean => {
+  if (volts === undefined || volts === null || isNaN(volts)) {
+    return false;
+  }
+  return volts >= threshold;
+};
+
+/**
+ * Pure function: formats millisecond duration into human-readable latency.
+ */
+export const formatElapsedMs = (ms: number | undefined | null): string => {
+  if (!ms || ms < 0) return '0ms';
+  return `${ms.toLocaleString()}ms`;
+};

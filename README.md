@@ -105,7 +105,7 @@ flowchart LR
 A topologia de arquivos do repositório foi projetada seguindo as melhores práticas de engenharia de software e hardware, sem acoplamento a caminhos absolutos locais:
 
 ```text
-Panasonic Firmware HDD bin/
+Panadiga/
 │
 ├── Cargo.toml                                         <-- Configuração mestre do Workspace Rust (Manifesto raiz unificado: Pacote panadiga + Workspace Tauri)
 ├── Cargo.lock                                         <-- Árvore de dependências determinísticas compiladas

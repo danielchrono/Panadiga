@@ -248,7 +248,7 @@ fn test_opus_10_voltage_parser_comprehensive() {
 #[test]
 fn test_opus_11_subsystem_determination() {
     let indexer = HierarchicalIndexer::new();
-    let fake_path = Path::new("c:/Users/danie/Documents/Panasonic Firmware HDD bin/docs/blueprint_esquema_eletrico_bancada.md");
+    let fake_path = Path::new("docs/blueprint_esquema_eletrico_bancada.md");
     let subsystem = indexer.determine_subsystem(fake_path, "CN55001 DWire32A Schematic");
     assert_eq!(subsystem, SubsystemType::Hardware);
 }

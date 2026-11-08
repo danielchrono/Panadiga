@@ -127,7 +127,7 @@ Uma dúvida comum em arquiteturas modernas é a escolha entre linguagens para si
 O técnico em laboratório que precisa consertar um Panasonic DMR-EH55 travado no erro `U99` não deve ser obrigado a instalar Python, configurar `pip`, resolver conflitos de ambiente virtual (`venv`) ou compilar pacotes C. O instalador do Panadiga Desktop gera um executável único que funciona instantaneamente.
 
 ### Por que o Servidor MCP está em Python?
-O Model Context Protocol (MCP) é um protocolo da camada de **desenvolvimento assistido por IA**. O servidor MCP em [`tools/panadiga_mcp_server.py`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/panadiga_mcp_server.py) roda na máquina do engenheiro enquanto ele conversa com o assistente inteligente (como Claude, Cursor ou Gemini). Em Python, o servidor atua como orquestrador dinâmico capaz de ler PDFs, invocar a CLI em Rust e executar verificações sem exigir recompilação do workspace a cada novo recurso de IA.
+O Model Context Protocol (MCP) é um protocolo da camada de **desenvolvimento assistido por IA**. O servidor MCP em [`tools/panadiga_mcp_server.py`](../tools/panadiga_mcp_server.py) roda na máquina do engenheiro enquanto ele conversa com o assistente inteligente (como Claude, Cursor ou Gemini). Em Python, o servidor atua como orquestrador dinâmico capaz de ler PDFs, invocar a CLI em Rust e executar verificações sem exigir recompilação do workspace a cada novo recurso de IA.
 
 ---
 
@@ -164,8 +164,8 @@ Se estiver utilizando uma IDE integrada (como Cursor, Antigravity ou Claude Desk
 ## 6. Histórico de Testes e Confiabilidade
 
 O subsistema possui cobertura completa de testes unitários e de integração em ambos os ecossistemas:
-* **Rust Workspace (Gate 1):** 17 testes unitários em [`src/rag/tests.rs`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/src/rag/tests.rs) validando resistência a prompt injection, tolerância a negações direcionadas, bloqueio estrito de wipe no IPL e interceptação de sobretensão.
-* **Python Pytest (Gate 9):** 17 testes em [`tools/rag_engine/tests/test_rag_zero_error.py`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/rag_engine/tests/test_rag_zero_error.py) auditados com `mypy --strict`.
+* **Rust Workspace (Gate 1):** 17 testes unitários em [`src/rag/tests.rs`](../src/rag/tests.rs) validando resistência a prompt injection, tolerância a negações direcionadas, bloqueio estrito de wipe no IPL e interceptação de sobretensão.
+* **Python Pytest (Gate 9):** 17 testes em [`tools/rag_engine/tests/test_rag_zero_error.py`](../tools/rag_engine/tests/test_rag_zero_error.py) auditados com `mypy --strict`.
 
 ---
 

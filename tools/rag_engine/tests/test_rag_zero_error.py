@@ -228,6 +228,6 @@ def test_opus_11_subsystem_determination() -> None:
     """OPUS-11: Verifies that directory paths with 'hdd' in root do not misclassify hardware schematics."""
     from tools.rag_engine.indexer import HierarchicalIndexer
     indexer = HierarchicalIndexer()
-    fake_path = "c:/Users/danie/Documents/Panasonic Firmware HDD bin/docs/blueprint_esquema_eletrico_bancada.md"
+    fake_path = "docs/blueprint_esquema_eletrico_bancada.md"
     subsystem = indexer.determine_subsystem(fake_path, "CN55001 DWire32A Schematic")
     assert subsystem == SubsystemType.HARDWARE

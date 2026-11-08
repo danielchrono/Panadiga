@@ -83,7 +83,7 @@ flowchart LR
 
 ### Passo 1: Iniciar a Ponte no Terminal
 
-Com a placa do DMR-EH55 conectada ao Raspberry Pi Pico via cabo JST ZR 1.5mm (alojamento ZHR-6) (veja o [Guia de Bancada](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)), abra um terminal no PC e inicie a ponte:
+Com a placa do DMR-EH55 conectada ao Raspberry Pi Pico via cabo JST ZR 1.5mm (alojamento ZHR-6) (veja o [Guia de Bancada](../dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)), abra um terminal no PC e inicie a ponte:
 
 ```bash
 # Identifique a porta COM do seu Pico (ex: COM3)

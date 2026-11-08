@@ -141,6 +141,31 @@ jobs:
           tar -czvf "${{ matrix.platform.archive_name }}" -C "$staging" .
           shasum -a 256 "${{ matrix.platform.archive_name }}" > "${{ matrix.platform.archive_name }}.sha256"
 
+          # Linux Package Generation: Debian / Ubuntu (.deb)
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            echo "[*] Building Debian package (.deb)..."
+            deb_dir="panadiga_deb_pkg"
+            mkdir -p "$deb_dir/DEBIAN"
+            mkdir -p "$deb_dir/usr/bin"
+            mkdir -p "$deb_dir/usr/share/panadiga"
+            cp "${{ matrix.platform.cli_bin }}" "$deb_dir/usr/bin/panadiga"
+            cp "${{ matrix.platform.desktop_bin }}" "$deb_dir/usr/bin/panadiga-desktop"
+            chmod 755 "$deb_dir/usr/bin/panadiga" "$deb_dir/usr/bin/panadiga-desktop"
+            cp -r tools "$deb_dir/usr/share/panadiga/tools"
+            cat << 'EOF' > "$deb_dir/DEBIAN/control"
+Package: panadiga
+Version: 0.1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Maintainer: OrgChrono Engineering <support@orgchrono.com>
+Depends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1
+Description: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite
+EOF
+            dpkg-deb --build "$deb_dir" "panadiga-linux-amd64.deb"
+            shasum -a 256 "panadiga-linux-amd64.deb" > "panadiga-linux-amd64.deb.sha256"
+          fi
+
       - name: Upload Release Archive
         uses: actions/upload-artifact@v4
         with:
@@ -148,6 +173,8 @@ jobs:
           path: |
             ${{ matrix.platform.archive_name }}
             ${{ matrix.platform.archive_name }}.sha256
+            *.deb
+            *.deb.sha256
           retention-days: 14
 
       - name: Publish to GitHub Release
@@ -157,6 +184,8 @@ jobs:
           files: |
             ${{ matrix.platform.archive_name }}
             ${{ matrix.platform.archive_name }}.sha256
+            *.deb
+            *.deb.sha256
           generate_release_notes: true
           draft: false
           prerelease: false

@@ -56,11 +56,11 @@ flowchart TD
 * **Como Funciona:**
   1. No Panadiga Desktop, clique em **"Iniciar Servidor GDB"** (ou use a CLI `panadiga pico gdb-bridge`).
   2. O servidor abre o socket `127.0.0.1:3333` e o canal USB CDC com a Raspberry Pi Pico.
-  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.bat`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/conectar_gdb_multiarch.bat) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
+  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.bat`](../tools/conectar_gdb_multiarch.bat) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
   4. O usuário pode pausar (`Ctrl+C`), inspecionar registradores (`info registers`), ler memória (`x/16wx 0x807FE000`) e executar instruções passo-a-passo (`stepi`).
 
 ### 2.2 NSA Ghidra (Descompilador & Ghidra Debugger)
-Ghidra é a ferramenta primária de descompilação de código estático e análise dinâmica. A suíte Panadiga fornece 3 scripts dedicados em [`tools/`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/):
+Ghidra é a ferramenta primária de descompilação de código estático e análise dinâmica. A suíte Panadiga fornece 3 scripts dedicados em [`tools/`](../tools/):
 
 1. **`ghidra_am34_memory_map.py` (Mapeador de Barramento):**
    - Cria no Ghidra as regiões exatas da placa mãe:
@@ -77,14 +77,14 @@ Ghidra é a ferramenta primária de descompilação de código estático e anál
    - O código descompilado do Ghidra sincroniza com a posição física do registrador PC da CPU Panasonic DMR-EH55.
 
 ### 2.3 OpenOCD (Open On-Chip Debugger)
-* **Arquivo de Configuração:** [`dwire32a_jtag_research/openocd_panasonic_am34.cfg`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/dwire32a_jtag_research/openocd_panasonic_am34.cfg).
-* **Disparador:** Botão **"OpenOCD AM34"** no Panadiga Desktop ou [`tools/executar_openocd.bat`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/executar_openocd.bat).
+* **Arquivo de Configuração:** [`dwire32a_jtag_research/openocd_panasonic_am34.cfg`](../dwire32a_jtag_research/openocd_panasonic_am34.cfg).
+* **Disparador:** Botão **"OpenOCD AM34"** no Panadiga Desktop ou [`tools/executar_openocd.bat`](../tools/executar_openocd.bat).
 * **Recursos:**
   - Procedimento TCL `panasonic_cold_break_in` automatizado.
   - Comandos para dump de setores e gravação de emergência.
 
 ### 2.4 HxD Hex Editor Portable
-* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](file:///c:/Users/danie/Documents/Panasonic%20Firmware%20HDD%20bin/tools/Abrir_HxD.bat).
+* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](../tools/Abrir_HxD.bat).
 * **Disparador:** Botão **"HxD Editor"** na interface web.
 * **Uso:** Inspeção imediata dos dumps de NVRAM, firmware Spansion e setores LBA do disco MEIHDFS sem depender de instalações no Windows.
 

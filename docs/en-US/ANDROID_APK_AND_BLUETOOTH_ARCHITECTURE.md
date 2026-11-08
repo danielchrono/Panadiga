@@ -1,5 +1,5 @@
 # Mobile Architecture (Android APK) and Wireless Connectivity (Bluetooth Low Energy)
-## Panadiga Workbench Mobile — Systems Engineering and Communication Specification
+## Panadiga Workbench Mobile — Native Rust Hardware Abstraction Layer Specification
 
 > **Classification:** Systems Architecture and Hardware Engineering Specification  
 > **Target Devices:** Android Mobile Devices (`aarch64-linux-android`) & Raspberry Pi Pico / Pico W / Pico 2 Probes  
@@ -16,17 +16,19 @@ To facilitate field bench operations, rapid forensic triage, and galvanic isolat
 flowchart TD
     subgraph Mobile["Android Mobile Station (Smartphone / Tablet)"]
         direction TB
-        UI["Reactive Panadiga Interface<br/>(React 18 + Tailwind CSS + TypeScript)"]
-        WEBVIEW["Android System WebView (Modern Chromium)<br/>Web Bluetooth API (navigator.bluetooth)<br/>WebUSB API (navigator.usb)"]
-        TAURI_RUST["Tauri 2 Mobile Core (Rust)<br/>aarch64-linux-android<br/>Zero Kotlin/Java Handcrafted Code"]
-        UI <--> WEBVIEW
-        WEBVIEW <--> TAURI_RUST
+        UI["Reactive Panadiga Interface<br/>(React 18 + Tailwind CSS + TypeScript)<br/>Strict Presentation Layer (View / ViewModel)"]
+        IPC["Typed Tauri IPC Bridge (invoke / listen)<br/>Zero Base64 / Zero WebView Shims"]
+        TAURI_RUST["Tauri 2 Mobile Core & Native HAL (Rust)<br/>aarch64-linux-android<br/>Direct Port & Socket Management"]
+        UI <--> IPC
+        IPC <--> TAURI_RUST
     end
 
-    subgraph RF["Physical Transport Layer (Wireless or OTG)"]
+    subgraph NativeHAL["Native Rust Infrastructure Layer (Zero Kotlin)"]
         direction LR
-        BLE["Bluetooth Low Energy (BLE 5.0)<br/>Nordic UART Service (NUS)<br/>Latency: ~15-25 ms | MTU: 247 bytes"]
-        USB_OTG["USB-C OTG Cable<br/>Native CDC Serial ACM/FTDI<br/>Latency: < 1 ms | Baud: 115200 bps"]
+        BLE_CORE["Native BLE Driver in Rust<br/>Nordic UART Service (NUS)<br/>NDK / BluetoothAdapter Bridge"]
+        USB_CORE["Native USB Serial CDC Driver in Rust<br/>tauri-plugin-serialport / NDK USB Host<br/>Baud: 115200 bps | Latency: < 1 ms"]
+        TAURI_RUST --- BLE_CORE
+        TAURI_RUST --- USB_CORE
     end
 
     subgraph Probe["Microcontroller Bench Probe"]
@@ -45,24 +47,30 @@ flowchart TD
         P7501 <--> MN2DS
     end
 
-    Mobile <==>|BLE or USB-C OTG| Probe
+    NativeHAL <==>|BLE (NUS) or USB-C OTG| Probe
     Probe <==>|DWire32A Half-Duplex Synchronous Bus (3.3V)| Target
 ```
 
 ---
 
-## 2. Architectural Decision: Zero Kotlin / 100% Rust + TypeScript
+## 2. Architectural Decision: Native Rust HAL via Tauri 2.0 (Zero Kotlin / Zero WebUSB)
 
-The mobile client architecture is strictly governed by the principles of **Maintainability, Universal Portability, and Zero Code Duplication (DRY)**:
+The mobile client architecture is governed by the principles of **Separation of Concerns (SoC), Clean Architecture, and Real-Time Determinism**:
 
-1. **Unified UI Presentation Layer (Single Source of Truth)**:
-   - The exact same React/TypeScript suite used on desktop (Windows, Linux, macOS) runs on Android via **Tauri 2 Mobile**.
-   - Reactive UI components bind to identical ViewModels structured with closed state machines (Discriminated Unions / ADTs).
-2. **Hardware Access Without Glue Code in Kotlin**:
-   - **Primary Path (Web Bluetooth & WebUSB)**: The Android System WebView natively exposes W3C specifications for `navigator.bluetooth` and `navigator.usb`. Device pairing with Pico W triggers native Android OS dialogs without writing custom Android activities or adapters in Kotlin.
-   - **Secondary Path (Official Tauri 2 Plugins)**: Where WebViews enforce sandbox restrictions, official Tauri 2 plugins bundle underlying JNI drivers, providing typed APIs directly to Rust and TypeScript.
-3. **Lean Footprint & Efficiency**:
-   - Zero bulky dependencies on heavy mobile UI frameworks (Jetpack Compose, Android Studio heavy libraries). The compiled `.apk` binary remains small (~15 MB) and optimized for low-latency hardware telemetry.
+### 2.1 Technical Refutation of WebUSB / Web Bluetooth in WebView (Path 1)
+Using WebUSB (`navigator.usb`) and Web Bluetooth (`navigator.bluetooth`) from the WebView JavaScript engine was explicitly **rejected** for core engineering reasons:
+1. **Android WebView Security Sandbox (`android.webkit.WebView`)**: The default Android WebView disables WebUSB by Google security policy. Enabling it would require authoring custom Java/Kotlin subclasses of `WebChromeClient` with manual wrappers around `android.hardware.usb.UsbManager`, violating the requirement of zero handcrafted Kotlin.
+2. **Dependency Inversion Violation**: Hardware communication belongs strictly in the **Infrastructure / Hardware Abstraction Layer (HAL)**. Implementing device drivers in TypeScript couples hardware transport lifecycles to React UI component mounting.
+3. **Garbage Collection (GC) Jitter & Serialization Overhead**: AM34 in-circuit debugging via GDB RSP requires sub-millisecond lexical packet turnaround. In the V8 engine, unpredictable GC pauses and Base64/JSON payload conversion introduce unacceptable latency into single-step (`$s#...`) and register dump (`$g#...`) operations.
+
+### 2.2 The Approved Strategy: Native Rust HAL via Tauri 2.0 Core (Path 2)
+1. **Native Rust Transport Layer**:
+   - All USB CDC serial port control (`/dev/bus/usb`, ch34x, cdc-acm, FTDI) and Bluetooth Low Energy handling reside **100% inside the Rust Core Engine**, using official Tauri 2 plugins (`tauri-plugin-serialport` and native Rust BLE crates for Linux/Android).
+   - Tauri 2 bundles the underlying JNI/NDK bindings internally, completely removing any need for manual Java or Kotlin code.
+2. **Frontend Strictly as Presentation (View/ViewModel)**:
+   - The React 18 / TypeScript interface has no direct knowledge of hardware buses. It strictly invokes strongly typed IPC commands (`invoke('pico_connect_usb')`, `invoke('pico_connect_ble')`) and listens to the unified logging event bus.
+3. **Zero-Copy Processing over Immutable Slices (`&[u8]`)**:
+   - Incoming RSP frames and probe telemetry arrive directly in Rust, are validated over immutable byte slices without serialization overhead, and are recorded to the `GdbTelemetryRingBuffer`.
 
 ---
 
@@ -74,8 +82,8 @@ The Raspberry Pi Pico W / Pico 2W firmware exposes the standard **Nordic UART Se
 | GATT Attribute | Canonical UUID | Properties | Purpose |
 | :--- | :--- | :--- | :--- |
 | **Service (NUS)** | `6E400001-B5A3-F393-E0A9-E50E24DCCA9E` | Primary Service | Transparent virtual serial stream over BLE |
-| **RX Characteristic** | `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` | Write Without Response / Write | Commands sent from Android to Pico (e.g., Cold Break-In, GDB RSP) |
-| **TX Characteristic** | `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` | Notify / Read | Telemetry streams and register responses from Pico to Android |
+| **RX Characteristic** | `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` | Write Without Response / Write | Commands sent from Rust Core to Pico (e.g., Cold Break-In, GDB RSP) |
+| **TX Characteristic** | `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` | Notify / Read | Telemetry streams and register responses from Pico to Rust Core |
 
 ### 3.2 Nanosecond Bus Timing vs. Bluetooth Latency
 A common engineering question is whether Bluetooth latency compromises nanosecond-accurate silicon bus timings:
@@ -84,7 +92,7 @@ A common engineering question is whether Bluetooth latency compromises nanosecon
 > **Bluetooth NEVER bit-bangs the hardware bus directly.**  
 > The Matsushita DWire32A protocol operates at a synchronous **1.00 MHz** clock with bus turnaround times of **$1.0\,\mu\text{s}$** and single-cycle instruction timings of **$\sim 7.5\,\text{ns}$** (at 133 MHz RP2040 clock).  
 > All time-critical operations are executed **locally by the hardware PIO (Programmable I/O) coprocessor** on the Pico board.  
-> The Bluetooth channel operates solely on the upper transport layer (exchanging high-level RSP packets and diagnostic telemetry), where latencies of $15\text{ ms}$ to $25\text{ ms}$ are completely transparent to the user and the asynchronous GDB RSP protocol.
+> The Bluetooth channel operates solely on the upper transport layer (asynchronously streaming command and telemetry frames managed by the native Rust HAL), where latencies of $15\text{ ms}$ to $25\text{ ms}$ are completely transparent to the user and the asynchronous GDB RSP protocol.
 
 ---
 
@@ -135,7 +143,7 @@ sequenceDiagram
     GA->>SDK: Configures ANDROID_HOME and NDK_HOME
     GA->>RUST: Adds toolchain aarch64-linux-android
     GA->>TAURI: Runs npx tauri android build --apk
-    TAURI->>RUST: Compiles native libpanadiga.so in Rust
+    TAURI->>RUST: Compiles native libpanadiga.so in Rust (with serial & BLE HAL)
     TAURI->>SDK: Bundles Web assets and packages debug APK
     TAURI-->>ART: Uploads Panadiga-Workbench-Android-arm64.apk
 ```
@@ -158,3 +166,18 @@ npx tauri android build --apk --target aarch64-linux-android
 
 The resulting output APK is saved to:
 `apps/desktop/src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk`
+
+---
+
+## 6. Field Operation Runbook
+
+1. **Powering the Probe**: Power the Raspberry Pi Pico W from an external 5V powerbank or bench supply. The on-board LED indicates BLE advertising.
+2. **Safe Mechanical Mating**: With the Panasonic unit unplugged from AC mains, mate the JST ZR 1.5mm connector to header `P7501` on PCB `VEP79138`.
+3. **App Initialization**: Launch **Panadiga Mobile** on the Android device.
+4. **Pairing via Native Rust HAL**:
+   - Tap **"Connect BLE (Pico W)"**.
+   - The native Rust core scans and connects directly to the Nordic UART Service (`6E400001-...`).
+5. **Telemetry and Unbrick**:
+   - Power on the DMR-EH55. The **VDD Sense** indicator turns green ($3.3\text{V}$).
+   - Execute **Cold Break-In** to halt AM34 execution before IPL boot.
+   - Run NVRAM surgical sanitization or attach remote GDB sessions with zero GC jitter.

@@ -17,7 +17,7 @@ O repositório está estruturado em subsistemas integrados e desacoplados:
 2. **Desktop & Mobile Workbench (`apps/desktop/`)**:
    - Interface gráfica construída com **Tauri 2**, **React 18**, **TypeScript**, **Tailwind CSS**, **Vitest** e **Playwright**.
    - **Alvo Desktop**: Windows (x64), Linux (`.deb` / `tar.gz`), macOS (ARM64).
-   - **Alvo Mobile**: Android APK (`aarch64-linux-android`) com suporte a Web Bluetooth (Nordic UART Service - NUS) e USB-C OTG sem necessidade de código Kotlin.
+   - **Alvo Mobile**: Android APK (`aarch64-linux-android`) com HAL nativa em Rust (BLE Nordic UART Service / USB CDC OTG) sem necessidade de código Kotlin.
    - Fornece módulos visuais para visualização do HDD MEIHFS, cirurgia de NVRAM Spansion, telemetria do Pico e terminal serial desacoplado.
 3. **Firmware C11 & Emulador PIO (`dwire32a_jtag_research/`)**:
    - Máquina de estados PIO (`dwire32a.pio`) e firmware C11 para Raspberry Pi Pico (RP2040) e Pico 2 (RP2350) com suporte a rádio sem fio (Pico W / Pico 2W via CYW43439).

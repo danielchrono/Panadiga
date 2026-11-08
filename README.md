@@ -38,7 +38,7 @@ O fluxo abaixo descreve as relações físicas, elétricas e lógicas entre o ho
 flowchart LR
     subgraph Host["Bancada Técnica & Host de Engenharia"]
         direction TB
-        PC["Estação Desktop (Win/Linux/macOS) & Mobile (.apk)"]
+        PC["Estação Desktop (Win/Linux/macOS) & Mobile Android (.apk)<br/>HAL Nativa em Rust (Zero Kotlin / Zero WebUSB)"]
         RP2040["Raspberry Pi Pico (RP2040)<br/>Dual Cortex-M0+ @ 133 MHz<br/>Firmware C & Máquina PIO<br/>Transceptor DWire32A Half-Duplex"]
         PROG["Gravador Universal TSOP-48<br/>(XGecu T48 / SVOD 4 / TL866II)<br/>Soquete ZIF v3"]
         PC <-->|USB CDC / UART / Cargo| RP2040
@@ -878,7 +878,7 @@ Para aprofundamento específico em cada área de engenharia, consulte o acervo o
 * 🏛️ **[Arquitetura de Sistemas e Blueprint de Engenharia](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md)** ([English Mirror](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md))  
   *Especificação mestre do ecossistema: decomposição de monólitos, Pure FP domain (`&[u8]`), MVVM rigoroso com ADTs, GDB RSP introspectivo com anel circular de telemetria sem perdas, logging unificado e invariantes do SoC MN2DS0016.*
 * 📱 **[Arquitetura Mobile Android e Conectividade Sem Fio BLE](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md)** ([English Mirror](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md))  
-  *Especificação técnica do APK Android (`aarch64-linux-android`), Web Bluetooth / Nordic UART Service (NUS), USB-C OTG, temporização em nanossegundos vs latência BLE, proibição absoluta de alimentar o Pico pelo conector P7501 e pipeline CI/CD.*
+  *Especificação técnica do APK Android (`aarch64-linux-android`), HAL nativa em Rust (BLE Nordic UART Service / USB CDC OTG), temporização em nanossegundos vs latência BLE, proibição absoluta de alimentar o Pico pelo conector P7501 e pipeline CI/CD.*
 * 🧪 **[Arquitetura de Testes, Matriz de Rastreabilidade e Conformidade](docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md)** ([English Mirror](docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md))  
   *Pirâmide de testes em 5 camadas (Pure FP, HAL/GDB, MVVM/UI, CLI SSOT, E2E CI/CD), matriz de rastreabilidade completa, política de 0% de duplicação (`jscpd`) e relatório dos 9 Quality Gates.*
 * ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/pt-BR/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)** ([English Mirror](docs/en-US/BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md))  

@@ -13,7 +13,7 @@ High-standard engineering documentation, technical blueprints, and specification
 | Document | Technical Domain | Description |
 | :--- | :--- | :--- |
 | [**SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md**](en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md) | Systems Architecture | Master specification: modular decomposition, Pure FP domain, strict MVVM, GDB ring buffer, and silicon invariants. |
-| [**ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md**](en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md) | Mobile / Wireless | Android APK (`aarch64-linux-android`), Web Bluetooth / Nordic UART Service (NUS), USB-C OTG, and P7501 power rules. |
+| [**ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md**](en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md) | Mobile / Wireless | Android APK (`aarch64-linux-android`), Native Rust HAL (BLE NUS / USB-C OTG), and P7501 power rules. |
 | [**TESTING_ARCHITECTURE_AND_COMPLIANCE.md**](en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md) | Quality & Verification | 5-layer test pyramid (Pure FP, GDB RSP, MVVM ADTs, CLI SSOT, E2E), traceability matrix, and CI/CD verification status. |
 | [**BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md**](en-US/BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md) | Hardware / Electronics | Wiring harness, P7501 connector pinout, RP2040 hookup, prototype vs production resistors. |
 | [**STORAGE_ARCHITECTURE_MEIHDFS_PARTITIONS.md**](en-US/STORAGE_ARCHITECTURE_MEIHDFS_PARTITIONS.md) | Storage / Forensics | Panasonic MEIHFS, LBA 0 "SH" MBR, 28 MB mirror, 8 MB journal, and firmware partitions. |
@@ -35,7 +35,7 @@ Documentação exaustiva de bancada, esquemáticos e manuais de engenharia rever
 | Dossiê | Domínio Técnico | Descrição |
 | :--- | :--- | :--- |
 | [**ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md**](pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md) | Arquitetura de Sistemas | Especificação mestre: decomposição modular, Pure FP domain, MVVM rigoroso, anel GDB e invariantes de silício. |
-| [**ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md**](pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md) | Mobile / Sem Fio | APK Android (`aarch64-linux-android`), Web Bluetooth / Nordic UART Service (NUS), USB OTG e isolamento da porta P7501. |
+| [**ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md**](pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md) | Mobile / Sem Fio | APK Android (`aarch64-linux-android`), HAL nativa em Rust (BLE NUS / USB-C OTG) e isolamento da porta P7501. |
 | [**ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md**](pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md) | Qualidade & Testes | Pirâmide de testes em 5 camadas (Pure FP, GDB RSP, MVVM ADTs, CLI SSOT, E2E), matriz de rastreabilidade e status CI/CD. |
 | [**BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md**](pt-BR/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md) | Hardware / Eletrônica | Esquema de bancada, conector P7501, RP2040, disclaimer de protótipo vs produto final. |
 | [**ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md**](pt-BR/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md) | Armazenamento / MEIHDFS | MBR 'SH' em LBA 0, espelho a 28 MB, journal transacional e partições de firmware. |

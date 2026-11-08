@@ -82,15 +82,20 @@ Abaixo está o desenho mecânico vetorial de engenharia, extraído diretamente d
    Exatos **$1.50\text{ mm}$** centro-a-centro. Comprimento total da carcaça plástica: $10.50\text{ mm}$.
 
 ```text
-       ORIENTAÇÃO FÍSICA NA PLACA VEP79138 (CONTAGEM DA ESQUERDA P/ A DIREITA: 10V -> 8V)
-            ┌───────────┐
-     Pino 1 │ ■ EXTRG   │ [PAD QUADRADO] Gatilho Externo OCD / Break [Pino 6 do Manual]
-     Pino 2 │ ● SCLK    │ [Pad Circular] Clock Síncrono DWire32A (Master 1.0 MHz) [Pino 5 do Manual]
-     Pino 3 │ ● GND     │ [Pad Circular] Ground Comum (0.0Ω COM A LATA DO CHASSI!) [Pino 4 do Manual]
-     Pino 4 │ ● SDATA   │ [Pad Circular] Dados Half-Duplex (Pull-up 4.7kΩ p/ 3.3V) [Pino 3 do Manual]
-     Pino 5 │ ● nRESET  │ [Pad Circular] Linha de Reset Mestre (Open-Drain) [Pino 2 do Manual]
-     Pino 6 │ ● VDD     │ [Pad Circular] Target Power Sense (+3.3V Referência) [Pino 1 do Manual]
-            └───────────┘
+       ORIENTAÇÃO MECÂNICA DO CONECTOR P7501 [B6B-ZR-3R4] (PINAGEM CANÔNICA DO MANUAL)
+       Parede Traseira Grossa (0.60mm) voltada p/ o interior da placa (acima)
+       Janela de Trava voltada p/ a borda frontal da PCB (abaixo)
+       
+       Flat 10 Vias (FP50003)                                         Flat 8 Vias (FP50004)
+       [À Esquerda]                                                            [À Direita]
+            ┌──────────────────────────────────────────────────────────────┐
+     Pino 6 │ ■ EXTRG   [PAD QUADRADO] Gatilho Externo OCD / Break         │
+     Pino 5 │ ● SCLK    [Pad Circular] Clock Síncrono DWire32A (1.0 MHz)   │
+     Pino 4 │ ● GND     [Pad Circular] Terra Canônico (0.0Ω ao Chassi!)   │
+     Pino 3 │ ● SDATA   [Pad Circular] Dados Half-Duplex DWire32A          │
+     Pino 2 │ ● nRESET  [Pad Circular] Linha de Reset Mestre (XRST 0V)     │
+     Pino 1 │ ● VDD     [Pad Circular] Target Power Sense (+3.3V Ref)      │
+            └──────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -117,14 +122,14 @@ Abaixo está o diagrama elétrico oficial de engenharia, desenhado rigorosamente
 
 ### 4.1 Tabela de Conexões e Mapeamento Sequencial Pino a Pino (1 a 6)
 
-| Pino Esquemático P7501 (Manual) | Pino Físico (10V $\rightarrow$ 8V) | Sinal Matsushita | Pino RP2040 (Pico) | Rede de Proteção (Bancada) | Veredito de Bancada |
-| :---: | :---: | :---: | :---: | :---: | :--- |
-| **Pino 1** | **Pino 6** | `VDD Sense` | `GP26 / ADC0` (Pino 31) | Resistor série de $1.0\text{ k}\Omega$ | **OPCIONAL** (Monitoramento da linha de 3.3V; pode ligar direto) |
-| **Pino 2** | **Pino 5** | `nRESET` | `GP5` (Pino 7) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Modo Open-Drain obrigatório; jumper direto OK) |
-| **Pino 3** | **Pino 4** | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ | **RECOMENDADO** (Fio direto OK se cabo $\le 15\text{cm}$ com pull-up interno) |
-| **Pino 4** | **Pino 3** | **`GND`** | **Pino 38 (`GND`)** | **Ligação direta de baixa impedância** | **MANDATÓRIO: $0.0\,\Omega$ com a lata metálica do chassi!** |
-| **Pino 5** | **Pino 2** | `SCLK` | `GP3` (Pino 5) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Clock master 1.0 MHz; jumper direto OK) |
-| **Pino 6** | **Pino 1** | `EXTRG` | `GP2` (Pino 4) | Resistor série de $100\,\Omega$ | **OPCIONAL** (Pad quadrado na PCB; jumper direto OK) |
+| Pino Canônico (Manual / P7501) | Sinal Matsushita | Pino RP2040 (Pico) | Topografia & Chicote Fêmea ZHR-6 | Veredito de Bancada (Protótipo vs Produto Acabado) |
+| :---: | :---: | :---: | :--- | :--- |
+| **Pino 1** | `VDD Sense` | `GP26 / ADC0` (Pino 31) | Pino mais à direita (junto ao Flat 8V `FP50004`). Fio 1 do chicote fêmea `ZHR-6`. | **ABSOLUTAMENTE DESNECESSÁRIO EM PROTÓTIPOS $\le 15\text{ cm}$** (Fio direto OK). Resistor de $1.0\text{ k}\Omega$ recomendado em bancadas permanentes. |
+| **Pino 2** | `nRESET` | `GP5` (Pino 7) | Linha de reset mestre XRST. Fio 2 do chicote fêmea `ZHR-6`. | **ABSOLUTAMENTE DESNECESSÁRIO EM PROTÓTIPOS $\le 15\text{ cm}$** (Fio direto OK). Modo Open-Drain estrito obrigatório! |
+| **Pino 3** | `SDATA` | `GP4` (Pino 6) | Barramento de dados bidirecional. Fio 3 do chicote fêmea `ZHR-6`. | **ABSOLUTAMENTE DESNECESSÁRIO EM PROTÓTIPOS $\le 15\text{ cm}$** (Fio direto OK com pull-up interno). Pull-up de $4.7\text{ k}\Omega$ recomendado em cabos longos. |
+| **Pino 4** | **`GND`** | **Pino 38 (`GND`)** | **Referência de terra canônica. Fio 4 do chicote fêmea `ZHR-6`.** | **MANDATÓRIO: Ligação equipotencial direta de baixíssima resistência ($0.0\,\Omega$ com a carcaça de lata do chassi)!** |
+| **Pino 5** | `SCLK` | `GP3` (Pino 5) | Clock serial mestre 1.0 MHz. Fio 5 do chicote fêmea `ZHR-6`. | **ABSOLUTAMENTE DESNECESSÁRIO EM PROTÓTIPOS $\le 15\text{ cm}$** (Fio direto OK). Resistor de $47\,\Omega \dots 100\,\Omega$ recomendado em ferramentas permanentes. |
+| **Pino 6** | `EXTRG` | `GP2` (Pino 4) | Pino mais à esquerda (junto ao Flat 10V `FP50003`). Pad QUADRADO na PCB. Fio 6 do `ZHR-6`. | **ABSOLUTAMENTE DESNECESSÁRIO EM PROTÓTIPOS $\le 15\text{ cm}$** (Fio direto OK). Resistor de $100\,\Omega$ recomendado em ferramentas permanentes. |
 
 ---
 

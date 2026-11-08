@@ -132,10 +132,11 @@ Se o LBA 0 for corrompido por uma inicialização inadvertida no Windows, o firm
 
 ---
 
-## 4. Metadados de Alocação e Journaling Transacional
+## 4. Metadados de Alocação e Journaling Transacional (MEIHDFS Allocation Table)
 
-### Setores 24 a 31 (0x00003000 a 0x00003FFF — 4.096 Bytes)
-Os 8 setores localizados entre LBA 24 e 31 contêm tabelas compactadas com registros de 16 bytes que mapeiam descritores de blocos de serviço.
+### Setores 24 a 31 (0x00003000 a 0x00003FFF — 4.096 Bytes): MEIHDFS Allocation Table Encodings
+The MEIHDFS allocation table and block descriptors encoded on the hard drive sectors LBA 24..31 (0x00003000..0x00003FFF) are bit-inverted using bitwise NOT / XOR 0xFF (`byte ^ 0xFF`).
+Os 8 setores localizados entre LBA 24 e 31 contêm tabelas compactadas com registros de 16 bytes que mapeiam descritores de blocos de serviço do disco rígido (hard drive).
 
 * **Arquitetura Bit-Invertida (One's Complement / XOR 0xFF):**  
   Uma característica marcante e fundamental do sistema de baixo nível da Matsushita é o armazenamento dos descritores em complemento de 1 bitwise (`byte ^ 0xFF`). A razão de engenharia para essa inversão deliberada reside no alinhamento semântico com células virgens de Flash/EPROM (onde `0xFF` representa o estado não programado ou bloco livre/não alocado).  

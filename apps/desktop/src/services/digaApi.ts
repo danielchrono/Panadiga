@@ -343,9 +343,9 @@ export const digaApi = {
             excerpt: "CN55001 JST ZR 1.5mm debug port with half-duplex SDATA transceiver at 3.3V nominal.",
           },
           {
-            doc: "PLANO_ARQUITETURA_TAURI_E_RESTAURACAO_COMUNIDADE",
-            section: "Root Cause & Operational Summary",
-            lines: "439-448",
+            doc: "TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA",
+            section: "Fundamentos EEMUL e Causa-Raiz U99",
+            lines: "30-55",
             excerpt: "Error U99 caused by calibration parameter corruption in Flash NVRAM at 0x007F0000.",
           },
         ],

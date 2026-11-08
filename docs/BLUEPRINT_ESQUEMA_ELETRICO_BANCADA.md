@@ -57,91 +57,112 @@ A interconexão física entre o **Raspberry Pi Pico (RP2040)** e o conector **`C
 * **Compatibilidade Pico 1 (RP2040) e Pico 2 (RP2350):** Ambas as placas são 100% suportadas nativamente pela suíte Panadiga. O RP2350 traz a vantagem adicional de 520 KB de SRAM (o dobro do RP2040), permitindo manter em cache local setores inteiros de 64 KB da Spansion S29JL064H (EEMUL) diretamente na memória do microcontrolador.
 * **Alerta Crítico de Barramento (DWire32A vs JTAG Clássico):** O conector CN55001 **não possui pinos TDI/TDO/TMS**. O protocolo é Matsushita DWire32A com **1 única via de dados bidirecional half-duplex (SDATA)** sincronizada por SCLK. Firmwares JTAG tradicionais (como pico-dirtyJtag) não funcionam e provocam colisão de barramento.
 
-### 2.1 Esquema Elétrico Completo de Bancada (Mapeamento Físico Real)
+### 2.1 Bench Wiring Schematic & Canonical Pinout (Panasonic Manual Reference)
+
+> [!IMPORTANT]
+> ### Prototype vs. Production Wiring Disclaimer (Resistors Verdict)
+> * **BENCH PROTOTYPE MODE (Direct Wire / No Resistors Required):**  
+>   For bench testing, unbricking, and rapid development with short jumper wires (**$L \le 15\text{ cm}$ / 6 inches**), all series damping resistors ($R_1 \dots R_4$) and the ADC protection resistor ($R_{\text{prot}}$) are **ABSOLUTELY UNNECESSARY**. The Raspberry Pi Pico (RP2040/RP2350) and the Panasonic UniPhier SoC operate at the exact same native $3.3\text{V}$ LVTTL logic levels. Furthermore, the RP2040 firmware activates an internal software pull-up on `SDATA` (`gpio_pull_up`), allowing direct point-to-point wiring without any external components.
+> * **FINISHED PRODUCT / BENCH RIG MODE (Resistors Highly Recommended):**  
+>   For permanent laboratory fixtures, long harness cables ($L > 15\text{ cm}$), or commercial unbrick tools, discrete resistors are **HIGHLY RECOMMENDED**:
+>   - **$R_1 \dots R_4 = 47\,\Omega \dots 100\,\Omega$:** Damp high-frequency transmission line reflections (*ringing*) and limit cross-conduction current during half-duplex bus turnaround.
+>   - **$R_{\text{pu}} = 4.7\text{ k}\Omega$:** Connected to Pin 1 ($+3.3\text{V}$ VDD) to guarantee sharp rise times ($t_r < 200\text{ ns}$) across cable capacitance.
+>   - **$R_{\text{prot}} = 1.0\text{ k}\Omega$:** Protects the Pico ADC0 analog channel against power transients.
 
 ```text
-       RASPBERRY PI PICO (RP2040)                                   PLACA DIGITAL VEP79138
-             PLACA DE BANCADA                                         CONECTOR CN55001 / P7501
+       RASPBERRY PI PICO (RP2040)                                   DIGITAL BOARD VEP79138
+             BENCH PROBE HOST                                         CONNECTOR P7501 (CANONICAL)
     ┌───────────────────────────────┐                             ┌────────────────────────┐
     │                               │                             │                        │
-    │  Pino 38 (GND) ───────────────┴─────────────────────────────┴──── Pino 3: GND Comum │
-    │  (Referência 0V)              ═════════════════════════════      (0.0Ω ao Chassi!)   │
-    │                                                                                      │
-    │  Pino 4  (GP2 / EXTRG) ───────┼───[ R_DAMP1: 100Ω ]─────────┼───► Pino 1: EXTRG      │
-    │  (External OCD Trigger)       │                             │     (Gatilho / Halt)   │
+    │  Pin 31 (GP26 / ADC0) ────────┤◄──[ R_PROT1: 1.0kΩ ]─┬──────├───◄ Pin 1: VDD Sense   │
+    │  (Target 3.3V Power Monitor)  │     1.0kΩ 1% (ADC)   │      │     (+3.3V Target Ref) │
+    │                               │                      │      │                        │
+    │  Pin 7  (GP5 / nRESET) ───────┤───[ R_DAMP4: 100Ω ]──│──────├───► Pin 2: nRESET      │
+    │  (Open-Drain Emulated Reset)  │     100Ω 5%          │      │     (Master XRST, 0V)  │
+    │                               │                [R_PU: 4.7k] │                        │
+    │  Pin 6  (GP4 / PIO SDATA) ────┤◄──[ R_DAMP3: 100Ω ]──┴──────├───► Pin 3: SDATA       │
+    │  (Half-Duplex DWire32A I/O)   │     100Ω 5%                 │     (Bidirectional)    │
     │                               │                             │                        │
-    │  Pino 5  (GP3 / PIO SCLK) ────┼───[ R_DAMP2: 47Ω..100Ω ]────┼───► Pino 2: SCLK       │
-    │  (PIO Side-Set Clock Out)     │                             │     (Clock 1.0 MHz)    │
+    │  Pin 38 (GND / Digital 0V) ───┤═════════════════════════════╞════ Pin 4: GND Common  │
+    │  (0V Reference to Chassis)    │   DIRECT 0.0Ω GROUND BOND   │     (0.0Ω to Chassis!) │
     │                               │                             │                        │
-    │  Pino 6  (GP4 / PIO SDATA) ───┼───[ R_DAMP3: 100Ω ]─────────┼───► Pino 4: SDATA      │
-    │  (PIO SM0 Data I/O)           │                             │  ▲  (Bidirecional)     │
-    │                               │                             │  │                     │
-    │                               │                             │ [R_PU: 4.7kΩ]          │
-    │                               │                             │  │  (Alimentado pelo   │
-    │                               │                             │  ▼   VDD do Target!)   │
-    │  Pino 31 (GP26 / ADC0) ───────┼───[ R_PROT1: 1.0kΩ ]────────┼───◄ Pino 6: VDD Sense  │
-    │  (Monitor de Tensão 3.3V)     │     1.0kΩ                   │     (+3.3V Target Ref) │
+    │  Pin 5  (GP3 / PIO SCLK) ─────┤───[ R_DAMP2: 47Ω..100Ω ]────├───► Pin 5: SCLK        │
+    │  (PIO Side-Set Clock Out)     │     Master 1.0 MHz Clock    │     (Synchronous Clock)│
     │                               │                             │                        │
-    │  Pino 7  (GP5 / nRESET) ──────┼───[ R_DAMP4: 100Ω ]─────────┼───► Pino 5: nRESET     │
-    │  (Open-Drain Emulado)         │     100Ω                    │     (Ativo em 0V)      │
+    │  Pin 4  (GP2 / EXTRG) ────────┤───[ R_DAMP1: 100Ω ]─────────├───► Pin 6: EXTRG       │
+    │  (External OCD Boot Trigger)  │     100Ω 5%                 │     (Halt / OCD Break) │
     │                               │                             │                        │
     └───────────────────────────────┘                             └────────────────────────┘
 ```
 
-> [!IMPORTANT]
-> **Ponto de Conexão Mandatório do Resistor de Pull-Up ($4.7\text{ k}\Omega$):**
-> O resistor de pull-up da linha `SDATA` deve ser conectado ao **Pino 6 Físico (`VDD` $+3.3\text{V}$ da própria placa Panasonic)** e **NUNCA** ao pino 3V3_OUT do Pico. Isso garante que a linha só fique em nível alto quando o gravador estiver efetivamente energizado, evitando alimentar o SoC desligado via diodos de proteção ESD.
-
-### 2.2 Diagrama Mermaid de Arquitetura e Fluxo de Sinais
+### 2.2 Mermaid Architecture and Signal Flowchart
 
 ```mermaid
-graph LR
-    subgraph RP2040["Raspberry Pi Pico (Host)"]
-        ADC["ADC0 (GP26 / Pin 31)<br/>Leitura de Tensão VDD"]
-        PIO_CLK["PIO SM Side-Set (GP3 / Pin 5)<br/>Clock Master SCLK"]
-        PIO_DAT["PIO SM In/Out (GP4 / Pin 6)<br/>Dados Half-Duplex SDATA"]
-        TRIG["GPIO Output (GP2 / Pin 4)<br/>Trigger EXTRG"]
-        RST_OD["GPIO Open-Drain (GP5 / Pin 7)<br/>Reset Control nRESET"]
-        PICO_GND["Pin 38 (GND)<br/>Terra Digital"]
+flowchart LR
+    classDef hostNode fill:#ffffff,stroke:#2563eb,stroke-width:1.2px,color:#0f172a;
+    classDef condNode fill:#ffffff,stroke:#475569,stroke-width:1.2px,color:#0f172a;
+    classDef targetNode fill:#ffffff,stroke:#dc2626,stroke-width:1.2px,color:#0f172a;
+    classDef gndNode fill:#f0fdf4,stroke:#16a34a,stroke-width:1.5px,color:#14532d;
+
+    subgraph RP2040["Raspberry Pi Pico (Host RP2040 / RP2350)"]
+        direction TB
+        PICO_VDD["Pin 31 (GP26 / ADC0)<br/>VDD Voltage Sense"]:::hostNode
+        PICO_RST["Pin 7 (GP5 / nRESET)<br/>Open-Drain Reset Control"]:::hostNode
+        PICO_DAT["Pin 6 (GP4 / SDATA)<br/>PIO SM0 Half-Duplex Data"]:::hostNode
+        PICO_GND["Pin 38 (GND)<br/>Digital Ground Reference"]:::gndNode
+        PICO_CLK["Pin 5 (GP3 / SCLK)<br/>PIO SM Side-Set Clock"]:::hostNode
+        PICO_TRG["Pin 4 (GP2 / EXTRG)<br/>OCD Trigger / Break Out"]:::hostNode
+
+        PICO_VDD ~~~ PICO_RST ~~~ PICO_DAT ~~~ PICO_GND ~~~ PICO_CLK ~~~ PICO_TRG
     end
 
-    subgraph Conditioning["Malha de Condicionamento e Proteção de Bancada"]
-        R_PROT["R_PROT: 1 kΩ 1%"]
-        R_CLK["R_DAMP: 47 Ω .. 100 Ω"]
-        R_DAT["R_DAMP: 100 Ω"]
-        R_PU["R_PU: 4.7 kΩ (Pull-up p/ Target VDD)"]
-        R_TRG["R_DAMP: 100 Ω"]
-        R_RST["R_DAMP: 100 Ω (Limitador Open-Drain)"]
+    subgraph Conditioning["Bench Conditioning & Protection Network"]
+        direction TB
+        R_PROT["R_PROT1: 1.0 kΩ 1%<br/>ADC0 Input Protection"]:::condNode
+        R_RST["R_DAMP4: 100 Ω<br/>Open-Drain Series Limiter"]:::condNode
+        R_DAT["R_DAMP3: 100 Ω + R_PU 4.7 kΩ<br/>DWire32A Data + Target Pull-up"]:::condNode
+        GND_BUS["Direct Ground Bus<br/>Low-Impedance 0.0 Ω Bond"]:::gndNode
+        R_CLK["R_DAMP2: 47 Ω .. 100 Ω<br/>SCLK Series Termination"]:::condNode
+        R_TRG["R_DAMP1: 100 Ω<br/>Edge Damping Resistor"]:::condNode
+
+        R_PROT ~~~ R_RST ~~~ R_DAT ~~~ GND_BUS ~~~ R_CLK ~~~ R_TRG
     end
 
-    subgraph VEP79138["Panasonic DMR-EH55 (VEP79138 - P7501 Físico)"]
-        CN_TRG["Pin 1 Físico: EXTRG (OCD Trigger)"]
-        CN_CLK["Pin 2 Físico: SCLK (Clock Síncrono)"]
-        CN_GND["Pin 3 Físico: GND (Chassi / 0.0Ω)"]
-        CN_DAT["Pin 4 Físico: SDATA (DWire32A Bidirecional)"]
-        CN_RST["Pin 5 Físico: nRESET (Linha XRST Supervisor)"]
-        CN_VDD["Pin 6 Físico: VDD Sense (+3.3V Target Ref)"]
+    subgraph VEP79138["Panasonic DMR-EH55 (VEP79138 - Port P7501)"]
+        direction TB
+        CN_VDD["Pin 1: VDD Sense<br/>+3.3V Target Reference"]:::targetNode
+        CN_RST["Pin 2: nRESET<br/>Master XRST (Active LOW)"]:::targetNode
+        CN_DAT["Pin 3: SDATA<br/>Bidirectional DWire32A"]:::targetNode
+        CN_GND["Pin 4: GND<br/>Chassis Ground (0.0 Ω)"]:::gndNode
+        CN_CLK["Pin 5: SCLK<br/>Master Clock 1.0 MHz"]:::targetNode
+        CN_TRG["Pin 6: EXTRG<br/>External OCD Break Trigger"]:::targetNode
+
+        CN_VDD ~~~ CN_RST ~~~ CN_DAT ~~~ CN_GND ~~~ CN_CLK ~~~ CN_TRG
     end
 
-    CN_VDD --> R_PROT --> ADC
-    CN_VDD --- R_PU --- CN_DAT
-    TRIG --> R_TRG --> CN_TRG
-    PIO_DAT <--> R_DAT <--> CN_DAT
-    PIO_CLK --> R_CLK --> CN_CLK
-    RST_OD <--> R_RST <--> CN_RST
-    PICO_GND === CN_GND
+    PICO_VDD <--- R_PROT <--- CN_VDD
+    PICO_RST ---> R_RST ---> CN_RST
+    PICO_DAT <---> R_DAT <---> CN_DAT
+    PICO_GND ===== GND_BUS ===== CN_GND
+    PICO_CLK ---> R_CLK ---> CN_CLK
+    PICO_TRG ---> R_TRG ---> CN_TRG
+
+    style RP2040 fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px
+    style Conditioning fill:#f8fafc,stroke:#64748b,stroke-width:1.5px
+    style VEP79138 fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px
 ```
 
-### 2.3 Tabela Mestra de Interconexão Pino-a-Pino (Mapeamento Físico de Bancada)
+### 2.3 Master Pin-to-Pin Interconnection Table (Canonical Panasonic Manual Pinout)
 
-| Pino Físico (10V $\rightarrow$ 8V) | Pino Esquemático P7501 | Sinal Matsushita | Pino RP2040 | Componente de Proteção | Tipo Lógico | Nível de Tensão | Descrição Funcional Detalhada |
-| :---: | :---: | :---: | :---: | :--- | :---: | :---: | :--- |
-| **Pino 1** | Pino 6 | `EXTRG` | **Pino 4** (`GP2`) | Resistor $100\,\Omega$ $0.25\text{W}$ | Saída Digital | $0\text{V} / 3.3\text{V}$ | *External Trigger*: força o núcleo AM34 a desviar para o manipulador OCD no momento do boot. |
-| **Pino 2** | Pino 5 | `SCLK` | **Pino 5** (`GP3`) | Resistor $47\,\Omega$ a $100\,\Omega$ $0.25\text{W}$ | Saída Digital | $0\text{V} / 3.3\text{V}$ | Clock síncrono serial master ($1.000\text{ MHz}$, 4 ciclos SM a 4.0 MHz). |
-| **Pino 3** | **Pino 4** | **`GND`** | **Pino 38** (`GND`) | Conexão direta de baixa impedância | Referência de 0V | $0.0\text{V}$ | **Referência de terra comum ($0.0\,\Omega$ para o chassi metálico).** |
-| **Pino 4** | Pino 3 | `SDATA` | **Pino 6** (`GP4`) | Resistor $100\,\Omega$ + Pull-up $4.7\text{ k}\Omega$ p/ Target VDD | I/O Bidirecional | $0\text{V} / 3.3\text{V}$ | Barramento de dados *half-duplex*. Injeta comandos OCD e recebe registradores e dados lidos da Flash. |
-| **Pino 5** | Pino 2 | `nRESET` | **Pino 7** (`GP5`) | Resistor $100\,\Omega$ $0.25\text{W}$ | Saída Open-Drain | $0\text{V} / \text{Hi-Z}$ | Linha de reset mestre (`XRST`). Mantém a CPU em reset ($0\text{V}$) e libera para rodar (Hi-Z). **Nunca 3.3V push-pull!** |
-| **Pino 6** | Pino 1 | `VDD Sense` | **Pino 31** (`GP26 / ADC0`) | Resistor $1.0\text{ k}\Omega$ $0.25\text{W}$ $1\%$ | Entrada Analógica | $+3.3\text{V DC}$ | Monitora a presença da linha de alimentação principal do gravador antes de injetar comandos. |
+| Pin (Canonical Manual / P7501) | Matsushita Signal | RP2040 Pin | Protection Component | Logical Type | Voltage Level | PCB Topography & Mechanical Mating Orientation |
+| :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Pin 1** | `VDD Sense` | **Pin 31** (`GP26 / ADC0`) | $1.0\text{ k}\Omega$ $1\%$ | Analog Input | $+3.3\text{V DC}$ | Rightmost pin (adjacent to 8-via flat `FP50004`). Connects to wire 1 of female harness `ZHR-6`. Never ground! |
+| **Pin 2** | `nRESET` | **Pin 7** (`GP5`) | $100\,\Omega$ $0.25\text{W}$ | Open-Drain Out | $0\text{V} / \text{Hi-Z}$ | Master CPU reset line (`XRST`). Active LOW ($0\text{V}$), float in Hi-Z for running. **Never drive +3.3V push-pull!** |
+| **Pin 3** | `SDATA` | **Pin 6** (`GP4`) | $100\,\Omega$ + $4.7\text{ k}\Omega$ Pull-up to Pin 1 VDD | Bidirectional I/O | $0\text{V} / 3.3\text{V}$ | DWire32A half-duplex data line. Injects OCD commands and reads memory/registers. Direct wire OK on cables $\le 15\text{ cm}$. |
+| **Pin 4** | **`GND`** | **Pin 38** (`GND`) | Direct low-impedance bond | 0V Reference | $0.0\text{V}$ | **Canonical ground reference ($0.0\,\Omega$ direct continuity to metal chassis). Always verify with multimeter before power!** |
+| **Pin 5** | `SCLK` | **Pin 5** (`GP3`) | $47\,\Omega \dots 100\,\Omega$ $0.25\text{W}$ | Digital Output | $0\text{V} / 3.3\text{V}$ | Synchronous serial master clock ($1.000\text{ MHz}$, 4 PIO state machine cycles at 4.0 MHz). |
+| **Pin 6** | `EXTRG` | **Pin 4** (`GP2`) | $100\,\Omega$ $0.25\text{W}$ | Digital Output | $0\text{V} / 3.3\text{V}$ | External OCD trigger / break. Solder pad is SQUARE on PCB. Leftmost pin (adjacent to 10-via flat `FP50003`). |
+
 
 ---
 

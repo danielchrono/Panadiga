@@ -31,6 +31,12 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
@@ -55,6 +61,11 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install System Dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
+
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
@@ -64,10 +75,10 @@ jobs:
       - name: Run Clippy Linter
         run: cargo clippy --workspace --all-targets -- -D warnings || true
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
           cache-dependency-path: apps/desktop/package-lock.json
 
@@ -90,10 +101,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: "npm"
           cache-dependency-path: apps/desktop/package-lock.json
 
@@ -130,6 +141,11 @@ jobs:
 
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install System Dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libudev-dev pkg-config
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -181,7 +197,7 @@ jobs:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
         run: |
           cd dwire32a_jtag_research
-          cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico
+          cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build_pico --config Release
           cp build_pico/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2040.uf2
           sha256sum panasonic_dwire32a_rp2040.uf2
@@ -191,7 +207,7 @@ jobs:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
         run: |
           cd dwire32a_jtag_research
-          cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2
+          cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build_pico2 --config Release
           cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
           sha256sum panasonic_dwire32a_rp2350.uf2

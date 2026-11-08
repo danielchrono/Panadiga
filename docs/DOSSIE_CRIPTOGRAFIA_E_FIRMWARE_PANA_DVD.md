@@ -9,23 +9,29 @@
 
 ---
 
-## 1. Sumário Executivo e Resposta Técnica à Pergunta Fundamental
+## 1. Sumário Executivo & Especificação Criptoanalítica
 
-> **Pergunta Levantada:**  
-> *"Precisamos ver se conseguimos entender o hex, o assembly, a forma como se comunica, os padrões de ofuscamento e criptografia (existia criptografia na época?) para o nosso hardware proprietário reverso..."*
+O gravador **Panasonic DMR-EH55** (processador Matsushita UniPhier `MN2DS0016` / núcleo RISC 32-bit `AM34`) opera com esquemas de proteção e criptografia de nível industrial:
 
-### 1.1 Resposta Categórica: Existia Criptografia na Época (2005–2007)?
+1. **CPRM (Content Protection for Recordable Media):** Cifragem C-BSA e amarração criptográfica ao identificador físico de drive (`Drive ID` e `Media Key Block`) para gravações em DVD-RAM e HDD.
+2. **DivX DRM Integrado:** Subsistema DRM com chave única de 8 bytes para autenticação de mídias de vídeo.
+3. **Proteção Regional e Anti-Tampering (RPC-2 / Macrovision):** Blindagem contra modificações de firmware e desativação de proteção analógica.
+4. **Contêiner de Atualização Óptica (`PANA_DVD.FRM`):** Distribuição óptica cifrada com primitivas simétricas de 64 bits em modo ECB (entropia de $7.99958\text{ bits/byte}$).
 
-**SIM, e tratava-se de criptografia de nível militar e industrial.**
-
-Em 2005–2007, a indústria de eletrônicos de consumo japonesa (liderada por Panasonic/Matsushita, Sony, Toshiba e Hitachi) operava sob forte pressão das grandes gravadoras e dos estúdios cinematográficos de Hollywood para impor restrições rigorosas de gerenciamento de direitos digitais (DRM). A Panasonic não era mera espectadora: era membro fundador da **4C Entity** (IBM, Intel, Panasonic/Matsushita, Toshiba), consórcio que desenvolveu a criptografia **CPRM** (*Content Protection for Recordable Media*) e **CPPM**, além de ser co-criadora da **AACS** (*Advanced Access Content System*) para a mídia Blu-ray e membro do DVD Forum.
-
-No gravador **Panasonic DMR-EH55** (ano de lançamento: 2006, baseado no SoC proprietário **Matsushita MN2DS0016 / UniPhier AM34**), convergiam quatro exigências de segurança:
-
-1. **CPRM para Gravação em DVD-RAM e HDD:** A transmissão televisiva digital e analógica da época exigia conformidade com o sinal *Copy-Once* (*Broadcast Flag* / CGMS-A). O áudio e vídeo capturados no HD IDE interno ou nos discos DVD-RAM recebiam cifragem C-BSA e amarração criptográfica ao identificador físico de cada drive (`Drive ID` e `Media Key Block`).
-2. **DivX DRM Integrado:** Conforme documentado expressamente na página 15 do Manual de Serviço oficial da Panasonic (`panasonic_dmr-eh55p9_eh55pc9.pdf`), o aparelho incorpora um motor DRM completo com código de registro alfanumérico único de 8 bytes e sistema de autenticação e expiração para aluguel e compra de conteúdo DivX.
-3. **Anti-Tampering de Drives e Proteção Regional (RPC-2 / Macrovision):** Para impedir que a comunidade global aplicasse modificações de região livre (*Region Free / RPC-1*) ou desabilitasse o sinal anticópia analógico Macrovision nas saídas de vídeo componente/S-Video, a Panasonic protegeu os pacotes de firmware.
-4. **Proteção de Propriedade Intelectual do Contêiner de Firmware:** A distribuição pública de atualizações via CD-R (`PANA_DVD.FRM`) utilizava um contêiner cifrado em múltiplos passos (cifras de bloco AES-128 e redes de Feistel de 64 bits proprietárias) com entropia quase máxima de $7.9996\text{ bits/byte}$, sem qualquer texto legível (*plain ASCII*).
+```mermaid
+flowchart TD
+    FRM["Arquivo PANA_DVD.FRM (7.531.744 Bytes)"] --> HDR["0x000000: Cabeçalho Global (16 Bytes)"]
+    FRM --> TOC["0x000010: Tabela de Conteúdos (3 x 48 Bytes = 144 Bytes)"]
+    FRM --> PAY["0x0000A0: Payload de Firmware Cifrado"]
+    
+    TOC --> E0["Entrada 0 (0x0010..0x0040): Main CPU AM34 / DIGA OS"]
+    TOC --> E1["Entrada 1 (0x0040..0x0070): Drive Servo Controller MN102"]
+    TOC --> E2["Entrada 2 (0x0070..0x00A0): Front Panel / Timer MN103S"]
+    
+    PAY --> M1["Módulo 1 (0x0000A0..0x000B1800 | ~720 KB)\nSub-sistema / OSD & Fontes\nCorrelaciona com Partição 2 do HD (64 MB)"]
+    PAY --> M2["Módulo 2 (0x000B1800..0x000F1818 | ~240 KB)\nDrive Óptico Servo / Laser DSP MN102\nContém 196 Blocos Nulos 0x00*8"]
+    PAY --> M3["Módulo 3 (0x000F1818..0x0072ECE0 | ~6.17 MB)\nMain CPU OS / Codecs AM34\nCorrelaciona com Partição 1 do HD (32 MB)"]
+```
 
 ### 1.2 A Descoberta Crucial de Engenharia Reversa deste Projeto
 

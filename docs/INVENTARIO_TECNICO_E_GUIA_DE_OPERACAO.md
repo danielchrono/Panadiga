@@ -29,18 +29,17 @@ Abaixo encontra-se a tabela mestre de todos os arquivos do repositório, com tam
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `docs/` | `INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md` | Dinâmico | Homologado | Inventário técnico de QA, catálogo de 15 manuais, rotinas operacionais e FMEA. | Homologado |
 | `docs/` | `RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md` | Dinâmico | Homologado | Relatório oficial de auditoria, decomposição de god-modules, i18next e 9 Quality Gates. | Homologado |
-| `docs/` | `ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md` | 30,496 | `deec2bdfb67f3cee9b978969b085eb26d85f82a677d345f6508a642fb5cef32b` | Dossiê de arquitetura da suíte, decisões de silício C11 vs MicroPython, terminal assíncrono vs DWire32A síncrono e matriz de compatibilidade JEDEC/DIGA | Homologado |
-| `docs/` | `ESPECIFICACAO_PRODUTO_HARDWARE_DWIRE32_PROBE.md` | 20,460 | `c6ef39328cc40a892bc5927c7562fa0e4772aa176eab03fde210d1410f7043c9` | Especificação de PCB dedicada, proteção ESD, chicote JST ZR-6, case 3D e embalagem. | Homologado |
+| `docs/` | `ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md` | Dinâmico | Homologado | SSOT do disco: MBR 'SH', mirror em 28MB, journal e os 256 registros XOR 0xFF. | Homologado |
+| `docs/` | `DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md` | Dinâmico | Homologado | Dossiê forense de criptoanálise, DRM, cifragem CPRM, TOC periódica e codebook ECB. | Homologado |
+| `docs/` | `TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md` | Dinâmico | Homologado | Física da Flash Spansion, EEMUL circular e unbrick dos 64 KB para 0xFF. | Homologado |
 | `docs/` | `BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md` | 42,895 | `7a20831386eac43fb3f1bc60aec3d070497c4068664a01a150bcaa28d530af1f` | Blueprint elétrico detalhado de bancada (Interconexão RP2040 $\leftrightarrow$ CN55001 e TSOP-48). | Homologado |
-| `docs/` | `DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md` | 31,081 | `c80521139fde58eeeda684ea575149484705c727569d7055b027559a8fa5d6be` | Dossiê forense de criptoanálise, DRM, cifragem CPRM e paradoxo de segurança da Flash física. | Homologado |
+| `docs/` | `GUIA_MONTAGEM_E_FOTOS_PROBE_BANCADA.md` | Dinâmico | Homologado | Roteiro fotográfico e diagramas CAD de montagem da sonda e bancada. | Homologado |
+| `docs/` | `ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md` | Dinâmico | Homologado | Motor RAG Zero-Error, 6 camadas determinísticas de defesa e limites físicos (3.3V). | Homologado |
+| `docs/` | `ESTRATEGIA_INTEGRACAO_GHIDRA_GDB.md` | Dinâmico | Homologado | Mapeamento de memória AM34 e integração com Ghidra, GDB e OpenOCD (:3333). | Homologado |
+| `docs/` | `SUBSISTEMA_LOGGING_E_TELEMETRIA.md` | Dinâmico | Homologado | Telemetria padronizada, níveis semânticos e sinks de logging do Rust Core. | Homologado |
 | `firmware_and_images/` | `panasonic DMR EH-55 Firmware hdd_100.bin` | 104,857,600 | `9d292d5b46f190775f359e30af11d074021fb321f040bf701d0ecf0f2056db00` | Dump bruto dos primeiros 100 MB do HDD original (MEIHFS, LBA 0 e partições de firmware). | Homologado |
 | `firmware_and_images/` | `PANA_DVD.FRM` | 7,531,744 | `a596d52a8220a9113777c9caf271ac4d518202d0639d6118a4d0bc03b9a6367f` | Imagem binária oficial de atualização de firmware via disco óptico (Payload criptografado/comprimido). | Homologado |
 | `firmware_and_images/` | `UPDATE_EH55.zip` | 7,474,766 | `07589e79722409413c5da25c700227a9a04cef39f0178ffa08df3d8d3f7debd4` | Arquivo compactado oficial de distribuição Matsushita contendo `PANA_DVD.FRM`. | Homologado |
-| `scripts/` | `clean_spansion_nvram.py` | 4,656 | `90b7a385784d8811c9907bd1eb5454549150ce8674ec8d0ae210e761faf5bdf4` | Sanitizador cirúrgico da partição EEMUL (64 KB em `0x7F0000`) da Flash Spansion S29JL064H. | Corrigido e Testado |
-| `scripts/` | `inspect_hdd_image.py` | 2,236 | `2b527f1c3f9a6515ea946b9671085414601be1798990a27da6ba41f9b1dd3167` | Mapeador de densidade de blocos de 1 MB e parser do cabeçalho MEIHFS no dump de 100 MB do HD. | Corrigido e Testado |
-| `scripts/` | `analyze_deep.py` | 2,664 | `dafb75d339d5bf60c763da4a6fb73428eba84c81db84a3ec7792e584315cbe67` | Scanner heurístico de strings ASCII/Unicode em binários e imagens do sistema. | Corrigido e Testado |
-| `scripts/` | `inspect_firmware_headers.py` | 932 | `8651452dd2d4467fd2cc9fb38b02c6b0dbc4f8a1ce96cf031278afba2592485a` | Inspetor de estruturas e headers em offsets críticos do HD (32 MB e 64 MB) e no FRM. | Homologado |
-| `scripts/` | `search_manuals.py` | 1,000 | `e1fe740a07a0f30949cce689836005164758a9d6e2fadf86cb23907464a5576d` | Ferramenta automatizada de indexação e busca de termos de engenharia no acervo PDF. | Homologado |
 | `dwire32a_jtag_research/` | `PANASONIC_DWIRE32A_JTAG_RECONSTRUCTION.md` | 18,062 | `e9bc7be7537dc863fcc10b79d16d8d40adcb2ed3a46041e4d07e992d32e92be3` | Especificação técnica completa do protocolo Matsushita DWire32A, temporizações e blueprint. | Homologado |
 | `dwire32a_jtag_research/` | `dwire32a.pio` | 2,859 | `3d5e6605e8120b5e7e16a28b84fc7cdb8592126cae6f90b79cc73dc326306fc2` | Máquina de estados PIO para RP2040 (barramento síncrono half-duplex determinístico a 1 MHz). | Homologado |
 | `dwire32a_jtag_research/` | `dwire32a_pico_main.c` | 4,951 | `a45d4132463212d8af7a93166780beac30420a431fcc60712aacd6d7b7d6e782` | Firmware C do Raspberry Pi Pico com Cold Break-In, controle Open-Drain e scanner de opcodes. | Homologado |
@@ -130,14 +129,14 @@ O conector de 6 pinos `CN55001` na placa digital verde `VEP79138` é a interface
 ```text
                Conector CN55001 / P7501 [B6B-ZR-3R4] (Placa Digital VEP79138)
                (Contagem Física a partir do Cabo Flat 10V para o Flat 8V)
-                          ┌───────────┐
-                   Pino 1 │ ● EXTRG   │  External Trigger (Gatilho de Breakpoint OCD)
-                   Pino 2 │ ● SCLK    │  Serial Clock (Clock Síncrono Master 1.0 MHz)
-                   Pino 3 │ ● GND     │  Ground Comum (0.0Ω ao Chassi Metálico!)
-                   Pino 4 │ ● SDATA   │  Serial Data (Dados Half-Duplex, Pull-up 4.7kΩ)
-                   Pino 5 │ ● nRESET  │  Hardware Reset (Linha ativa em nível baixo / Open-Drain)
-                   Pino 6 │ ● VDD     │  Target Power Reference (Sense de +3.3V)
-                          └───────────┘
+                          â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
+                   Pino 1 â”‚ â— EXTRG   â”‚  External Trigger (Gatilho de Breakpoint OCD)
+                   Pino 2 â”‚ â— SCLK    â”‚  Serial Clock (Clock Síncrono Master 1.0 MHz)
+                   Pino 3 â”‚ â— GND     â”‚  Ground Comum (0.0Ω ao Chassi Metálico!)
+                   Pino 4 â”‚ â— SDATA   â”‚  Serial Data (Dados Half-Duplex, Pull-up 4.7kΩ)
+                   Pino 5 â”‚ â— nRESET  â”‚  Hardware Reset (Linha ativa em nível baixo / Open-Drain)
+                   Pino 6 â”‚ â— VDD     â”‚  Target Power Reference (Sense de +3.3V)
+                          â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
 ```
 
 * **`dwire32a.pio`**: Código assembly para a máquina PIO do Raspberry Pi Pico (RP2040). Executa a transmissão e recepção serial síncrona a 1 MHz, chaveando a direção do pino `SDATA` de forma determinística sem intervenção por interrupções do núcleo ARM.

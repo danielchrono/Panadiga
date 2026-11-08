@@ -42,69 +42,78 @@ This repository establishes the **definitive forensic reverse engineering, physi
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'background': '#21262d',
-    'primaryColor': '#2d333b',
+    'background': '#1c2128',
+    'primaryColor': '#282e37',
     'primaryTextColor': '#f0f6fc',
     'primaryBorderColor': '#444c56',
     'lineColor': '#8b949e',
     'secondaryColor': '#1c2128',
-    'tertiaryColor': '#252a31',
-    'clusterBkg': '#21262d',
-    'clusterBorder': '#444c56',
+    'tertiaryColor': '#1c2128',
+    'clusterBkg': '#1c2128',
+    'clusterBorder': '#30363d',
     'defaultLinkColor': '#8b949e',
     'titleColor': '#f0f6fc',
-    'edgeLabelBackground': '#21262d'
+    'edgeLabelBackground': '#1c2128'
   }
 }}%%
 flowchart TD
-    subgraph LAB_BENCH["LABORATORY BENCH & OPERATIONAL RUNTIME"]
-        USER["Forensic Engineer / Bench Operator"]
-        PICO["Raspberry Pi Pico / Pico 2 (RP2040 / RP2350)<br/>C11 Firmware + PIO State Machines"]
-        BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
-    end
+    subgraph MASTER[" "]
+        direction TB
 
-    subgraph PANADIGA_SUITE["PANADIGA UNIFIED SOFTWARE ECOSYSTEM"]
-        GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
-        CLI["Panadiga Unified Core Engine (Rust 1.85+)<br/>(Binary: dist/panadiga.exe / panadiga)"]
-        
-        subgraph CORE_MODULES["Core Engine Subsystems"]
-            RAG["Zero-Error RAG Engine<br/>(6 Deterministic Invariant Shields)"]
-            DW_HAL["DWire32A Native Rust HAL<br/>(Baud: 115200 / Bitbang / PIO Sync)"]
-            GDB_SRV["GDB RSP Server (:3333)<br/>(Register Cache & Memory Access)"]
-            MEIHDFS["MEIHDFS Storage Parser<br/>(Bit-Inversion & LBA Mirroring)"]
-            CRYPTO["Cryptanalysis Engine<br/>(64-bit ECB Codebook & KPA)"]
-            NVRAM["NVRAM Sanitizer<br/>(Multi-Geometry 64 KB Safe 0xFF Clean)"]
+        subgraph LAB_BENCH["1. LABORATORY BENCH AND COMMUNICATIONS"]
+            direction LR
+            USER["Forensic Engineer / Operator"]
+            BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
+            PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>C11 Firmware + DWire32A PIO"]
+            USER <--> BLE <--> PICO
         end
+
+        subgraph SOFTWARE_SUITE["2. PANADIGA SOFTWARE ECOSYSTEM"]
+            direction TB
+            subgraph UI_TIER["User Interfaces and Control"]
+                direction LR
+                GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
+                CLI["Unified Core Engine<br/>(Native Rust 1.85+ Binary)"]
+                GUI <--> CLI
+            end
+
+            subgraph CORE_MODULES["Native Rust Core Engine Subsystems"]
+                direction LR
+                RAG["Zero-Error RAG Engine<br/>(6 Invariant Shields)"]
+                DW_HAL["DWire32A HAL<br/>(115200 / PIO Sync)"]
+                GDB_SRV["GDB RSP Server (:3333)<br/>(Register Cache)"]
+                MEIHDFS["MEIHDFS Parser<br/>(Storage Forensics)"]
+                CRYPTO["Cryptanalysis Engine<br/>(ECB 64-bit & KPA)"]
+                NVRAM["NVRAM Sanitizer<br/>(Safe 0xFF Clean)"]
+            end
+        end
+
+        subgraph TARGET_HARDWARE["3. PANASONIC DIGA TARGET HARDWARE"]
+            direction LR
+            P7501["Port P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
+            AM34["Matsushita UniPhier MN2DS0016<br/>32-bit AM34 RISC CPU"]
+            FLASH["Parallel NOR Flash (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
+            HDD["PATA/IDE or SATA Hard Disk<br/>LBA 0 Superblock (SH) + Partitions"]
+            P7501 <--> AM34
+            AM34 <--> FLASH
+            AM34 <--> HDD
+        end
+
+        PICO <-->|"DWire32A Bus 1.0 MHz"| P7501
+        UI_TIER <--> CORE_MODULES
+        BLE <--> GUI
+        CLI <--> DW_HAL
     end
 
-    subgraph TARGET_HARDWARE["PANASONIC DIGA FAMILY HARDWARE (DMR-EH / E / ES / EX)"]
-        P7501["Port P7501 (B6B-ZR-3R4)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
-        AM34["Matsushita UniPhier MN2DS0016 / MN103S<br/>32-bit AM34 / MN10300 RISC CPU"]
-        FLASH["Parallel NOR Flash (2MB -- 16MB)<br/>IPL Bootloader + 64 KB NVRAM (len - 64KB)"]
-        HDD["PATA/IDE or SATA Hard Disk Drive<br/>LBA 0 Superblock (SH) + Firmware Partitions"]
-    end
+    style MASTER fill:#1c2128,stroke:#30363d,stroke-width:1px
+    style LAB_BENCH fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style SOFTWARE_SUITE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style UI_TIER fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style CORE_MODULES fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style TARGET_HARDWARE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
 
-    USER <--> GUI
-    USER <--> CLI
-    GUI <--> BLE
-    CLI <--> DW_HAL
-    BLE <--> PICO
-    PICO <--> P7501
-    P7501 <--> AM34
-    AM34 <--> FLASH
-    AM34 <--> HDD
-
-    GDB_SRV <--> CLI
-    DW_HAL <--> PICO
-    RAG -.-> CLI
-
-    style LAB_BENCH fill:#21262d,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-    style PANADIGA_SUITE fill:#252a31,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-    style CORE_MODULES fill:#2d333b,stroke:#57606a,stroke-width:1px,color:#f0f6fc
-    style TARGET_HARDWARE fill:#21262d,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-
-    classDef greyBox fill:#323842,stroke:#57606a,color:#f0f6fc,stroke-width:1px;
-    class USER,PICO,BLE,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
+    classDef greyBox fill:#282e37,stroke:#444c56,color:#f0f6fc,stroke-width:1px;
+    class USER,BLE,PICO,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
 ```
 
 ---

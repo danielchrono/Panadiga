@@ -1,4 +1,4 @@
-# Dossiê Técnico Forense: Compatibilidade de Binários, Auditoria Argon & Arquitetura de Compactação Multiplataforma
+# Dossiê Técnico Forense: Compatibilidade de Binários, Auditoria Independente & Arquitetura de Compactação Multiplataforma
 
 ---
 
@@ -45,15 +45,15 @@ graph TD
 
 ---
 
-## 2. Prompt Estruturado de Alta Precisão para o Argon
+## 2. Prompt Estruturado de Alta Precisão para Auditoria Independente
 
 > [!NOTE]
-> Este prompt foi arquitetado para ser submetido diretamente a um auditor de criptografia, engenharia reversa e segurança de hardware (Argon) para "bater o martelo", contendo todas as evidências formais, equações, tabelas de verdade e diagramas de temporização.
+> Este prompt foi arquitetado para ser submetido diretamente a um auditor de criptografia, engenharia reversa e segurança de hardware para "bater o martelo", contendo todas as evidências formais, equações, tabelas de verdade e diagramas de temporização.
 
 ```markdown
 # MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & AM34 DWIRE32A
 TARGET SYSTEM: Panasonic DIGA Lineage (MN2DS0016 UniPhier AM34 RISC / MN103 / MN102)
-AUDITOR ROLE: Argon (Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
+AUDITOR ROLE: Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
 
 ## 1. CONTEXTO & OBJETIVO DA AUDITORIA
 Você foi convocado para validar formalmente a arquitetura de engenharia reversa, recuperação contra corrupção (U99 Unbrick) e protocolo de hardware do projeto Panadiga.

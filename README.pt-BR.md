@@ -5,19 +5,19 @@
 # Central de Engenharia Reversa, Firmware e Diagnóstico de Hardware — Gravadores Panasonic DIGA
 
 [![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
-[![SoC](https://img.shields.io/badge/SoC-Matsushita%20UniPhier%20(AM34%2FMN103S)-blue.svg)]()
-[![Flash](https://img.shields.io/badge/NOR%20Flash-Spansion%20S29JL%20%2F%20Am29LV%20(2MB--16MB)-green.svg)]()
-[![Storage](https://img.shields.io/badge/Storage-MEIHDFS%20(IDE%2FPATA%2FSATA)-yellow.svg)]()
+[![SoC](<https://img.shields.io/badge/SoC-Matsushita%20UniPhier%20(AM34%2FMN103S)-blue.svg>)]()
+[![Flash](<https://img.shields.io/badge/NOR%20Flash-Spansion%20S29JL%20%2F%20Am29LV%20(2MB--16MB)-green.svg>)]()
+[![Storage](<https://img.shields.io/badge/Storage-MEIHDFS%20(IDE%2FPATA%2FSATA)-yellow.svg>)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> **Documento Mestre de Referência Técnica de Sistemas e Hardware**  
-> **Classificação:** Engenharia Forense / Plataforma Unificada de Recuperação e Ferramentas  
-> **Dispositivo-Alvo Principal:** Gravador Digital de Vídeo DVD/HDD **Panasonic DMR-EH55** (Chassi DIGA / PCB Principal `VEP79138`)  
-> **Compatibilidade do Ecossistema:** Linha Panasonic DIGA (**Séries DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-BW**)  
-> **Processador:** Matsushita UniPhier `MN2DS0016` / `MN2DS0018` / `MN103S` (Núcleo RISC de 32 bits `AM34` / `MN10300`)  
-> **Faixa de Memória Flash NOR:** 2 MB (16 Mbit) a 16 MB (128 Mbit) TSOP-48 / TSOP-56  
-> **Subsistema de Armazenamento:** Discos Rígidos PATA/IDE e SATA com particionamento e sistema de arquivos proprietário **MEIHDFS**  
-> **Interface de Depuração:** Barramento serial síncrono proprietário **Matsushita DWire32A / On-Chip Debug (OCD)** no conector `P7501` (`CN55001`)  
+> **Documento Mestre de Referência Técnica de Sistemas e Hardware**
+> **Classificação:** Engenharia Forense / Plataforma Unificada de Recuperação e Ferramentas
+> **Dispositivo-Alvo Principal:** Gravador Digital de Vídeo DVD/HDD **Panasonic DMR-EH55** (Chassi DIGA / PCB Principal `VEP79138`)
+> **Compatibilidade do Ecossistema:** Linha Panasonic DIGA (**Séries DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-BW**)
+> **Processador:** Matsushita UniPhier `MN2DS0016` / `MN2DS0018` / `MN103S` (Núcleo RISC de 32 bits `AM34` / `MN10300`)
+> **Faixa de Memória Flash NOR:** 2 MB (16 Mbit) a 16 MB (128 Mbit) TSOP-48 / TSOP-56
+> **Subsistema de Armazenamento:** Discos Rígidos PATA/IDE e SATA com particionamento e sistema de arquivos proprietário **MEIHDFS**
+> **Interface de Depuração:** Barramento serial síncrono proprietário **Matsushita DWire32A / On-Chip Debug (OCD)** no conector `P7501` (`CN55001`)
 
 ---
 
@@ -42,69 +42,78 @@ Este repositório consolida o **ecossistema definitivo de engenharia reversa, re
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'background': '#21262d',
-    'primaryColor': '#2d333b',
+    'background': '#1c2128',
+    'primaryColor': '#282e37',
     'primaryTextColor': '#f0f6fc',
     'primaryBorderColor': '#444c56',
     'lineColor': '#8b949e',
     'secondaryColor': '#1c2128',
-    'tertiaryColor': '#252a31',
-    'clusterBkg': '#21262d',
-    'clusterBorder': '#444c56',
+    'tertiaryColor': '#1c2128',
+    'clusterBkg': '#1c2128',
+    'clusterBorder': '#30363d',
     'defaultLinkColor': '#8b949e',
     'titleColor': '#f0f6fc',
-    'edgeLabelBackground': '#21262d'
+    'edgeLabelBackground': '#1c2128'
   }
 }}%%
 flowchart TD
-    subgraph LAB_BENCH["BANCADA DE LABORATÓRIO E RUNTIME OPERACIONAL"]
-        USER["Engenheiro Forense / Operador de Bancada"]
-        PICO["Raspberry Pi Pico / Pico 2 (RP2040 / RP2350)<br/>Firmware C11 + Máquinas PIO"]
-        BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
-    end
+    subgraph MASTER[" "]
+        direction TB
 
-    subgraph PANADIGA_SUITE["ECOSSISTEMA DE SOFTWARE UNIFICADO PANADIGA"]
-        GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
-        CLI["Motor Central Unificado Panadiga (Rust 1.85+)<br/>(Binário: dist/panadiga.exe / panadiga)"]
-        
-        subgraph CORE_MODULES["Subsistemas do Motor Central"]
-            RAG["Motor RAG Zero-Error<br/>(6 Invariantes Físicas de Defesa)"]
-            DW_HAL["HAL Nativa Rust DWire32A<br/>(Baud: 115200 / Bitbang / Sincronismo PIO)"]
-            GDB_SRV["Servidor GDB RSP (:3333)<br/>(Cache de Registradores e Acesso à Memória)"]
-            MEIHDFS["Parser de Armazenamento MEIHDFS<br/>(Inversão de Bits e Espelhamento LBA)"]
-            CRYPTO["Motor de Criptoanálise<br/>(Codebook ECB de 64 bits e KPA)"]
-            NVRAM["Sanitizador de NVRAM Multi-Geometria<br/>(Limpeza Cirúrgica de 64 KB para 0xFF)"]
+        subgraph LAB_BENCH["1. BANCADA DE LABORATÓRIO E COMUNICAÇÃO"]
+            direction LR
+            USER["Engenheiro Forense / Operador"]
+            BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
+            PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>Firmware C11 + Máquinas PIO DWire32A"]
+            USER <--> BLE <--> PICO
         end
+
+        subgraph SOFTWARE_SUITE["2. ECOSSISTEMA DE SOFTWARE PANADIGA"]
+            direction TB
+            subgraph UI_TIER["Interfaces de Usuário e Controle"]
+                direction LR
+                GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
+                CLI["Motor Central Unificado Panadiga<br/>(Binário Nativo Rust 1.85+)"]
+                GUI <--> CLI
+            end
+
+            subgraph CORE_MODULES["Subsistemas do Motor Nativo em Rust"]
+                direction LR
+                RAG["Motor RAG Zero-Error<br/>(6 Invariantes Físicas)"]
+                DW_HAL["HAL DWire32A<br/>(115200 / Sincronismo PIO)"]
+                GDB_SRV["Servidor GDB RSP (:3333)<br/>(Cache de Registradores)"]
+                MEIHDFS["Parser MEIHDFS<br/>(Storage Forensics)"]
+                CRYPTO["Motor de Criptoanálise<br/>(ECB 64-bit & KPA)"]
+                NVRAM["Sanitizador de NVRAM<br/>(Limpeza Segura a 0xFF)"]
+            end
+        end
+
+        subgraph TARGET_HARDWARE["3. HARDWARE ALVO FAMÍLIA PANASONIC DIGA"]
+            direction LR
+            P7501["Porta P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
+            AM34["SoC Matsushita UniPhier MN2DS0016<br/>CPU 32-bit AM34 RISC"]
+            FLASH["Flash NOR Paralela (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
+            HDD["Disco Rígido PATA/IDE ou SATA<br/>LBA 0 Superblock (SH) + Partições"]
+            P7501 <--> AM34
+            AM34 <--> FLASH
+            AM34 <--> HDD
+        end
+
+        PICO <-->|"Barramento DWire32A 1.0 MHz"| P7501
+        UI_TIER <--> CORE_MODULES
+        BLE <--> GUI
+        CLI <--> DW_HAL
     end
 
-    subgraph TARGET_HARDWARE["HARDWARE ALVO FAMÍLIA PANASONIC DIGA (DMR-EH / E / ES / EX)"]
-        P7501["Porta P7501 (B6B-ZR-3R4)<br/>Pinos: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
-        AM34["Matsushita UniPhier MN2DS0016 / MN103S<br/>CPU RISC de 32 bits AM34 / MN10300"]
-        FLASH["Flash NOR Paralela (2MB -- 16MB)<br/>Bootloader IPL + 64 KB NVRAM (len - 64KB)"]
-        HDD["Disco Rígido PATA/IDE ou SATA<br/>Superbloco LBA 0 (SH) + Partições de Firmware"]
-    end
+    style MASTER fill:#1c2128,stroke:#30363d,stroke-width:1px
+    style LAB_BENCH fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style SOFTWARE_SUITE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style UI_TIER fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style CORE_MODULES fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    style TARGET_HARDWARE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
 
-    USER <--> GUI
-    USER <--> CLI
-    GUI <--> BLE
-    CLI <--> DW_HAL
-    BLE <--> PICO
-    PICO <--> P7501
-    P7501 <--> AM34
-    AM34 <--> FLASH
-    AM34 <--> HDD
-
-    GDB_SRV <--> CLI
-    DW_HAL <--> PICO
-    RAG -.-> CLI
-
-    style LAB_BENCH fill:#21262d,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-    style PANADIGA_SUITE fill:#252a31,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-    style CORE_MODULES fill:#2d333b,stroke:#57606a,stroke-width:1px,color:#f0f6fc
-    style TARGET_HARDWARE fill:#21262d,stroke:#444c56,stroke-width:1px,color:#f0f6fc
-
-    classDef greyBox fill:#323842,stroke:#57606a,color:#f0f6fc,stroke-width:1px;
-    class USER,PICO,BLE,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
+    classDef greyBox fill:#282e37,stroke:#444c56,color:#f0f6fc,stroke-width:1px;
+    class USER,BLE,PICO,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
 ```
 
 ---
@@ -178,16 +187,16 @@ Panadiga/
 
 ### 3.1. Scripts de Inicialização e Build Multiplataforma (Linux, macOS, Windows)
 
-| Script | Plataforma | Modo | Descrição |
-| :--- | :--- | :--- | :--- |
-| **`run.cmd`** | Windows | Execução / Auto-Build | Executa o aplicativo Desktop diretamente de `dist/` ou `target/release/`. Caso não compilado, aciona o `build.cmd` automaticamente. Suporta `--dev`, `--cli`, `--validate`. |
-| **`run.sh`** | Linux / macOS | Execução / Auto-Build | Equivalente Unix do `run.cmd`. Valida artefatos, compila se necessário e inicia a interface ou CLI. |
-| **`build.cmd`** | Windows | Build Release Completo | Compila bundle React, exporta scripts Ghidra do SSOT, compila o binário Rust otimizado (`%NUMBER_OF_PROCESSORS%` threads), compila firmware do Pico e empacota `dist/releases/panadiga-windows-x86_64.zip`. |
-| **`build.sh`** | Linux / macOS | Build Release Completo | Pipeline Unix paralelo completo de compilação, empacotamento e hashes SHA-256. |
-| **`validate_all.cmd`** | Windows | 9 Quality Gates | Executa a bateria de 9 quality gates via CMD nativo. |
-| **`validate_all.ps1`** | Windows | 9 Quality Gates | Runner PowerShell avançado com saída colorida e verificação estrita de regressões. |
-| **`build-android.cmd`** | Windows | APK Mobile Android | Compila o target Android (`aarch64-linux-android`) via Tauri 2 Mobile com suporte nativo a BLE e USB-C OTG. |
-| **`build-android.sh`** | Linux / macOS | APK Mobile Android | Versão Unix do pipeline de compilação Android. |
+| Script                          | Plataforma    | Modo                    | Descrição                                                                                                                                                                                                      |
+| :------------------------------ | :------------ | :---------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`run.cmd`**           | Windows       | Execução / Auto-Build | Executa o aplicativo Desktop diretamente de `dist/` ou `target/release/`. Caso não compilado, aciona o `build.cmd` automaticamente. Suporta `--dev`, `--cli`, `--validate`.                         |
+| **`run.sh`**            | Linux / macOS | Execução / Auto-Build | Equivalente Unix do `run.cmd`. Valida artefatos, compila se necessário e inicia a interface ou CLI.                                                                                                           |
+| **`build.cmd`**         | Windows       | Build Release Completo  | Compila bundle React, exporta scripts Ghidra do SSOT, compila o binário Rust otimizado (`%NUMBER_OF_PROCESSORS%` threads), compila firmware do Pico e empacota `dist/releases/panadiga-windows-x86_64.zip`. |
+| **`build.sh`**          | Linux / macOS | Build Release Completo  | Pipeline Unix paralelo completo de compilação, empacotamento e hashes SHA-256.                                                                                                                                 |
+| **`validate_all.cmd`**  | Windows       | 9 Quality Gates         | Executa a bateria de 9 quality gates via CMD nativo.                                                                                                                                                             |
+| **`validate_all.ps1`**  | Windows       | 9 Quality Gates         | Runner PowerShell avançado com saída colorida e verificação estrita de regressões.                                                                                                                          |
+| **`build-android.cmd`** | Windows       | APK Mobile Android      | Compila o target Android (`aarch64-linux-android`) via Tauri 2 Mobile com suporte nativo a BLE e USB-C OTG.                                                                                                    |
+| **`build-android.sh`**  | Linux / macOS | APK Mobile Android      | Versão Unix do pipeline de compilação Android.                                                                                                                                                                |
 
 ---
 
@@ -331,7 +340,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 ```text
        ORIENTAÇÃO MECÂNICA CANÔNICA DO CONECTOR P7501 [B6B-ZR-3R4] (ESQUEMÁTICO PANASONIC)
        Parede Traseira voltada para o interior da placa (acima) | Janela de trava voltada para a borda frontal (abaixo)
-       
+     
        Cabo Flat 10 Vias (FP50003)                                         Cabo Flat 8 Vias (FP50004)
        [À Esquerda]                                                                      [À Direita]
             ┌────────────────────────────────────────────────────────────────────────┐
@@ -353,14 +362,14 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 > [!NOTE]
 > **Compatibilidade de Hardware RP2040 / RP2350:** Qualquer placa equipada com **RP2040** (Pico, Pico W) ou **RP2350** (Pico 2) é 100% suportada. A temporização de nanossegundos do barramento DWire32A é executada diretamente no hardware pelas máquinas de estados **PIO0**.
 
-| Pino P7501 (Canônico) | Sinal Matsushita | Pino RP2040 / Pico | Componente de Proteção / Condicionamento | Tipo de Sinal | Veredito de Bancada & Função Técnica |
-| :---: | :---: | :---: | :---: | :---: | :--- |
-| **Pino 1** | `VDD Sense` | `GP26 / ADC0` (Pino 31) | Resistor $1.0	ext{ k}\Omega$ em série (Opcional) | Entrada Analógica | Monitoramento da presença de $+3.3	ext{V}$ da placa do gravador. **Proibido alimentar o Pico por este pino ($I < 10	ext{ mA}$).** |
-| **Pino 2** | `nRESET` | `GP5` (Pino 7) | Resistor $100\,\Omega$ em série | **Open-Drain Estrito** | Linha de reset mestre da CPU (`XRST` / `D_RESET`). **Drenar para 0V para resetar; deixar em Hi-Z para operar. Nunca 3.3V Push-Pull!** |
-| **Pino 3** | `SDATA` | `GP4` (Pino 6) | Resistor $100\,\Omega$ + Pull-up $4.7	ext{ k}\Omega$ p/ 3.3V | Bidirecional Síncrono | Barramento de dados DWire32A em modo half-duplex. Subida rápida garantida pelo pull-up em cabos longos. |
-| **Pino 4** | **`GND`** | **Pino 38 (`GND`)** | **Ligação direta de baixa impedância** | **Referência de 0V** | **Equipotencial mandatória: $0.0\,\Omega$ com a carcaça de lata metálica desprovida de tinta do chassi!** |
-| **Pino 5** | `SCLK` | `GP3` (Pino 5) | Resistor $100\,\Omega$ em série | Saída de Clock Master | Clock serial síncrono mestre gerado pelo Pico PIO (Frequência operacional: $1.0	ext{ MHz}$). |
-| **Pino 6** | `EXTRG` | `GP2` (Pino 4) | Resistor $100\,\Omega$ em série | Saída Digital de Trigger | Gatilho externo para forçar parada de execução (*Halt Request*) do núcleo AM34 no Cold Break-In. |
+| Pino P7501 (Canônico) | Sinal Matsushita |     Pino RP2040 / Pico     |            Componente de Proteção / Condicionamento            |        Tipo de Sinal        | Veredito de Bancada & Função Técnica                                                                                                         |
+| :--------------------: | :---------------: | :-------------------------: | :--------------------------------------------------------------: | :--------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------- |
+|    **Pino 1**    |   `VDD Sense`   |  `GP26 / ADC0` (Pino 31)  |       Resistor $1.0	ext{ k}\Omega$ em série (Opcional)       |      Entrada Analógica      | Monitoramento da presença de $+3.3	ext{V}$ da placa do gravador. **Proibido alimentar o Pico por este pino ($I < 10	ext{ mA}$).**    |
+|    **Pino 2**    |    `nRESET`    |      `GP5` (Pino 7)      |                Resistor $100\,\Omega$ em série                | **Open-Drain Estrito** | Linha de reset mestre da CPU (`XRST` / `D_RESET`). **Drenar para 0V para resetar; deixar em Hi-Z para operar. Nunca 3.3V Push-Pull!** |
+|    **Pino 3**    |     `SDATA`     |      `GP4` (Pino 6)      | Resistor $100\,\Omega$ + Pull-up $4.7	ext{ k}\Omega$ p/ 3.3V |    Bidirecional Síncrono    | Barramento de dados DWire32A em modo half-duplex. Subida rápida garantida pelo pull-up em cabos longos.                                        |
+|    **Pino 4**    | **`GND`** | **Pino 38 (`GND`)** |         **Ligação direta de baixa impedância**         | **Referência de 0V** | **Equipotencial mandatória: $0.0\,\Omega$ com a carcaça de lata metálica desprovida de tinta do chassi!**                            |
+|    **Pino 5**    |     `SCLK`     |      `GP3` (Pino 5)      |                Resistor $100\,\Omega$ em série                |    Saída de Clock Master    | Clock serial síncrono mestre gerado pelo Pico PIO (Frequência operacional: $1.0	ext{ MHz}$).                                                |
+|    **Pino 6**    |     `EXTRG`     |      `GP2` (Pino 4)      |                Resistor $100\,\Omega$ em série                |  Saída Digital de Trigger  | Gatilho externo para forçar parada de execução (*Halt Request*) do núcleo AM34 no Cold Break-In.                                          |
 
 <p align="center">
   <img src="docs/images/dwire32a_pico_probe_assembly_schematic.png" alt="Esquema Elétrico Normatizado de Montagem da Sonda Pico DWire32A" width="760" />
@@ -386,7 +395,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 Clock Cycle:       1     2     3     4     5     6     7     8
                  _____       _____       _____       _____
 SCLK   _________/     \_____/     \_____/     \_____/     \_____  (Master 1.0 MHz)
-       
+     
 SDATA  ===< CMD[7] >< CMD[6] >< CMD[5] >...========[ Hi-Z Turnaround ]===> DATA[7] >
                  ^           ^
                  |           |-- Dado amostrado na borda de SUBIDA do SCLK
@@ -421,6 +430,7 @@ Restrições de Temporização:
 ### 6.1 Regra de Ouro JEDEC para o RAM Loader Injetado
 
 Ao carregar payloads executáveis diretamente na memória DDR-SDRAM via comandos DWire32A OCD:
+
 * **Endereço de Carga do Payload:** `0x04010000` (offset seguro de buffer DDR, evitando a página zero).
 * **Ponteiro de Pilha Inicial:** `SP = 0x0040FFF0` (dentro da SRAM de alta velocidade interna do chip).
 * **Desativação do Watchdog:** Escrever `0x00000000` no registrador MMIO `0x1F000104` em menos de $100	ext{ ms}$ após o boot.
@@ -435,18 +445,19 @@ A análise estatística do arquivo `PANA_DVD.FRM` e dos dumps do disco rígido r
 
 ### 7.2 Codebook ECB de 64 bits e Ataque de Texto-Plano Conhecido (Known-Plaintext Attack - KPA)
 
-| Bloco Cifrado (Hex) | Significado em Texto Claro | Ocorrências FRM | Ocorrências HD | Relevância Forense |
-| :---: | :---: | :---: | :---: | :--- |
-| `035065C87BB8E090` | `FF FF FF FF FF FF FF FF` | 3.812 | 1.280 | Células virgens de Flash NOR apagada / Padding |
-| `E5D1F34A518B2690` | `00 00 00 00 00 00 00 00` | 196 | 3 | Padding nulo de zeros / Zeros estruturais |
-| `4D3C5DBB0C357777` | Cabeçalho de Tabela | 1.280 | 0 | Quadro descritor de módulo de partição interna |
-| `EFDC1CDA13881BAB` | Cabeçalho de Família | 3 | 0 | TOC: Marcador de Família de Processadores UniPhier |
-| `74A78ACD789B84FF` | Seletor de Core CPU | 2 | 0 | TOC: Identificador de Núcleo AM34 / MN103S |
-| `3B7E7EDBB6C57A53` | Seletor de Core DSP | 1 | 0 | TOC: DSP do Servo do Drive Óptico MN102 |
+| Bloco Cifrado (Hex) | Significado em Texto Claro | Ocorrências FRM | Ocorrências HD | Relevância Forense                                 |
+| :------------------: | :-------------------------: | :--------------: | :-------------: | :-------------------------------------------------- |
+| `035065C87BB8E090` | `FF FF FF FF FF FF FF FF` |      3.812      |      1.280      | Células virgens de Flash NOR apagada / Padding     |
+| `E5D1F34A518B2690` | `00 00 00 00 00 00 00 00` |       196       |        3        | Padding nulo de zeros / Zeros estruturais           |
+| `4D3C5DBB0C357777` |    Cabeçalho de Tabela    |      1.280      |        0        | Quadro descritor de módulo de partição interna   |
+| `EFDC1CDA13881BAB` |   Cabeçalho de Família   |        3        |        0        | TOC: Marcador de Família de Processadores UniPhier |
+| `74A78ACD789B84FF` |     Seletor de Core CPU     |        2        |        0        | TOC: Identificador de Núcleo AM34 / MN103S         |
+| `3B7E7EDBB6C57A53` |     Seletor de Core DSP     |        1        |        0        | TOC: DSP do Servo do Drive Óptico MN102            |
 
 ### 7.3 Desconstrução do Contêiner `PANA_DVD.FRM` em 3 Módulos de Firmware
 
 O contêiner do disco óptico de atualização divide-se em três módulos precedidos por um cabeçalho global de 16 bytes (`492F0560CEDE508CE3C08AFD49B64A9A`) e uma TOC de 144 bytes (três registros de 48 bytes):
+
 1. **Módulo 0 (`MOD_0`):** Kernel do Sistema Operacional para o processador AM34 (SO, GUI, drivers).
 2. **Módulo 1 (`MOD_1`):** Microcódigo do servo óptico para o processador MN102 DSP.
 3. **Módulo 2 (`MOD_2`):** Recursos gráficos OSD, tabelas de fontes, primitivas e textos de menus.
@@ -454,12 +465,14 @@ O contêiner do disco óptico de atualização divide-se em três módulos prece
 ### 7.4 Vínculo Criptográfico Irrefutável entre o CD (`.FRM`) e o HD (`hdd_100.bin`)
 
 A presença de blocos cifrados idênticos `E5D1F34A518B2690` (zeros) e `035065C87BB8E090` (Flash virgem) tanto no contêiner óptico quanto nas partições do HD comprova que:
+
 1. O firmware mantido no HD é cifrado com o **mesmo algoritmo e mesma chave** do contêiner óptico.
 2. Não é possível reparar um HD simplesmente injetando dados em texto-claro; a estrutura precisa respeitar a chave de cifragem e geometria do MEIHDFS.
 
 ### 7.5 Arquitetura Bit-Invertida (One's Complement / XOR 0xFF) do MEIHDFS
 
 O superbloco no LBA 0 armazena a geometria com inversão bit a bit (`XOR 0xFF`):
+
 * O identificador ASCII `"SH"` aparece em hexadecimal como `0xAE 0xB7` (`~0x51 0x48`).
 * Contadores de LBA e clusters são igualmente invertidos, impedindo que utilitários de partição convencionais de PC identifiquem ou corrompam o disco.
 
@@ -483,17 +496,20 @@ O superbloco no LBA 0 armazena a geometria com inversão bit a bit (`XOR 0xFF`):
 ```
 
 ### Rota A: Gravação Física Externa TSOP-48 via SVOD 4 / XGecu T48
+
 * Dessolde `IC55007` (Spansion S29JL064H70TFI00).
 * Faça leitura de backup de 8 MB.
 * Execute `panadiga nvram clean --input dump.bin --output limpo.bin`.
 * Regrave `limpo.bin` no chip e solde de volta na placa.
 
 ### Rota B: In-Circuit via DWire32A com RP2040 e Injeção de RAM Loader
+
 * Conecte a sonda de 6 fios do Pico ao conector `P7501` (confirmando pino 4 GND).
 * Execute `panadiga pico flash --unbrick`.
 * O Pico interrompe a CPU AM34, injeta o RAM loader e redefine a NVRAM para `0xFF`.
 
 ### Rota C: Substituição do HD por SSD Preservando os 100 MB do MEIHDFS
+
 * Conecte o disco IDE a um adaptador USB com alimentação dedicada.
 * Extraia a partição do sistema: `panadiga hdd extract --input /dev/sdb --output-dir backup/`.
 * Grave em SSD compatível e reinsira no aparelho.
@@ -504,21 +520,19 @@ O superbloco no LBA 0 armazena a geometria com inversão bit a bit (`XOR 0xFF`):
 
 A tabela a seguir especifica detalhadamente a arquitetura de silício, capacidade de Flash, endereçamento da NVRAM e métodos de recuperação aplicáveis em todas as 5 gerações de gravadores Panasonic DIGA:
 
-| Família & Modelos de Gravadores | Geração / Ano | Processador SoC & Arquitetura | Memória Flash NOR (Tamanho & Chip) | Faixa de Endereço da NVRAM (EEMUL) | Subsistema de Armazenamento | Conector de Depuração DWire / OCD | Causa do Erro U99 & Solução Panadiga |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **DMR-E20, DMR-E30, DMR-E50, DMR-E55, DMR-E60** | **Geração 1** (2001–2003) | Matsushita MN10300 (16/32-bit AM32 / AM33) | **2 MB** (16 Mbit) TSOP-48 (Am29LV160) | `0x001F0000..0x001FFFFF` (Últimos 64 KB) | Gravador Óptico DVD-RAM / DVD-R (UDF 1.5 direto) | Conector OCD de 5 ou 6 pinos (3.3V) | Corrupção de wear-leveling na Flash. Limpeza via `panadiga nvram clean` (auto-detecta 2 MB). |
-| **DMR-E80H, DMR-E85H, DMR-E95H, DMR-E100H, DMR-E500H, DMR-ES20** | **Geração 2** (2003–2004) | Matsushita MN103S / Primeiros UniPhier | **4 MB** (32 Mbit) TSOP-48 (Am29LV320) | `0x003F0000..0x003FFFFF` (Últimos 64 KB) | HDD PATA/IDE (40–160 GB) + MEIHDFS-V1 | Barra de pinos OCD de 6 vias (3.3V LVCMOS) | Berço do erro `U99` histórico. Limpeza do setor `0x3F0000` via `panadiga nvram clean` (auto-detecta 4 MB). |
-| **DMR-EH50, DMR-EH52, DMR-EH55, DMR-EH56, DMR-EH60, DMR-EH65, DMR-EH75V, DMR-EH80V, DMR-ES10, DMR-ES30V** | **Geração 3** (2005–2007) [Plataforma Base] | Matsushita UniPhier `MN2DS0016` (32-bit RISC AM34) | **8 MB** (64 Mbit) TSOP-48 (Spansion S29JL064H) | `0x007F0000..0x007FFFFF` (Últimos 64 KB) | HDD PATA/IDE (80–250 GB) + MEIHDFS-V2 | Conector Canônico **`P7501`** (JST ZR 1.5mm 6 vias: VDD, nRESET, SDATA, GND, SCLK, EXTRG) | Erro clássico `U99` por dessincronia do anel EEMUL. Solução via `panadiga nvram clean` ou in-circuit via Pico DWire32A. |
-| **DMR-EX75, DMR-EX85, DMR-EX95V, DMR-EX98V, DMR-EH67, DMR-EH68** | **Geração 4** (2006–2008) | Matsushita UniPhier 2ª Geração (`MN2DS0018` / `MN2DS0022` / `MN2DS0024`) | **16 MB** (128 Mbit) TSOP-56 (Spansion S29GL128N) | `0x00FF0000..0x00FFFFFF` (Últimos 64 KB) | HDD SATA / PATA (160–320 GB) + MEIHDFS-V2+ | Barra DWire32A de 6 vias (JST ZR 1.5mm) | Dessincronia de tabelas de canal DVB-T gerando U99. Limpeza via `panadiga nvram clean` (auto-detecta 16 MB). |
-| **DMR-BW500, DMR-BR500, DMR-BW700, DMR-BW800, DMR-BWT700** | **Geração 5** (2008–2011) | Matsushita UniPhier Dual-Core (`MN2WS0040` / `MN2WS0050`) | **32 MB -- 64 MB** Flash NOR/NAND | Alocação dinâmica por volume | HDD SATA 3.5" (250 GB -- 1 TB) + Drive BD-RE | Interface híbrida JTAG / DWire | Geração Blu-ray. MEIHDFS-V3 com cifras AES. Extração de partições via `panadiga hdd extract`. |
+| Família & Modelos de Gravadores                                                                                | Geração / Ano                                      | Processador SoC & Arquitetura                                                     | Memória Flash NOR (Tamanho & Chip)                     | Faixa de Endereço da NVRAM (EEMUL)         | Subsistema de Armazenamento                       | Conector de Depuração DWire / OCD                                                                | Causa do Erro U99 & Solução Panadiga                                                                                         |
+| :-------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------- | :-------------------------------------------------------------------------------- | :------------------------------------------------------ | :------------------------------------------ | :------------------------------------------------ | :------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------- |
+| **DMR-E20, DMR-E30, DMR-E50, DMR-E55, DMR-E60**                                                           | **Geração 1** (2001–2003)                   | Matsushita MN10300 (16/32-bit AM32 / AM33)                                        | **2 MB** (16 Mbit) TSOP-48 (Am29LV160)            | `0x001F0000..0x001FFFFF` (Últimos 64 KB) | Gravador Óptico DVD-RAM / DVD-R (UDF 1.5 direto) | Conector OCD de 5 ou 6 pinos (3.3V)                                                                | Corrupção de wear-leveling na Flash. Limpeza via `panadiga nvram clean` (auto-detecta 2 MB).                               |
+| **DMR-E80H, DMR-E85H, DMR-E95H, DMR-E100H, DMR-E500H, DMR-ES20**                                          | **Geração 2** (2003–2004)                   | Matsushita MN103S / Primeiros UniPhier                                            | **4 MB** (32 Mbit) TSOP-48 (Am29LV320)            | `0x003F0000..0x003FFFFF` (Últimos 64 KB) | HDD PATA/IDE (40–160 GB) + MEIHDFS-V1            | Barra de pinos OCD de 6 vias (3.3V LVCMOS)                                                         | Berço do erro `U99` histórico. Limpeza do setor `0x3F0000` via `panadiga nvram clean` (auto-detecta 4 MB).             |
+| **DMR-EH50, DMR-EH52, DMR-EH55, DMR-EH56, DMR-EH60, DMR-EH65, DMR-EH75V, DMR-EH80V, DMR-ES10, DMR-ES30V** | **Geração 3** (2005–2007) [Plataforma Base] | Matsushita UniPhier `MN2DS0016` (32-bit RISC AM34)                              | **8 MB** (64 Mbit) TSOP-48 (Spansion S29JL064H)   | `0x007F0000..0x007FFFFF` (Últimos 64 KB) | HDD PATA/IDE (80–250 GB) + MEIHDFS-V2            | Conector Canônico **`P7501`** (JST ZR 1.5mm 6 vias: VDD, nRESET, SDATA, GND, SCLK, EXTRG) | Erro clássico `U99` por dessincronia do anel EEMUL. Solução via `panadiga nvram clean` ou in-circuit via Pico DWire32A. |
+| **DMR-EX75, DMR-EX85, DMR-EX95V, DMR-EX98V, DMR-EH67, DMR-EH68**                                          | **Geração 4** (2006–2008)                   | Matsushita UniPhier 2ª Geração (`MN2DS0018` / `MN2DS0022` / `MN2DS0024`) | **16 MB** (128 Mbit) TSOP-56 (Spansion S29GL128N) | `0x00FF0000..0x00FFFFFF` (Últimos 64 KB) | HDD SATA / PATA (160–320 GB) + MEIHDFS-V2+       | Barra DWire32A de 6 vias (JST ZR 1.5mm)                                                            | Dessincronia de tabelas de canal DVB-T gerando U99. Limpeza via `panadiga nvram clean` (auto-detecta 16 MB).                 |
+| **DMR-BW500, DMR-BR500, DMR-BW700, DMR-BW800, DMR-BWT700**                                                | **Geração 5** (2008–2011)                   | Matsushita UniPhier Dual-Core (`MN2WS0040` / `MN2WS0050`)                     | **32 MB -- 64 MB** Flash NOR/NAND                 | Alocação dinâmica por volume             | HDD SATA 3.5" (250 GB -- 1 TB) + Drive BD-RE      | Interface híbrida JTAG / DWire                                                                    | Geração Blu-ray. MEIHDFS-V3 com cifras AES. Extração de partições via `panadiga hdd extract`.                          |
 
 ### 9.1 Por Que Funciona em Todos os Modelos DIGA ("Invariantes de Silício")
 
-1. **Invariante Matemática de Dimensionamento de Flash (`len - 64 KB`):**  
-   Os engenheiros de firmware da Matsushita alocaram consistentemente o anel de emulação de EEPROM (`EEMUL`) no último setor de 64 KB da Flash NOR principal em todas as gerações. O comando `panadiga nvram clean` avalia dinamicamente `offset = len - 65536`. Portanto, seja em dumps de 2 MB (`0x1F0000`), 4 MB (`0x3F0000`), 8 MB (`0x7F0000`) ou 16 MB (`0xFF0000`), a limpeza cirúrgica atua com 100% de precisão sem risco ao IPL.
-2. **Invariância do Protocolo DWire32A:**  
-   O módulo de On-Chip Debug (OCD) serial integrado à família de núcleos AM3x/MN103 segue a mesma máquina de estados síncrona: clock mestre de $1.0	ext{ MHz}$ (`SCLK`), 250 ns de setup, 500 ns de hold, linha de dados bidirecional half-duplex com pull-up (`SDATA`) e reset open-drain (`nRESET`). A máquina PIO do Raspberry Pi Pico (`dwire32a.pio`) é universalmente compatível com todos os gravadores equipados com esse barramento.
-3. **Invariância do Superbloco MEIHDFS:**  
+1. **Invariante Matemática de Dimensionamento de Flash (`len - 64 KB`):**Os engenheiros de firmware da Matsushita alocaram consistentemente o anel de emulação de EEPROM (`EEMUL`) no último setor de 64 KB da Flash NOR principal em todas as gerações. O comando `panadiga nvram clean` avalia dinamicamente `offset = len - 65536`. Portanto, seja em dumps de 2 MB (`0x1F0000`), 4 MB (`0x3F0000`), 8 MB (`0x7F0000`) ou 16 MB (`0xFF0000`), a limpeza cirúrgica atua com 100% de precisão sem risco ao IPL.
+2. **Invariância do Protocolo DWire32A:**O módulo de On-Chip Debug (OCD) serial integrado à família de núcleos AM3x/MN103 segue a mesma máquina de estados síncrona: clock mestre de $1.0	ext{ MHz}$ (`SCLK`), 250 ns de setup, 500 ns de hold, linha de dados bidirecional half-duplex com pull-up (`SDATA`) e reset open-drain (`nRESET`). A máquina PIO do Raspberry Pi Pico (`dwire32a.pio`) é universalmente compatível com todos os gravadores equipados com esse barramento.
+3. **Invariância do Superbloco MEIHDFS:**
    A assinatura mágica ASCII `"SH"` e a geometria com espelho de segurança em 28 MB são idênticas desde a série E85H até as séries digitais EH e EX.
 
 ---
@@ -528,6 +542,7 @@ A tabela a seguir especifica detalhadamente a arquitetura de silício, capacidad
 Todos os manuais de serviço, esquemas e datasheets estão organizados hierarquicamente em `manuals_and_schematics/`:
 
 ### A. Manuais de Serviço e Esquemas Técnicos Panasonic DIGA
+
 * `dmr-eh55/service/panasonic_dmr_eh55ec_service_manual_vol2_schematics.pdf` (177 págs, esquemas placa VEP79138, pinout P7501)
 * `dmr-eh55/service/panasonic_dmr_eh55ec_service_manual_vol1_diagnostics.pdf` (97 págs, fluxo de autodiagnóstico e erro U99)
 * `dmr-eh55/service/panasonic_dmr_eh55p9_eh55pc9_service_manual_north_america.pdf` (97 págs, chassi NTSC norte-americano)
@@ -539,6 +554,7 @@ Todos os manuais de serviço, esquemas e datasheets estão organizados hierarqui
 * `dmr-eh55/firmware_update/panasonic_dmr_eh55_firmware_installation_guide.pdf` (8 págs, guia oficial de atualização por CD-R)
 
 ### B. Manuais de Usuário e Operação Panasonic DIGA
+
 * `dmr-eh55/user/panasonic_dmr_eh55_operating_instructions_global.pdf` (89 págs)
 * `dmr-eh55/user/panasonic_dmr_eh55s_operating_instructions_silver.pdf` (89 págs)
 * `dmr-eh55/user/panasonic_dmr_eh55_eh56_operating_instructions_europe.pdf` (84 págs)
@@ -557,6 +573,7 @@ Todos os manuais de serviço, esquemas e datasheets estão organizados hierarqui
 * `dmr-es30v/user/panasonic_dmr_es30v_user_manual.pdf` (7.9 MB)
 
 ### C. Datasheets de Silício e Manuais de Arquitetura (`datasheets/`)
+
 * `datasheets/matsushita_mn10300_series_cross_assembler_users_manual.pdf` (Conjunto de instruções AM34, registradores, opcodes)
 * `datasheets/matsushita_mn10300_series_c_debugger_users_manual.pdf` (Protocolo de depuração On-Chip Debug OCD em linguagem C)
 * `datasheets/rp2040_datasheet_raspberrypi.pdf` (5.3 MB, especificação técnica oficial do microcontrolador RP2040 e máquinas PIO)
@@ -570,31 +587,19 @@ Todos os manuais de serviço, esquemas e datasheets estão organizados hierarqui
 
 O acervo oficial de 13 grandes dossiês técnicos bilíngues está disponível em `docs/pt-BR/` (com espelho em inglês em `docs/en-US/` e portal em `docs/INDEX.md`):
 
-* 🏛️ **[Arquitetura de Sistemas e Blueprint de Engenharia](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md)** ([English Mirror](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md))  
-  *Especificação mestre do ecossistema: decomposição de monólitos, Pure FP domain, MVVM rigoroso, anel GDB e invariantes de silício.*
-* 📱 **[Arquitetura Mobile Android e Bluetooth](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md)** ([English Mirror](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md))  
-  *Construção de APK Android (`aarch64-linux-android`), HAL nativa em Rust (BLE NUS / USB-C OTG) e isolamento da porta P7501.*
-* 🧪 **[Arquitetura de Testes e Matriz de Conformidade](docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md)** ([English Mirror](docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md))  
-  *Pirâmide de testes em 5 camadas (Pure FP, GDB RSP, MVVM ADTs, CLI SSOT, E2E), rastreabilidade e status CI/CD.*
-* ⚡ **[Blueprint do Esquema Elétrico de Bancada](docs/pt-BR/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)** ([English Mirror](docs/en-US/BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md))  
-  *Chicote de conexão, pinagem do conector P7501, RP2040, disclaimer de resistores de protótipo vs produto final.*
-* 💾 **[Arquitetura de Armazenamento MEIHDFS e Partições](docs/pt-BR/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md)** ([English Mirror](docs/en-US/STORAGE_ARCHITECTURE_MEIHDFS_PARTITIONS.md))  
-  *MEIHFS Panasonic, MBR 'SH' em LBA 0, espelho a 28 MB, journal transacional de 10 blocos e partições de firmware.*
-* 🔐 **[Dossiê de Criptografia e Contêiner PANA_DVD.FRM](docs/pt-BR/DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md)** ([English Mirror](docs/en-US/DOSSIER_CRYPTOGRAPHY_AND_FIRMWARE_PANA_DVD.md))  
-  *Contêiner óptico PANA_DVD.FRM, cifras CPRM/C2, codebook ECB de 64 bits e análise matemática de entropia.*
-* 🔬 **[Estratégia de Integração Ghidra e Servidor GDB](docs/pt-BR/ESTRATEGIA_INTEGRACAO_GHIDRA_GDB.md)** ([English Mirror](docs/en-US/GHIDRA_GDB_INTEGRATION_STRATEGY.md))  
-  *Processador Matsushita AM34/MN103S, módulo SLED Ghidra e servidor GDB Remote Serial Protocol (:3333).*
-* 🛠️ **[Guia Ilustrado de Montagem da Sonda de Bancada](docs/pt-BR/GUIA_MONTAGEM_E_FOTOS_PROBE_BANCADA.md)** ([English Mirror](docs/en-US/BENCH_PROBE_ASSEMBLY_AND_PHOTOS_GUIDE.md))  
-  *Montagem da sonda passo a passo, chicote JST ZR 1.5mm e teste mandatória de continuidade do terra (Pino 4 GND).*
-* 📋 **[Inventário Técnico e Guia de Operações](docs/pt-BR/INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md)** ([English Mirror](docs/en-US/TECHNICAL_INVENTORY_AND_OPERATIONS_MANUAL.md))  
-  *Inventário de arquivos, hashes SHA-256 e roteiro passo a passo de desbrick do erro U99.*
-* 📊 **[Relatório de Auditoria e Modularização Final](docs/pt-BR/RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md)** ([English Mirror](docs/en-US/FINAL_AUDIT_AND_MODULARIZATION_REPORT.md))  
-  *Relatório de modularização, integração cross-stack (Rust/C/Python/TypeScript) e homologação dos 9 Quality Gates.*
-* 📡 **[Subsistema de Logging e Telemetria Unificada](docs/pt-BR/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)** ([English Mirror](docs/en-US/LOGGING_AND_TELEMETRY_SUBSYSTEM.md))  
-  *Logging estruturado em JSON, sinks thread-safe e telemetria serial em tempo real na interface gráfica.*
-* 💡 **[Teoria e Prática: Resolução do U99 e Semicondutores](docs/pt-BR/TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md)** ([English Mirror](docs/en-US/THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md))  
-  *Física de semicondutores da Flash NOR Spansion, motor circular EEMUL e sanitização dos 64 KB de NVRAM para 0xFF.*
-* 🛡️ **[Motor RAG Zero-Error e Segurança Física de Bancada](docs/pt-BR/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)** ([English Mirror](docs/en-US/ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md))  
+* 🏛️ **[Arquitetura de Sistemas e Blueprint de Engenharia](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md)** ([English Mirror](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md))*Especificação mestre do ecossistema: decomposição de monólitos, Pure FP domain, MVVM rigoroso, anel GDB e invariantes de silício.*
+* 📱 **[Arquitetura Mobile Android e Bluetooth](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md)** ([English Mirror](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md))*Construção de APK Android (`aarch64-linux-android`), HAL nativa em Rust (BLE NUS / USB-C OTG) e isolamento da porta P7501.*
+* 🧪 **[Arquitetura de Testes e Matriz de Conformidade](docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md)** ([English Mirror](docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md))*Pirâmide de testes em 5 camadas (Pure FP, GDB RSP, MVVM ADTs, CLI SSOT, E2E), rastreabilidade e status CI/CD.*
+* ⚡ **[Blueprint do Esquema Elétrico de Bancada](docs/pt-BR/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)** ([English Mirror](docs/en-US/BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md))*Chicote de conexão, pinagem do conector P7501, RP2040, disclaimer de resistores de protótipo vs produto final.*
+* 💾 **[Arquitetura de Armazenamento MEIHDFS e Partições](docs/pt-BR/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md)** ([English Mirror](docs/en-US/STORAGE_ARCHITECTURE_MEIHDFS_PARTITIONS.md))*MEIHFS Panasonic, MBR 'SH' em LBA 0, espelho a 28 MB, journal transacional de 10 blocos e partições de firmware.*
+* 🔐 **[Dossiê de Criptografia e Contêiner PANA_DVD.FRM](docs/pt-BR/DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md)** ([English Mirror](docs/en-US/DOSSIER_CRYPTOGRAPHY_AND_FIRMWARE_PANA_DVD.md))*Contêiner óptico PANA_DVD.FRM, cifras CPRM/C2, codebook ECB de 64 bits e análise matemática de entropia.*
+* 🔬 **[Estratégia de Integração Ghidra e Servidor GDB](docs/pt-BR/ESTRATEGIA_INTEGRACAO_GHIDRA_GDB.md)** ([English Mirror](docs/en-US/GHIDRA_GDB_INTEGRATION_STRATEGY.md))*Processador Matsushita AM34/MN103S, módulo SLED Ghidra e servidor GDB Remote Serial Protocol (:3333).*
+* 🛠️ **[Guia Ilustrado de Montagem da Sonda de Bancada](docs/pt-BR/GUIA_MONTAGEM_E_FOTOS_PROBE_BANCADA.md)** ([English Mirror](docs/en-US/BENCH_PROBE_ASSEMBLY_AND_PHOTOS_GUIDE.md))*Montagem da sonda passo a passo, chicote JST ZR 1.5mm e teste mandatória de continuidade do terra (Pino 4 GND).*
+* 📋 **[Inventário Técnico e Guia de Operações](docs/pt-BR/INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md)** ([English Mirror](docs/en-US/TECHNICAL_INVENTORY_AND_OPERATIONS_MANUAL.md))*Inventário de arquivos, hashes SHA-256 e roteiro passo a passo de desbrick do erro U99.*
+* 📊 **[Relatório de Auditoria e Modularização Final](docs/pt-BR/RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md)** ([English Mirror](docs/en-US/FINAL_AUDIT_AND_MODULARIZATION_REPORT.md))*Relatório de modularização, integração cross-stack (Rust/C/Python/TypeScript) e homologação dos 9 Quality Gates.*
+* 📡 **[Subsistema de Logging e Telemetria Unificada](docs/pt-BR/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)** ([English Mirror](docs/en-US/LOGGING_AND_TELEMETRY_SUBSYSTEM.md))*Logging estruturado em JSON, sinks thread-safe e telemetria serial em tempo real na interface gráfica.*
+* 💡 **[Teoria e Prática: Resolução do U99 e Semicondutores](docs/pt-BR/TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md)** ([English Mirror](docs/en-US/THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md))*Física de semicondutores da Flash NOR Spansion, motor circular EEMUL e sanitização dos 64 KB de NVRAM para 0xFF.*
+* 🛡️ **[Motor RAG Zero-Error e Segurança Física de Bancada](docs/pt-BR/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)** ([English Mirror](docs/en-US/ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md))
   *Sistema de defesa em 6 camadas determinísticas (QueryGuard, CRAG, GroundedSynthesis, FactCritic, InvariantShield).*
 
 ---
@@ -653,6 +658,7 @@ O ecossistema Panadiga impõe uma rigorosa pipeline anti-regressão composta por
 ### 14.1. Matriz de Subagentes Especialistas (`.agents/agents/`)
 
 O repositório define 5 subagentes de engenharia especializados para suporte autônomo:
+
 * **`panasonic-hardware-engineer`:** Esquemáticos, topografia de PCB, tensões e integridade de sinal DWire32A.
 * **`panasonic-crypto-analyst`:** Criptoanálise de blocos, codebooks ECB e proteção CPRM/DivX.
 * **`panasonic-storage-architect`:** Geometria MEIHDFS, reparo de MBR e análise forense de sistemas de arquivos.
@@ -662,6 +668,7 @@ O repositório define 5 subagentes de engenharia especializados para suporte aut
 ### 14.2. Servidor Nativo Model Context Protocol (`tools/panadiga_mcp_server.py`)
 
 Um servidor MCP padronizado em JSON-RPC 2.0 expõe ferramentas de laboratório para agentes de IA:
+
 * `panadiga_rag_query`: Consulta a base local do RAG com fundamentação factual estrita.
 * `panadiga_manuals_search`: Busca nos 30 manuais técnicos e datasheets com citações de página.
 * `panadiga_inspect_hdd`: Inspeciona fronteiras de partição e validação do superbloco MEIHDFS.
@@ -670,6 +677,7 @@ Um servidor MCP padronizado em JSON-RPC 2.0 expõe ferramentas de laboratório p
 ### 14.3. Subsistema de Logging e Telemetria Unificada (`src/logger.rs`)
 
 Todos os componentes operam através de sinks estruturados:
+
 * **Zero console.log/println:** É terminantemente proibido o uso de logs não-estruturados soltos em código de produção.
 * **Níveis de Log:** `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR` com carimbo de tempo em microssegundos e tags de subsistema.
 * **Streaming na Interface Desktop:** Eventos de log são transmitidos em tempo real para o painel de terminal da UI.

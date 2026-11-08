@@ -1,4 +1,4 @@
-# Forensic Technical Dossier: Binary Compatibility, Argon Audit & Multiplatform Compression
+# Forensic Technical Dossier: Binary Compatibility, Independent Audit & Multiplatform Compression
 
 ---
 
@@ -45,12 +45,12 @@ graph TD
 
 ---
 
-## 2. High-Precision Structured Prompt for Argon Audit
+## 2. High-Precision Structured Prompt for Independent Audit
 
 ```markdown
 # MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & AM34 DWIRE32A
 TARGET SYSTEM: Panasonic DIGA Lineage (MN2DS0016 UniPhier AM34 RISC / MN103 / MN102)
-AUDITOR ROLE: Argon (Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
+AUDITOR ROLE: Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
 
 ## 1. CONTEXT & AUDIT OBJECTIVE
 You have been convened to formally validate the reverse engineering architecture, corruption recovery (U99 Unbrick), and hardware protocol of the Panadiga project.

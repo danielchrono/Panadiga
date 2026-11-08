@@ -3,10 +3,10 @@
 Collects and packages the entire Panadiga codebase (Rust core, Python CLI,
 Tauri/React frontend with strict i18n, and hardware guidelines) into a
 self-contained, tool-free evaluation dossier for high-end reasoning models
-(Argon, Claude 3.5/3.7, Opus 5.5).
+and independent security auditors.
 
 Supports both:
-  --mode full     : Full verbatim source code dump (AUDIT_DOSSIER_FOR_ARGON_AND_OPUS.md)
+  --mode full     : Full verbatim source code dump (AUDIT_DOSSIER_INDEPENDENT_REVIEW.md)
   --mode minimal  : High-density, token-optimized proof & verification pack (< 15 KB / ~4k tokens)
 """
 
@@ -192,21 +192,21 @@ def count_file_stats(path: Path) -> Tuple[int, int, str]:
 
 
 def generate_minimal_dossier(output_path: Path, run_checks: bool = True) -> None:
-    """Generates an ultra-compact, token-optimized proof dossier for Argon."""
+    """Generates an ultra-compact, token-optimized proof dossier for independent auditors."""
     now_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     branch, commit = get_git_info()
 
     doc_parts: List[str] = []
 
-    doc_parts.append(f"""# PANADIGA ECOSYSTEM — ARGON TOKEN-MINIMIZED AUDIT DOSSIER
+    doc_parts.append(f"""# PANADIGA ECOSYSTEM — INDEPENDENT TOKEN-MINIMIZED AUDIT DOSSIER
 ## Self-Contained Zero-Token-Waste Proof & Compliance Pack
 **Target Device:** Panasonic DMR-EH55 (Matsushita MN2DS0016 / AM34 RISC, Spansion S29JL064H, MEIHDFS HDD)  
-**Evaluator:** Argon Reasoning Engine (Zero External Tool Calls Required)  
+**Evaluator:** Principal Cryptanalyst & Hardware Security Auditor (Zero External Tool Calls Required)  
 **Generated At:** {now_str} | **Git:** `{branch}` @ `{commit}`  
 
 ---
 
-### 🚨 MANDATORY DIRECTIVE FOR ARGON
+### 🚨 MANDATORY DIRECTIVE FOR INDEPENDENT AUDITOR
 > You are verifying 100% of this codebase for **Safety, Correctness, and Architectural Conformity**.
 > **DO NOT INVOKE ANY TOOLS.** All mathematical proofs, test outputs, structural invariants, and cryptographic digests are pre-verified and embedded below. Formulate your final verdict in a compact structured format.
 
@@ -311,8 +311,8 @@ def generate_minimal_dossier(output_path: Path, run_checks: bool = True) -> None
 
     doc_parts.append(f"\n**Total Tracked Files:** {total_files} | **Total Lines:** {total_lines:,} | **Total Size:** {total_bytes/1024:.1f} KB\n\n---\n\n")
 
-    # Final concise audit question pack for Argon
-    doc_parts.append("""## 5. Required Verification Questionnaire for Argon
+    # Final concise audit question pack for independent auditor
+    doc_parts.append("""## 5. Required Verification Questionnaire for Independent Auditor
 
 Answer the following evaluation questions with concise, high-signal technical statements:
 
@@ -335,16 +335,16 @@ def generate_dossier(output_path: Path, run_checks: bool = True) -> None:
 
     doc_parts: List[str] = []
 
-    # 1. System Prompt & Instruction Header for Argon / Opus 5.5
+    # 1. System Prompt & Instruction Header for Independent Auditor
     doc_parts.append(f"""# CODEBASE MASTER AUDIT DOSSIER & EVALUATOR PACK
-## Target Evaluators: Argon & Claude Opus 5.5 (Zero Tool-Call Self-Contained Review)
+## Target Evaluator: Principal Cryptanalyst & Hardware Security Auditor (Zero Tool-Call Self-Contained Review)
 **Target Repository:** Panasonic DIGA DMR-EH55 Reverse Engineering, Forensics & Workbench Suite  
 **Generated At:** {now_str}  
 **Git Branch / Commit:** `{branch}` @ `{commit}`  
 
 ---
 
-## 🚨 MANDATORY INSTRUCTIONS FOR AUDITING AI (ARGON / OPUS 5.5)
+## 🚨 MANDATORY INSTRUCTIONS FOR AUDITING EXPERT
 
 You are acting as an elite **Principal Embedded Systems Architect, Senior Rust Safety Auditor, and Full-Stack Quality Gate Inspector**.
 You have been provided with the **complete, full-text source code** of all critical components of this repository in this single document.
@@ -467,7 +467,7 @@ You have been provided with the **complete, full-text source code** of all criti
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate codebase audit dossier for Argon & Opus 5.5")
+    parser = argparse.ArgumentParser(description="Generate codebase audit dossier for independent auditor")
     parser.add_argument(
         "-o", "--output",
         default=None,
@@ -494,11 +494,11 @@ def main():
     mode = "minimal" if args.minimal_tokens else args.mode
 
     if mode in ("minimal", "both"):
-        min_out = BASE_DIR / (args.output if (args.output and mode == "minimal") else "AUDIT_DOSSIER_FOR_ARGON_MINIMAL_TOKENS.md")
+        min_out = BASE_DIR / (args.output if (args.output and mode == "minimal") else "AUDIT_DOSSIER_MINIMAL_TOKENS.md")
         generate_minimal_dossier(min_out, run_checks=not args.no_checks)
 
     if mode in ("full", "both"):
-        full_out = BASE_DIR / (args.output if (args.output and mode == "full") else "AUDIT_DOSSIER_FOR_ARGON_AND_OPUS.md")
+        full_out = BASE_DIR / (args.output if (args.output and mode == "full") else "AUDIT_DOSSIER_INDEPENDENT_REVIEW.md")
         generate_dossier(full_out, run_checks=not args.no_checks)
 
 

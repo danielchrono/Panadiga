@@ -35,7 +35,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev pkg-config
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -64,7 +64,7 @@ jobs:
       - name: Install System Dependencies (Linux)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev pkg-config
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -145,7 +145,7 @@ jobs:
       - name: Install System Dependencies (Linux)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev pkg-config
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -157,7 +157,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install Python Quality Tools
         run: pip install typer rich mypy pytest
@@ -188,14 +187,18 @@ jobs:
 
       - name: Clone Raspberry Pi Pico SDK
         run: |
-          git clone --depth 1 --branch 2.0.0 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
+          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
           cd ${{ runner.temp }}/pico-sdk
           git submodule update --init --depth 1
 
       - name: Build Firmware for RP2040 (Raspberry Pi Pico / Pico W)
         env:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+          CXXFLAGS: "-include cstdint"
         run: |
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
+          export CXXFLAGS="-include cstdint"
           cd dwire32a_jtag_research
           cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build_pico --config Release
@@ -205,7 +208,11 @@ jobs:
       - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
         env:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+          CXXFLAGS: "-include cstdint"
         run: |
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
+          export CXXFLAGS="-include cstdint"
           cd dwire32a_jtag_research
           cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build build_pico2 --config Release

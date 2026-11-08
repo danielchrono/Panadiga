@@ -47,7 +47,7 @@
 * **Objetivo:** Permitir compilar o firmware nativo para ambas as arquiteturas sem alterações no código fonte C.
 * **Entregáveis:**
   * Atualização do `CMakeLists.txt` com target configurável (`-DPICO_BOARD=pico` ou `-DPICO_BOARD=pico2`).
-  * Atualização dos scripts de automação `build_pico_firmware.ps1` e `build_pico_firmware.bat` adicionando a flag `-Board pico` / `-Board pico2`.
+  * Atualização dos scripts de automação `build_pico_firmware.ps1` e `build_pico_firmware.cmd` adicionando a flag `-Board pico` / `-Board pico2`.
   * Geração dos dois artefatos UF2:
     * `panasonic_dwire32a_rp2040.uf2`
     * `panasonic_dwire32a_rp2350.uf2`

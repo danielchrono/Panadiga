@@ -176,14 +176,14 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
     match tool.to_lowercase().as_str() {
         "gdb" => {
             Command::new("cmd")
-                .args(["/c", "start", "tools\\conectar_gdb_multiarch.bat"])
+                .args(["/c", "start", "tools\\conectar_gdb_multiarch.cmd"])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar GDB Multiarch: {}", e))?;
             Ok("Sessão interativa do GDB iniciada em novo terminal.".to_string())
         }
         "openocd" => {
             Command::new("cmd")
-                .args(["/c", "start", "tools\\executar_openocd.bat"])
+                .args(["/c", "start", "tools\\executar_openocd.cmd"])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar OpenOCD: {}", e))?;
             Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
@@ -197,7 +197,7 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
         }
         "hxd" => {
             Command::new("cmd")
-                .args(["/c", "start", "tools\\Abrir_HxD.bat"])
+                .args(["/c", "start", "tools\\Abrir_HxD.cmd"])
                 .spawn()
                 .map_err(|e| format!("Falha ao abrir HxD: {}", e))?;
             Ok("HxD Hex Editor iniciado com o dump de memória.".to_string())

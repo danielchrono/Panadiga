@@ -14,6 +14,8 @@ if "%1"=="--help" goto :help
 if "%1"=="-h" goto :help
 if "%1"=="--dev" goto :run_dev
 if "%1"=="--build" goto :build_and_run
+if "%1"=="--validate" goto :run_validate
+if "%1"=="--lint" goto :run_validate
 if "%1"=="--cli" goto :run_cli
 if "%1"=="nvram" goto :run_cli_direct
 if "%1"=="hdd" goto :run_cli_direct
@@ -56,6 +58,11 @@ if exist "%DIST_EXE%" (
     pause
     exit /b 1
 )
+
+:run_validate
+echo [INFO] Executando suite completa de 9 Quality Gates...
+call "%SCRIPT_DIR%validate_all.cmd"
+exit /b %ERRORLEVEL%
 
 :run_dev
 echo [INFO] Iniciando ambiente de desenvolvimento Desktop (Vite + Tauri Dev)...

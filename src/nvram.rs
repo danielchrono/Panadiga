@@ -161,10 +161,16 @@ pub fn clean_flash_nvram_slice(
     })
 }
 
-/// Intelligently resolves an input file path across working directory and known folders.
+/// Intelligently resolves an input file path across working directory and known folders,
+/// transparently handling both uncompressed (.bin) and compressed (.bin.gz) files.
 pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
     if input.exists() {
         return Ok(input.to_path_buf());
+    }
+
+    let gz_input = PathBuf::from(format!("{}.gz", input.display()));
+    if gz_input.exists() {
+        return Ok(gz_input);
     }
 
     // Try relative to firmware_and_images directory
@@ -172,11 +178,19 @@ pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
     if candidate.exists() {
         return Ok(candidate);
     }
+    let candidate_gz = Path::new("firmware_and_images").join(&gz_input);
+    if candidate_gz.exists() {
+        return Ok(candidate_gz);
+    }
 
     // Try relative to parent directories if run from within subdirectories
     let candidate_parent = Path::new("../../firmware_and_images").join(input);
     if candidate_parent.exists() {
         return Ok(candidate_parent);
+    }
+    let candidate_parent_gz = Path::new("../../firmware_and_images").join(&gz_input);
+    if candidate_parent_gz.exists() {
+        return Ok(candidate_parent_gz);
     }
 
     bail!("Flash binary input file not found: {}", input.display())

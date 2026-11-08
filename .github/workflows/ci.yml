@@ -1,10 +1,10 @@
-name: CI/CD Multi-Platform Build & Verification
+name: Panadiga CI & Cross-Platform Suite
 
 on:
   push:
-    branches: ["**"]
+    branches: ["main", "master", "**"]
   pull_request:
-    branches: ["**"]
+    branches: ["main", "master", "**"]
   workflow_dispatch:
 
 concurrency:
@@ -13,174 +13,152 @@ concurrency:
 
 jobs:
   # ==========================================================================
-  # 1. Rust Multi-OS Compilation & Regression Testing
+  # 1. Full 9 Quality Gates Suite & Windows Release Build
   # ==========================================================================
-  rust-workspace:
-    name: Rust Workspace (${{ matrix.os }})
+  quality-gates-windows:
+    name: Full 9 Quality Gates & Release (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Desktop UI Dependencies & Playwright
+        working-directory: apps/desktop
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Install Python Quality Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install typer rich mypy pytest
+
+      - name: Execute Full 9 Commit Quality Gates
+        shell: powershell
+        run: .\validate_all.ps1
+
+      - name: Compile Native Rust Unified Release Binary
+        run: cargo build --release -p panadiga
+
+      - name: Package Windows Distribution Archive
+        shell: powershell
+        run: .\build.cmd
+
+      - name: Upload Windows Distribution Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: panadiga-windows-x86_64
+          path: |
+            dist/panadiga.exe
+            dist/WebView2Loader.dll
+            dist/run.cmd
+            dist/run.sh
+            dist/tools/
+            dist/releases/panadiga-windows-x86_64.zip
+            dist/releases/SHA256SUMS.txt
+          retention-days: 30
+
+  # ==========================================================================
+  # 2. Cross-Platform Compilation & Regression Suite (Ubuntu & macOS)
+  # ==========================================================================
+  cross-platform:
+    name: Platform Build & Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        os: [ubuntu-latest, macos-latest]
 
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
 
       - name: Install System Dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
+
+      - name: Set up stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Cargo Check
-        run: cargo check --workspace --all-targets
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
 
-      - name: Run Test Suite (Unit, Regression & Forensics)
+      - name: Install UI Dependencies & Build Frontend
+        run: |
+          cd apps/desktop
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Run Cargo Check & Clippy
+        run: |
+          cargo check --workspace --all-targets
+          cargo clippy --workspace --all-targets -- -D warnings || true
+
+      - name: Run Native Rust Workspace Tests
         run: cargo test --workspace --verbose
 
-  # ==========================================================================
-  # 2. Code Quality, Lints & Copy/Paste Duplication Gate (jscpd)
-  # ==========================================================================
-  code-quality:
-    name: Code Quality, Clippy & Duplication (jscpd)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Compile Release Binary
+        run: cargo build --release -p panadiga
 
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-
-      - name: Install System Dependencies (Linux)
+      - name: Package Distribution
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
+          mkdir -p dist/tools
+          cp -f target/release/panadiga dist/panadiga
+          chmod +x dist/panadiga
+          if [ -d "tools" ]; then cp -rf tools/* dist/tools/ 2>/dev/null || true; fi
 
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Check Rust Formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy Linter
-        run: cargo clippy --workspace --all-targets -- -D warnings || true
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
+      - name: Upload Platform Release Binary
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 22
-          cache: "npm"
-          cache-dependency-path: apps/desktop/package-lock.json
-
-      - name: Install Desktop Node Dependencies
-        run: cd apps/desktop && npm ci
-
-      - name: Run Copy/Paste Detector (jscpd)
-        run: npx --prefix apps/desktop jscpd --config .jscpd.json
+          name: panadiga-${{ matrix.os }}
+          path: dist/panadiga
+          retention-days: 14
 
   # ==========================================================================
-  # 3. Desktop Application Frontend (Types, Vitest, uxlint, Playwright, Build)
+  # 3. Raspberry Pi Pico Firmware Dual Target (RP2040 & RP2350)
   # ==========================================================================
-  desktop-frontend:
-    name: Desktop UI (Types, Vitest, uxlint, Playwright, Build)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/desktop
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: "npm"
-          cache-dependency-path: apps/desktop/package-lock.json
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: TypeScript Strict Type-Check
-        run: npm run typecheck
-
-      - name: Run Vitest Unit & ViewModel Tests
-        run: npm test
-
-      - name: Run UI/UX State Completeness Linter (uxlint)
-        run: npm run uxlint
-
-      - name: Install Playwright Browsers (Chromium)
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Playwright End-to-End Tests
-        run: npm run test:e2e
-
-      - name: Vite Production Build
-        run: npm run build
-
-  # ==========================================================================
-  # 4. Ghidra Native Script Generator & Python Tools Gate (Typer, Mypy, Pytest)
-  # ==========================================================================
-  ghidra-and-python-tools:
-    name: Ghidra Generator & Python Tools (Typer, Mypy, Pytest)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install stable Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install System Dependencies (Linux)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
-
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-
-      - name: Export Ghidra Scripts from Rust SSOT
-        run: cargo run -- ghidra export-all --dir tools
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Python Quality Tools
-        run: pip install typer rich mypy pytest
-
-      - name: Verify Exported Python Syntax
-        run: python -m py_compile tools/ghidra_am34_memory_map.py tools/ghidra_importar_simbolos_panadiga.py tools/ghidra_conectar_debugger.py
-
-      - name: Run Mypy Strict Type Check on Typer CLI
-        run: python -m mypy tools/panadiga_cli.py
-
-      - name: Run Pytest Suite (Typer CLI Tests)
-        run: python -m pytest tools/tests
-
-  # ==========================================================================
-  # 5. Pico Firmware Cross-Compilation (RP2040 & RP2350)
-  # ==========================================================================
-  pico-firmware-cross-compile:
+  pico-firmware:
     name: Pico Firmware Dual Target (RP2040 & RP2350)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install ARM Embedded Toolchain & Build Tools
+      - name: Install ARM Embedded Toolchain & Ninja
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
@@ -229,13 +207,13 @@ jobs:
           retention-days: 30
 
   # ==========================================================================
-  # 6. Android Mobile APK Build (Tauri 2.0 + cargo-ndk + AArch64)
+  # 4. Android Mobile APK Build (Tauri 2 Mobile / ARM64)
   # ==========================================================================
-  android-apk-build:
-    name: Android APK Build (Tauri 2.0 / ARM64)
+  android-apk:
+    name: Android APK Build (Tauri 2 Mobile / ARM64)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Setup Java 17

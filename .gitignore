@@ -74,12 +74,19 @@ tools/HxD/app/
 # ------------------------------------------------------------------------------
 # 7. Proprietary & Large Binary Dumps (>100MB exceeds GitHub limits)
 # ------------------------------------------------------------------------------
+firmware_and_images/**/*.bin
+firmware_and_images/**/*.zip
+firmware_and_images/**/*.7z
+firmware_and_images/**/*.FRM
+firmware_and_images/**/*.frm
+firmware_and_images/**/*.jp2
 firmware_and_images/*.bin
 firmware_and_images/*.zip
 firmware_and_images/*.FRM
 firmware_and_images/*.frm
 firmware_and_images/extracted_partitions/
-!firmware_and_images/README.md
+!firmware_and_images/**/README.md
+!firmware_and_images/*.bin.gz
 
 # ------------------------------------------------------------------------------
 # 8. Operating System & Temporary Files

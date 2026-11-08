@@ -5,8 +5,6 @@
   "identifier": "com.panasonic.diga.engineering",
   "build": {
     "frontendDist": "apps/desktop/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "",
     "beforeBuildCommand": "npm --prefix apps/desktop run build"
   },
   "app": {

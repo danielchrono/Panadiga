@@ -28,6 +28,7 @@ thiserror = "2.0"
 lopdf = "0.47.0"
 serialport = "4.5"
 regex = "1.10"
+flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] }
 tauri = { version = "2.0", default-features = false, features = ["wry"] }
 tauri-plugin-shell = "2.0"
 

@@ -56,10 +56,10 @@ flowchart TD
         SOC["SoC Matsushita MN2DS0016 (AM34 @ 162 MHz)"]
         FLASH["NOR Flash Spansion S29JL064H (8 MB TSOP-48)"]
         HDD["Disco PATA/IDE (Layout MEIHDFS / Superbloco 'SH')"]
-        DW_TRANS <==>|Barramento Síncrono 3.3V| P7501
-        P7501 <==> SOC
-        SOC <==> FLASH
-        SOC <==> HDD
+        DW_TRANS <-->|"Barramento Síncrono 3.3V"| P7501
+        P7501 <--> SOC
+        SOC <--> FLASH
+        SOC <--> HDD
     end
 ```
 

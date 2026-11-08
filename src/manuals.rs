@@ -42,7 +42,43 @@ pub struct PdfSearchResult {
     pub matches: BTreeMap<String, Vec<u32>>,
 }
 
-/// Searches all PDFs in a directory for specific terms.
+fn collect_pdf_files(
+    dir: &Path,
+    filter: Option<&str>,
+    files: &mut Vec<std::path::PathBuf>,
+) -> Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    let mut entries: Vec<_> = fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
+    entries.sort_by_key(|e| e.path());
+
+    for entry in entries {
+        let p = entry.path();
+        if p.is_dir() {
+            collect_pdf_files(&p, filter, files)?;
+        } else if p.is_file() {
+            if let Some(ext) = p.extension() {
+                if ext.to_string_lossy().eq_ignore_ascii_case("pdf") {
+                    if let Some(filt) = filter {
+                        let path_str = p.to_string_lossy().to_lowercase();
+                        let norm_path = path_str.replace('_', "-");
+                        let norm_filt = filt.to_lowercase().replace('_', "-");
+                        if !path_str.contains(&filt.to_lowercase())
+                            && !norm_path.contains(&norm_filt)
+                        {
+                            continue;
+                        }
+                    }
+                    files.push(p);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Searches all PDFs in a directory (recursively) for specific terms.
 pub fn search_manuals(
     manuals_dir: &Path,
     custom_terms: Option<Vec<String>>,
@@ -74,29 +110,7 @@ pub fn search_manuals(
     }
 
     let mut pdf_files = Vec::new();
-    for entry in fs::read_dir(manuals_dir)? {
-        let entry = entry?;
-        let p = entry.path();
-        if p.is_file() {
-            if let Some(ext) = p.extension() {
-                if ext.to_string_lossy().eq_ignore_ascii_case("pdf") {
-                    if let Some(filt) = filter_filename {
-                        if !p
-                            .file_name()
-                            .unwrap()
-                            .to_string_lossy()
-                            .to_lowercase()
-                            .contains(&filt.to_lowercase())
-                        {
-                            continue;
-                        }
-                    }
-                    pdf_files.push(p);
-                }
-            }
-        }
-    }
-
+    collect_pdf_files(manuals_dir, filter_filename, &mut pdf_files)?;
     pdf_files.sort();
 
     if pdf_files.is_empty() {

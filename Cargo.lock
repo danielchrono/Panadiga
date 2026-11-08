@@ -2444,6 +2444,7 @@ dependencies = [
  "anyhow",
  "byteorder",
  "clap",
+ "flate2",
  "hex",
  "lopdf",
  "md-5 0.10.6",

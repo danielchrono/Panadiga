@@ -25,6 +25,7 @@ High-standard engineering documentation, technical blueprints, and specification
 | [**LOGGING_AND_TELEMETRY_SUBSYSTEM.md**](en-US/LOGGING_AND_TELEMETRY_SUBSYSTEM.md) | Systems / Telemetry | Structured JSON logging, thread-safe sinks, and real-time serial terminal integration. |
 | [**THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md**](en-US/THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md) | Silicon / Physics | Semiconductor physics of NOR Flash, EEMUL circular wear-leveling, and 64 KB NVRAM sanitization. |
 | [**ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md**](en-US/ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md) | AI Safety / Invariants | 6-layer defense system (QueryGuard, CRAG, GroundedSynthesis, FactCritic, InvariantShield). |
+| [**FORENSIC_VALIDATION_ARGON_AUDIT_AND_COMPRESSION_DOSSIER.md**](en-US/FORENSIC_VALIDATION_ARGON_AUDIT_AND_COMPRESSION_DOSSIER.md) | Forensics / Cryptanalysis | Mathematical proofs of binary compatibility, high-precision Argon audit prompt, and GZIP (<100MB) storage architecture. |
 
 ---
 
@@ -47,3 +48,4 @@ Documentação exaustiva de bancada, esquemáticos e manuais de engenharia rever
 | [**SUBSISTEMA_LOGGING_E_TELEMETRIA.md**](pt-BR/SUBSISTEMA_LOGGING_E_TELEMETRIA.md) | Sistemas / Telemetria | Logging unificado, sinks thread-safe e telemetria serial em tempo real na interface gráfica. |
 | [**TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md**](pt-BR/TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md) | Física / Semicondutores | Física da Flash NOR Spansion, motor EEMUL circular e sanitização dos 64 KB de NVRAM para 0xFF. |
 | [**ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md**](pt-BR/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md) | Segurança de IA / RAG | Defesa em 6 camadas determinísticas (QueryGuard, CRAG, FactCritic, InvariantShield). |
+| [**DOSSIE_VALIDACAO_FORENSE_AUDITORIA_ARGON_E_COMPACTACAO.md**](pt-BR/DOSSIE_VALIDACAO_FORENSE_AUDITORIA_ARGON_E_COMPACTACAO.md) | Forense / Criptoanálise | Provas matemáticas de compatibilidade de binários, prompt para auditoria Argon e arquitetura de compactação GZIP (<100MB). |

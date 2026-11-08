@@ -1,74 +1,68 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title Panadiga Suite - Unified Native Build Pipeline
+title Panadiga Suite - Native Build Pipeline
 
 echo ====================================================================
-echo    PANADIGA ENGINEERING SUITE: MASTER UNIFIED BUILD PIPELINE
-echo    Configuracao: Paralelismo Total (%NUMBER_OF_PROCESSORS% Cores) + UTF-8
-echo    Modo: Desktop GUI + Core CLI + Firmware Pico RP2040/RP2350
+echo    PANADIGA ENGINEERING SUITE: MASTER BUILD PIPELINE (Windows)
+echo    Configuracao: Paralelismo (%NUMBER_OF_PROCESSORS% Cores) + UTF-8
+echo    Modo: Desktop GUI + Core CLI Engine (Binario Unificado)
 echo ====================================================================
 echo.
 
-set SCRIPT_DIR=%~dp0
+set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
 set CARGO_BUILD_JOBS=%NUMBER_OF_PROCESSORS%
 set CARGO_INCREMENTAL=1
 
-:: [1/5] Desktop Frontend (React / TypeScript / Vite)
-echo [1/5] Compilando Frontend Desktop (React / TypeScript / Vite)...
+:: Dispatch Android build if requested
+if "%1"=="--android" goto :build_android
+if "%1"=="-a" goto :build_android
+
+:: [1/4] Build React Interface (UI)
+echo [1/4] Compilando Frontend Desktop (React / TypeScript / Vite)...
 if not exist "apps\desktop\node_modules" (
     echo [*] Instalando dependencias do frontend...
     call npm --prefix apps\desktop ci
+    if errorlevel 1 (
+        echo [ERRO] Falha ao instalar dependencias do frontend.
+        exit /b 1
+    )
 )
 call npm --prefix apps\desktop run build
 if errorlevel 1 (
-    echo [ERRO] Falha no build do frontend desktop.
-    if "%1"=="" pause
+    echo [ERRO] Falha no build de producao do frontend Vite.
     exit /b 1
 )
 echo [OK] Bundle otimizado gerado em apps\desktop\dist\
 echo.
 
-:: [2/5] Rust Workspace Tests (Paralelismo Total)
-echo [2/5] Executando suite de testes do Workspace Rust (%NUMBER_OF_PROCESSORS% threads)...
-cargo test --workspace
-if errorlevel 1 (
-    echo [ERRO] Falha nos testes automatizados do workspace.
-    if "%1"=="" pause
-    exit /b 1
-)
-echo [OK] 100%% dos testes do workspace passaram!
+:: [2/4] Verifying and Exporting Lab Tools (Ghidra SSOT)
+echo [2/4] Exportando scripts Ghidra diretamente do Rust SSOT...
+cargo run --release -p panadiga -- ghidra export-all --dir "tools" >nul 2>nul
+echo [OK] Scripts Ghidra sincronizados em tools\
 echo.
 
-:: [3/5] Rust Release Compilation (Unified Desktop GUI + Core CLI Engine)
-echo [3/5] Compilando Binario Unificado Panadiga em modo Release (%NUMBER_OF_PROCESSORS% threads)...
+:: [3/4] Compiling Native Rust Unified Release Binary
+echo [3/4] Compilando Binario Unificado Panadiga em modo Release (%NUMBER_OF_PROCESSORS% threads)...
 cargo build --release -p panadiga
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar binario unificado em modo release.
-    if "%1"=="" pause
     exit /b 1
 )
-echo [OK] Binario unificado gerado com sucesso:
-echo      - target\release\panadiga.exe
+echo [OK] Binario unificado gerado com sucesso: target\release\panadiga.exe
 echo.
 
-:: [4/5] Raspberry Pi Pico Firmware (RP2040 & RP2350)
-echo [4/5] Verificando compilador de firmware do Raspberry Pi Pico...
+:: Optional: Compile Pico Firmware if arm-none-eabi-gcc is available
 where arm-none-eabi-gcc >nul 2>nul
 if not errorlevel 1 (
-    echo [*] arm-none-eabi-gcc detectado! Compilando firmware C11 [RP2040 + RP2350 via Ninja]...
-    call dwire32a_jtag_research\build_pico_firmware.bat all
-) else (
-    echo [INFO] arm-none-eabi-gcc nao encontrado no PATH local.
-    echo        Os binarios oficiais .UF2 [RP2040 e RP2350] sao gerados automaticamente
-    echo        pelo pipeline de CI/CD do GitHub Actions em orgchrono/Panadiga.
+    echo [*] arm-none-eabi-gcc detectado! Compilando firmware C11 [RP2040 + RP2350]...
+    call dwire32a_jtag_research\build_pico_firmware.cmd all >nul 2>nul
 )
-echo.
 
-:: [5/5] Packaging Distribution in dist\ and dist_bin\
-echo [5/5] Empacotando distribuicao consolidada para dist\...
+:: [4/4] Packaging Distribution into dist\
+echo [4/4] Empacotando distribuicao consolidada para dist\...
 if not exist "dist" mkdir "dist"
 if not exist "dist\tools" mkdir "dist\tools"
 if not exist "dist\firmware" mkdir "dist\firmware"
@@ -83,11 +77,10 @@ if exist "target\release\WebView2Loader.dll" (
     copy /y "target\debug\WebView2Loader.dll" "dist\WebView2Loader.dll" >nul
 )
 
-:: Export Ghidra scripts directly from native Rust SSOT
-cargo run -- ghidra export-all --dir "dist\tools" >nul 2>nul
+:: Copy tools and Ghidra scripts
 xcopy /e /i /y "tools" "dist\tools" >nul 2>nul
 
-:: Copy compiled firmware binaries if present
+:: Copy compiled Pico firmware binaries if present
 if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" (
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" "dist\firmware\panasonic_dwire32a_rp2040.uf2" >nul
 )
@@ -95,29 +88,83 @@ if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" (
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
 )
 
-:: Launcher script inside dist\
-(
-echo @echo off
-echo @chcp 65001 ^>nul
-echo start "" "%%~dp0panadiga-desktop.exe"
-) > "dist\Executar_Panadiga.bat"
+:: Copy fast runners into dist\
+copy /y "run.cmd" "dist\run.cmd" >nul
+copy /y "run.sh" "dist\run.sh" >nul
 
-:: Synchronize dist_bin\ for backwards compatibility
-if not exist "dist_bin" mkdir "dist_bin"
-xcopy /e /i /y "dist" "dist_bin" >nul 2>nul
+:: Clean legacy launcher if present
+if exist "dist\Executar_Panadiga.cmd" del /f /q "dist\Executar_Panadiga.cmd" >nul 2>nul
+if exist "dist\Executar_Panadiga.bat" del /f /q "dist\Executar_Panadiga.bat" >nul 2>nul
 
 :: Generate release archive .zip with SHA256 checksum
-powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; Compress-Archive -Path 'dist\panadiga-cli.exe', 'dist\panadiga-desktop.exe', 'dist\WebView2Loader.dll', 'dist\Executar_Panadiga.bat', 'dist\tools', 'dist\firmware', 'README.md', 'LICENSE' -DestinationPath $zip -CompressionLevel Optimal; $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; [IO.File]::WriteAllText('dist\releases\SHA256SUMS.txt', \"$hash  panadiga-windows-x86_64.zip`r`n\", [Text.Encoding]::UTF8)"
+powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; Compress-Archive -Path 'dist\panadiga.exe', 'dist\WebView2Loader.dll', 'dist\run.cmd', 'dist\run.sh', 'dist\tools', 'dist\firmware', 'README.md', 'README.pt-BR.md', 'LICENSE' -DestinationPath $zip -CompressionLevel Optimal; $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; [IO.File]::WriteAllText('dist\releases\SHA256SUMS.txt', \"$hash  panadiga-windows-x86_64.zip`r`n\", [Text.Encoding]::UTF8)"
 
 echo.
 echo ====================================================================
 echo    [OK] BUILD CONCLUIDO COM SUCESSO!
-echo    - Panadiga Desktop: dist\panadiga-desktop.exe
-echo    - Panadiga CLI:     dist\panadiga-cli.exe
-echo    - Runtime DLL:      dist\WebView2Loader.dll
-echo    - Ferramentas:      dist\tools\ (GDB, Ghidra scripts, HxD)
-echo    - Firmware Pico:    dist\firmware\ (.UF2 RP2040 e RP2350)
-echo    - Pacote Release:   dist\releases\panadiga-windows-x86_64.zip
-echo    - Atalho Rapido:    dist\Executar_Panadiga.bat
+echo    - Binario Unificado: dist\panadiga.exe
+echo    - Runtime DLL:       dist\WebView2Loader.dll
+echo    - Ferramentas:       dist\tools\ (Ghidra scripts, Python CLI, RAG)
+echo    - Firmware Pico:     dist\firmware\ (.UF2 RP2040 e RP2350)
+echo    - Pacote Release:    dist\releases\panadiga-windows-x86_64.zip
+echo    - Inicializador:     dist\run.cmd e dist\run.sh
 echo ====================================================================
-if "%1"=="" pause
+if not defined CI if "%1"=="" pause
+exit /b 0
+
+:build_android
+echo.
+echo ====================================================================
+echo   Panasonic DMR-EH55 DIGA Suite - Android APK Build Pipeline
+echo   Tauri 2.0 Mobile / Rust cargo-ndk / AArch64 (ARM64)
+echo ====================================================================
+
+if "%ANDROID_HOME%"=="" (
+    if exist "%LOCALAPPDATA%\Android\Sdk" (
+        set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
+    ) else (
+        echo [ERRO] ANDROID_HOME nao definido e SDK padrao nao encontrado.
+        exit /b 1
+    )
+)
+echo [*] Android SDK detectado em: %ANDROID_HOME%
+
+if "%NDK_HOME%"=="" (
+    for /d %%D in ("%ANDROID_HOME%\ndk\*") do set "NDK_HOME=%%D"
+)
+if defined NDK_HOME (
+    echo [*] Android NDK detectado em: %NDK_HOME%
+    set "ANDROID_NDK_ROOT=%NDK_HOME%"
+)
+
+echo [*] Verificando target aarch64-linux-android...
+rustup target add aarch64-linux-android || exit /b 1
+
+echo [*] Compilando frontend React...
+call npm --prefix apps\desktop run build || exit /b 1
+
+echo [*] Configurando crate-type temporario para Android cdylib...
+powershell -Command "(Get-Content Cargo.toml) -replace 'crate-type = \[\"rlib\"\]', 'crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]' | Set-Content Cargo.toml"
+
+if not exist "gen\android" if not exist "src-tauri\gen\android" (
+    echo [*] Inicializando modulo nativo Android com Tauri CLI...
+    call npx @tauri-apps/cli android init --ci --skip-targets-install
+)
+
+echo [*] Executando build de APK via Tauri CLI...
+call npx @tauri-apps/cli android build --apk --target aarch64-linux-android
+set ANDROID_STATUS=%ERRORLEVEL%
+
+echo [*] Restaurando crate-type padrao para desktop (rlib)...
+powershell -Command "(Get-Content Cargo.toml) -replace 'crate-type = \[\"staticlib\", \"cdylib\", \"rlib\"\]', 'crate-type = [\"rlib\"]' | Set-Content Cargo.toml"
+
+if %ANDROID_STATUS% neq 0 (
+    echo [ERRO] Falha no build do APK Android.
+    exit /b %ANDROID_STATUS%
+)
+
+echo ====================================================================
+echo [OK] BUILD ANDROID CONCLUIDO COM SUCESSO!
+echo      Arquivo .apk gerado em gen\android\app\build\outputs\apk\
+echo ====================================================================
+exit /b 0

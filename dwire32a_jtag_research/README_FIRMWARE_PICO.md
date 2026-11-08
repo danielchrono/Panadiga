@@ -58,9 +58,9 @@ cd dwire32a_jtag_research
 ### Opção C: Windows (Prompt CMD Clássico)
 ```cmd
 cd dwire32a_jtag_research
-build_pico_firmware.bat all
-build_pico_firmware.bat pico
-build_pico_firmware.bat pico2
+build_pico_firmware.cmd all
+build_pico_firmware.cmd pico
+build_pico_firmware.cmd pico2
 ```
 
 ### Artefatos Binários Gerados

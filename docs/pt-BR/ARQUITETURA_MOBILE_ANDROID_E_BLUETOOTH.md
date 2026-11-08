@@ -47,8 +47,8 @@ flowchart TD
         P7501 <--> MN2DS
     end
 
-    NativeHAL <==>|BLE (NUS) ou USB-C OTG| Probe
-    Probe <==>|Barramento Síncrono DWire32A Half-Duplex (3.3V)| Target
+    NativeHAL <-->|"BLE (NUS) ou USB-C OTG"| Probe
+    Probe <-->|"Barramento Síncrono DWire32A Half-Duplex (3.3V)"| Target
 ```
 
 ---

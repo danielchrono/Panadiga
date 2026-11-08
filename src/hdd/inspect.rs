@@ -3,7 +3,7 @@ use super::{
         AllocationJournalReport, ChunkDensityReport, HddAnalysisReport, MbrTableReport,
         PartitionReport,
     },
-    utils::{calculate_entropy, export_report_to_json, open_mmap},
+    utils::{calculate_entropy, export_report_to_json, open_image_buffer},
 };
 use crate::{
     constants::*,
@@ -235,11 +235,11 @@ pub fn inspect_hdd_image(
     json_export_path: Option<&Path>,
 ) -> Result<HddAnalysisReport> {
     let resolved_path = resolve_input_path(image_path)?;
-    let (_file, mmap) = open_mmap(&resolved_path)?;
-    let file_size = mmap.len() as u64;
+    let buffer = open_image_buffer(&resolved_path)?;
+    let file_size = buffer.len() as u64;
     let total_sectors = file_size / LBA_SECTOR_SIZE_BYTES as u64;
 
-    let report = inspect_hdd_slice(&mmap, &resolved_path.to_string_lossy())?;
+    let report = inspect_hdd_slice(&buffer, &resolved_path.to_string_lossy())?;
 
     log_println!(
         "================================================================================"

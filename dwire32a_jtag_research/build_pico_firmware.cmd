@@ -9,7 +9,7 @@ echo ====================================================================
 echo    PANASONIC DWIRE32A / OCD - MULTI-PLATFORM BUILD SYSTEM
 echo    Targets: RP2040 (pico) and RP2350 (pico2)
 echo    Selected: !TARGET_BOARD!
-echo    Usage: build_pico_firmware.bat [pico|pico2|all]
+echo    Usage: build_pico_firmware.cmd [pico|pico2|all]
 echo ====================================================================
 echo.
 

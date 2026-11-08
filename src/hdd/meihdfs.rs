@@ -11,7 +11,7 @@ use super::types::{
     JournalBlockDecoded, MeihdfsAllocationRecord, MeihdfsAllocationReport, MeihdfsExtentSegment,
     MeihdfsExtentSummary,
 };
-use super::utils::{export_report_to_json, open_mmap};
+use super::utils::{export_report_to_json, open_image_buffer};
 
 /// Decodes the bit-inverted (One's Complement / XOR 0xFF) MEIHDFS allocation descriptors
 /// from a full HDD image or an extracted 4,096-byte descriptors file, and optionally audits journal blocks.
@@ -21,7 +21,7 @@ pub fn decode_meihdfs_descriptors(
     json_export_path: Option<&Path>,
 ) -> Result<MeihdfsAllocationReport> {
     let resolved = resolve_input_path(input_path)?;
-    let (_file, mmap) = open_mmap(&resolved)?;
+    let mmap = open_image_buffer(&resolved)?;
     let file_len = mmap.len();
 
     let is_full_image = file_len >= (LBA_MIRROR_MBR_OFFSET as usize + ALLOCATION_DESCRIPTORS_SIZE);

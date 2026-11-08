@@ -6,13 +6,13 @@ Este diretório contém utilitários de suporte, depuradores interativos e scrip
 
 ## 1. Scripts de Conexão GDB & Depuração Interativa
 
-* 🔌 **[`iniciar_ponte_gdb.bat`](iniciar_ponte_gdb.bat):**  
+* 🔌 **[`iniciar_ponte_gdb.cmd`](iniciar_ponte_gdb.cmd):**  
   Varre automaticamente as portas seriais conectadas buscando o Raspberry Pi Pico (RP2040 ou RP2350) e inicia o servidor ponte TCP-para-Serial GDB RSP na porta `3333`.
 
-* 🐛 **[`conectar_gdb_multiarch.bat`](conectar_gdb_multiarch.bat):**  
+* 🐛 **[`conectar_gdb_multiarch.cmd`](conectar_gdb_multiarch.cmd):**  
   Dispara o GNU Debugger (`gdb-multiarch` ou `mn10300-elf-gdb`) pré-configurado com a arquitetura `mn10300` e conecta automaticamente à ponte local `target remote 127.0.0.1:3333`.
 
-* ⚡ **[`executar_openocd.bat`](executar_openocd.bat):**  
+* ⚡ **[`executar_openocd.cmd`](executar_openocd.cmd):**  
   Inicializa o OpenOCD carregando a configuração oficial [`openocd_panasonic_am34.cfg`](../dwire32a_jtag_research/openocd_panasonic_am34.cfg) para automações de leitura e regravação de memória.
 
 ---
@@ -32,5 +32,5 @@ Este diretório contém utilitários de suporte, depuradores interativos e scrip
 
 ## 3. Utilitários Hexadecimais & Análise Binária
 
-* 🔍 **[`Abrir_HxD.bat`](Abrir_HxD.bat):**  
+* 🔍 **[`Abrir_HxD.cmd`](Abrir_HxD.cmd):**  
   Abre o editor hexadecimal HxD 64-bit/32-bit portátil integrado no repositório para inspeção visual imediata de dumps e partições.

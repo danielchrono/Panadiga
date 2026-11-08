@@ -89,7 +89,7 @@ O portão valida de forma automatizada:
 
 | Localizador | Documento Canônico (Português) | Canonical Document (English) |
 | :--- | :--- | :--- |
-| **Portal Geral** | [`docs/README.md`](docs/README.md) | [`docs/README.md`](docs/README.md) |
+| **Portal Geral** | [`docs/INDEX.md`](docs/INDEX.md) | [`docs/INDEX.md`](docs/INDEX.md) |
 | **Arquitetura & Blueprint** | [`docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md`](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md) | [`docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md`](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md) |
 | **Android APK & Bluetooth** | [`docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md`](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md) | [`docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md`](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md) |
 | **Testes & Conformidade** | [`docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md`](docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md) | [`docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md`](docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md) |

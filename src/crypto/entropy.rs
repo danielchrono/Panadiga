@@ -5,7 +5,7 @@ use super::codebook::{correlate_hdd_partitions, open_resolved_frm, resolve_hdd_c
 use super::toc::analyze_toc;
 use super::types::{BlockFrequency, CryptanalysisReport};
 use crate::constants::*;
-use crate::hdd::{calculate_entropy, open_mmap};
+use crate::hdd::{calculate_entropy, open_image_buffer};
 use crate::nvram::calculate_hashes;
 
 /// Analyzes 64-bit (8-byte) block frequencies in an aligned byte slice.
@@ -145,10 +145,10 @@ pub fn analyze_frm_container(
 
     let mut hdd_correlations = Vec::new();
     if let Some(hpath) = &hdd_candidate {
-        if let Ok((_hfile, hdd_mmap)) = open_mmap(hpath) {
+        if let Ok(hdd_mmap) = open_image_buffer(hpath) {
             log_println!("\n[+] CORRELAÇÃO FORENSE COM A IMAGEM DO DISCO RÍGIDO (HDD):");
             log_println!("  * Arquivo HDD Identificado: {}", hpath.display());
-            hdd_correlations = correlate_hdd_partitions(Some(&hdd_mmap), &all_blocks_map);
+            hdd_correlations = correlate_hdd_partitions(Some(&hdd_mmap[..]), &all_blocks_map);
             for c in &hdd_correlations {
                 log_println!(
                     "    - {} [Offset {}]:\n      Bloco: {} -> {} | Presente no .FRM: {} ({} ocorrencias)",

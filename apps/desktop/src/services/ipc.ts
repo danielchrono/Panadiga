@@ -290,7 +290,7 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
         abstention_reason: null,
         citations: [
           {
-            doc: 'manuals_and_schematics/panasonic_dmr-eh55p9_eh55pc9.pdf',
+            doc: 'manuals_and_schematics/dmr-eh55/service/panasonic_dmr_eh55p9_eh55pc9_service_manual_north_america.pdf',
             section: 'Self-Diagnostic and Error Codes',
             lines: 'P.21-22',
             excerpt: 'U99: System microprocessor communication fault or NVRAM checksum mismatch.',

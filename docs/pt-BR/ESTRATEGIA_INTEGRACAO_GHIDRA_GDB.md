@@ -56,7 +56,7 @@ flowchart TD
 * **Como Funciona:**
   1. No Panadiga Desktop, clique em **"Iniciar Servidor GDB"** (ou use a CLI `panadiga pico gdb-bridge`).
   2. O servidor abre o socket `127.0.0.1:3333` e o canal USB CDC com a Raspberry Pi Pico.
-  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.bat`](../tools/conectar_gdb_multiarch.bat) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
+  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.cmd`](../tools/conectar_gdb_multiarch.cmd) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
   4. O usuário pode pausar (`Ctrl+C`), inspecionar registradores (`info registers`), ler memória (`x/16wx 0x807FE000`) e executar instruções passo-a-passo (`stepi`).
 
 ### 2.2 NSA Ghidra (Descompilador & Ghidra Debugger)
@@ -78,13 +78,13 @@ Ghidra é a ferramenta primária de descompilação de código estático e anál
 
 ### 2.3 OpenOCD (Open On-Chip Debugger)
 * **Arquivo de Configuração:** [`dwire32a_jtag_research/openocd_panasonic_am34.cfg`](../dwire32a_jtag_research/openocd_panasonic_am34.cfg).
-* **Disparador:** Botão **"OpenOCD AM34"** no Panadiga Desktop ou [`tools/executar_openocd.bat`](../tools/executar_openocd.bat).
+* **Disparador:** Botão **"OpenOCD AM34"** no Panadiga Desktop ou [`tools/executar_openocd.cmd`](../tools/executar_openocd.cmd).
 * **Recursos:**
   - Procedimento TCL `panasonic_cold_break_in` automatizado.
   - Comandos para dump de setores e gravação de emergência.
 
 ### 2.4 HxD Hex Editor Portable
-* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](../tools/Abrir_HxD.bat).
+* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](../tools/Abrir_HxD.cmd).
 * **Disparador:** Botão **"HxD Editor"** na interface web.
 * **Uso:** Inspeção imediata dos dumps de NVRAM, firmware Spansion e setores LBA do disco MEIHDFS sem depender de instalações no Windows.
 
@@ -100,14 +100,14 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
     match tool.to_lowercase().as_str() {
         "gdb" => {
             Command::new("cmd")
-                .args(["/c", "start", "tools\\conectar_gdb_multiarch.bat"])
+                .args(["/c", "start", "tools\\conectar_gdb_multiarch.cmd"])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar GDB: {}", e))?;
             Ok("Sessão interativa do GDB iniciada em novo terminal.".to_string())
         }
         "openocd" => {
             Command::new("cmd")
-                .args(["/c", "start", "tools\\executar_openocd.bat"])
+                .args(["/c", "start", "tools\\executar_openocd.cmd"])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar OpenOCD: {}", e))?;
             Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
@@ -117,7 +117,7 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
             Ok("Pasta de scripts do Ghidra aberta.".to_string())
         }
         "hxd" => {
-            Command::new("cmd").args(["/c", "start", "tools\\Abrir_HxD.bat"]).spawn().map_err(...)?;
+            Command::new("cmd").args(["/c", "start", "tools\\Abrir_HxD.cmd"]).spawn().map_err(...)?;
             Ok("HxD Hex Editor iniciado.".to_string())
         }
         "terminal" => {

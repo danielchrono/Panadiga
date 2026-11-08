@@ -258,14 +258,14 @@ def handle_search_manuals(args: Dict[str, Any]) -> Dict[str, Any]:
     matches: List[Dict[str, str]] = []
 
     if manuals_dir.is_dir():
-        for p in manuals_dir.glob("*.pdf"):
+        for p in manuals_dir.rglob("*.pdf"):
             if query in p.name.lower():
-                matches.append({"file": p.name, "match_type": "filename"})
+                matches.append({"file": p.name, "path": str(p.relative_to(WORKSPACE_ROOT)), "match_type": "filename"})
 
     return {
         "query": query,
         "direct_matches": matches,
-        "total_manuals_in_catalog": len(list(manuals_dir.glob("*.pdf"))) if manuals_dir.is_dir() else 0,
+        "total_manuals_in_catalog": len(list(manuals_dir.rglob("*.pdf"))) if manuals_dir.is_dir() else 0,
         "note": "Use 'panadiga_rag_query' for in-depth OCR and semantic analysis of manual content.",
     }
 

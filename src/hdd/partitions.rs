@@ -9,7 +9,7 @@ use crate::nvram::{calculate_hashes, resolve_input_path};
 
 use super::inspect::inspect_hdd_image;
 use super::types::ExtractedPartitionReport;
-use super::utils::open_mmap;
+use super::utils::open_image_buffer;
 
 /// Surgical extraction of all firmware partitions and filesystem descriptors.
 pub fn extract_hdd_partitions(
@@ -18,7 +18,7 @@ pub fn extract_hdd_partitions(
     json_export_path: Option<&Path>,
 ) -> Result<Vec<ExtractedPartitionReport>> {
     let resolved_path = resolve_input_path(image_path)?;
-    let (_file, mmap) = open_mmap(&resolved_path)?;
+    let mmap = open_image_buffer(&resolved_path)?;
 
     fs::create_dir_all(output_dir)
         .with_context(|| format!("Failed creating output directory: {}", output_dir.display()))?;

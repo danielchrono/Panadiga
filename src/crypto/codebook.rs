@@ -9,7 +9,7 @@ use memmap2::Mmap;
 
 use super::types::{CodebookEntry, CodebookReport, PartitionCorrelation};
 use crate::constants::*;
-use crate::hdd::open_mmap;
+use crate::hdd::open_image_buffer;
 use crate::nvram::resolve_input_path;
 
 pub(crate) fn check_partition_offset(
@@ -51,27 +51,17 @@ pub(crate) fn open_resolved_frm(frm_path: &Path) -> Result<(PathBuf, File, Mmap)
 
 pub(crate) fn resolve_hdd_candidate(hdd_path: Option<&Path>) -> Option<PathBuf> {
     match hdd_path {
-        Some(p) => Some(p.to_path_buf()),
+        Some(p) => resolve_input_path(p).ok().or_else(|| Some(p.to_path_buf())),
         None => {
-            let def =
-                Path::new("firmware_and_images").join("panasonic DMR EH-55 Firmware hdd_100.bin");
-            if def.exists() {
-                Some(def)
-            } else {
-                let alt = Path::new("panasonic DMR EH-55 Firmware hdd_100.bin");
-                if alt.exists() {
-                    Some(alt.to_path_buf())
-                } else {
-                    None
-                }
-            }
+            let def = Path::new("panasonic DMR EH-55 Firmware hdd_100.bin");
+            resolve_input_path(def).ok()
         }
     }
 }
 
 /// Correlates .FRM cipher blocks with known LBA offsets in HDD partitions.
 pub fn correlate_hdd_partitions(
-    hdd_mmap: Option<&Mmap>,
+    hdd_mmap: Option<&[u8]>,
     frm_blocks_map: &HashMap<[u8; CIPHER_BLOCK_SIZE], usize>,
 ) -> Vec<PartitionCorrelation> {
     let mut correlations = Vec::new();
@@ -140,7 +130,7 @@ pub fn print_codebook(
     let mut resolved_hdd_name = None;
 
     if let Some(hpath) = &hdd_candidate {
-        if let Ok((_hfile, hdd_mmap)) = open_mmap(hpath) {
+        if let Ok(hdd_mmap) = open_image_buffer(hpath) {
             resolved_hdd_name = Some(hpath.to_string_lossy().to_string());
             let hdd_num_blocks = hdd_mmap.len() / CIPHER_BLOCK_SIZE;
             for j in 0..hdd_num_blocks {

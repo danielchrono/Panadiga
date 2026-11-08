@@ -26,7 +26,7 @@ Diferente de sistemas embarcados convencionais (baseados em Linux ou VxWorks gen
 3. **Criptografia e Proteção de Propriedade Intelectual:** O contêiner de distribuição óptica (`PANA_DVD.FRM`) e as partições executáveis do HD em 32 MB e 64 MB são blindados com cifras de bloco simétricas de 64 bits em modo ECB, associadas a esquemas CPRM (*Content Protection for Recordable Media*) e DivX DRM.
 4. **A Vulnerabilidade Crítica do Erro `U99`:** A calibração de canais, estado de montagem do HDD e parâmetros do gravador são mantidos nos últimos 64 KB da Flash Spansion (`0x007F0000` a `0x007FFFFF`), emulando uma EEPROM (`EEMUL`). Desgaste de células, desligamento abrupto durante gravação ou parâmetros corrompidos provocam falha de validação na inicialização. Como consequência, o firmware Matsushita entra em pânico e trava irreversivelmente com o código **`U99`** no display VFD frontal, rejeitando comandos do controle e travando o mecanismo óptico.
 
-Este repositório consolida o **ecossistema definitivo de engenharia reversa, recuperação física e análise forense** do Panasonic DMR-EH55, disponibilizando a suíte de ferramentas de alta performance em Rust **`panadiga`**, esquemas de bancada in-circuit via microcontrolador **RP2040**, documentação dos manuais originais de fábrica e os 4 grandes dossiês técnicos de referência.
+Este repositório consolida o **ecossistema definitivo de engenharia reversa, recuperação física e análise forense** do Panasonic DMR-EH55, disponibilizando a suíte de ferramentas de alta performance em Rust **`panadiga`**, interface de bancada desktop e mobile Android (`.apk`), firmware C11/PIO para microcontroladores **Raspberry Pi Pico (RP2040) e Pico 2 (RP2350)** com suporte a **Bluetooth Low Energy (BLE)** e USB-C OTG, documentação técnica dos 15 manuais originais de fábrica e o acervo completo de 13 grandes dossiês técnicos bilíngues de referência.
 
 ---
 
@@ -38,7 +38,7 @@ O fluxo abaixo descreve as relações físicas, elétricas e lógicas entre o ho
 flowchart LR
     subgraph Host["Bancada Técnica & Host de Engenharia"]
         direction TB
-        PC["Estação de Engenharia<br/>(Linux / Windows x64)<br/>Suíte Rust 'panadiga'<br/>Editor Hexadecimal HxD"]
+        PC["Estação Desktop (Win/Linux/macOS) & Mobile (.apk)"]
         RP2040["Raspberry Pi Pico (RP2040)<br/>Dual Cortex-M0+ @ 133 MHz<br/>Firmware C & Máquina PIO<br/>Transceptor DWire32A Half-Duplex"]
         PROG["Gravador Universal TSOP-48<br/>(XGecu T48 / SVOD 4 / TL866II)<br/>Soquete ZIF v3"]
         PC <-->|USB CDC / UART / Cargo| RP2040
@@ -871,41 +871,40 @@ O diretório [`manuals_and_schematics/`](manuals_and_schematics/) contém o acer
 
 ---
 
-## 10. Links Diretos para os Dossiês Técnicos Especializados de `docs/`
+## 10. Links Diretos para o Acervo de Dossiês Técnicos Especializados (`docs/`)
 
-Para aprofundamento específico em cada área de engenharia, consulte os dossiês técnicos oficiais do projeto:
+Para aprofundamento específico em cada área de engenharia, consulte o acervo oficial de dossiês técnicos bilíngues do projeto:
 
-* 🧠 **[Dossiê de Arquitetura da Suíte Panadiga, Decisões de Silício e Matriz de Compatibilidade](docs/ARQUITETURA_SUITE_PANADIGA_E_COMPATIBILIDADE_UNIVERSAL.md)**  
-  *Arquitetura completa da Suíte Panadiga em 3 camadas, rejeição formal de MicroPython por jitter/timing, desmistificação de terminal serial assíncrono (PuTTY/USB CDC) vs. barramento síncrono DWire32A, matriz de compatibilidade universal JEDEC/CFI (Spansion, ST, Macronix, Fujitsu, Toshiba) e compatibilidade cross-device de gravadores DIGA e silício Matsushita UniPhier / MN103.*
-* 🛠️ **[Especificação de Engenharia de Produto: Hardware Dedicado, Cabeamento e Embalagem](docs/ESPECIFICACAO_PRODUTO_HARDWARE_DWIRE32_PROBE.md)**  
-  *Especificação para fabricação de PCB dedicada (Dongle All-in-One RP2040), proteção ESD TVS, chicote oficial JST ZR-6 / sonda Pogo-Pin "No-Solder", gabinete usinado/SLA 3D, BOM com part numbers e embalagem comercial.*
-* ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)**  
-  *Esquema elétrico de bancada detalhado, especificações de cabos, condicionamento de sinais, pinagem completa da Spansion S29JL064H TSOP-48 e procedimentos cirúrgicos de soldagem.*
-* 🔐 **[Dossiê de Engenharia Reversa e Criptoanálise de Firmware](docs/DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md)**  
+* 🏛️ **[Arquitetura de Sistemas e Blueprint de Engenharia](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md)** ([English Mirror](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md))  
+  *Especificação mestre do ecossistema: decomposição de monólitos, Pure FP domain (`&[u8]`), MVVM rigoroso com ADTs, GDB RSP introspectivo com anel circular de telemetria sem perdas, logging unificado e invariantes do SoC MN2DS0016.*
+* 📱 **[Arquitetura Mobile Android e Conectividade Sem Fio BLE](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md)** ([English Mirror](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md))  
+  *Especificação técnica do APK Android (`aarch64-linux-android`), Web Bluetooth / Nordic UART Service (NUS), USB-C OTG, temporização em nanossegundos vs latência BLE, proibição absoluta de alimentar o Pico pelo conector P7501 e pipeline CI/CD.*
+* 🧪 **[Arquitetura de Testes, Matriz de Rastreabilidade e Conformidade](docs/pt-BR/ARQUITETURA_DE_TESTES_E_CONFORMIDADE.md)** ([English Mirror](docs/en-US/TESTING_ARCHITECTURE_AND_COMPLIANCE.md))  
+  *Pirâmide de testes em 5 camadas (Pure FP, HAL/GDB, MVVM/UI, CLI SSOT, E2E CI/CD), matriz de rastreabilidade completa, política de 0% de duplicação (`jscpd`) e relatório dos 9 Quality Gates.*
+* ⚡ **[Blueprint de Engenharia de Hardware e Circuitos de Bancada](docs/pt-BR/BLUEPRINT_ESQUEMA_ELETRICO_BANCADA.md)** ([English Mirror](docs/en-US/BLUEPRINT_BENCH_WIRING_AND_SCHEMATIC.md))  
+  *Esquema elétrico de bancada detalhado, especificações de cabos, condicionamento de sinais, pinagem completa do conector P7501/CN55001, Spansion S29JL064H TSOP-48 e procedimentos cirúrgicos de soldagem.*
+* 💾 **[Arquitetura de Storage, Filesystem MEIHDFS e Partições de Disco](docs/pt-BR/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md)** ([English Mirror](docs/en-US/STORAGE_ARCHITECTURE_MEIHDFS_PARTITIONS.md))  
+  *Engenharia reversa completa do disco de 100 MB, MBR com tag ASCII "SH", tabela espelho no LBA 57.344 (28 MB), journal transacional de 10 blocos e decodificação forense do volume contínuo MEIHDFS.*
+* 🔐 **[Dossiê de Engenharia Reversa e Criptoanálise de Firmware](docs/pt-BR/DOSSIE_CRIPTOGRAFIA_E_FIRMWARE_PANA_DVD.md)** ([English Mirror](docs/en-US/DOSSIER_CRYPTOGRAPHY_AND_FIRMWARE_PANA_DVD.md))  
   *Criptoanálise aprofundada da cifra de bloco de 64 bits em modo ECB, estudo de entropia de PANA_DVD.FRM, correlação cruzada de partições e desmistificação do Root-of-Trust em texto plano da Flash.*
-* 💿 **[Desconstrução do Contêiner Óptico PANA_DVD.FRM e Codebook ECB de 64 bits](docs/DESCONSTRUCAO_CONTAINER_PANA_DVD_FRM.md)**  
-  *Dissecação das 3 entradas de 48 bytes da TOC, alinhamento dos 3 módulos de firmware (AM34, MN102, MN103S) e prova de chave idêntica entre CD óptico e HD IDE via dicionário KPA.*
-* 💾 **[Arquitetura de Storage, Filesystem MEIHDFS e Partições de Disco](docs/ARQUITETURA_STORAGE_MEIHDFS_PARTICOES.md)**  
-  *Engenharia reversa completa do disco de 100 MB, MBR com tag ASCII "SH", tabela espelho no LBA 57.344 (28 MB), journal transacional de 10 blocos e especificações de streaming MEIHDFS-V2.0.*
-* 📊 **[Descobertas Forenses e Estrutura Bit-Invertida (XOR 0xFF) do MEIHDFS](docs/DESCOBERTAS_FORENSES_MEIHDFS_ALOCACAO.md)**  
-  *Decodificação matemática de 256 registros de extents e diretórios nos setores LBA 24..31 invertidos em One's Complement, e análise do Write-Ahead Logging (WAL) com commit atômico.*
-* 📘 **[Inventário Técnico, Auditoria de QA e Guia de Operação de Bancada](docs/INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md)**  
-  *Inventário criptográfico exaustivo de todos os artefatos com hashes SHA-256 fixados, indexação dos 15 manuais de serviço e matriz FMEA completa de riscos e mitigações em bancada.*
+* 🎯 **[Estratégia de Integração Ghidra SLED e Servidor GDB RSP](docs/pt-BR/ESTRATEGIA_INTEGRACAO_GHIDRA_GDB.md)** ([English Mirror](docs/en-US/GHIDRA_GDB_INTEGRATION_STRATEGY.md))  
+  *Módulo SLED AM34/MN103S para Ghidra, scripts de segmentação e ponte TCP `:3333` do GDB Remote Serial Protocol.*
+* 🪛 **[Guia de Montagem e Fotos da Sonda de Bancada JST ZR](docs/pt-BR/GUIA_MONTAGEM_E_FOTOS_PROBE_BANCADA.md)** ([English Mirror](docs/en-US/BENCH_PROBE_ASSEMBLY_AND_PHOTOS_GUIDE.md))  
+  *Procedimento ilustrado de montagem, chicote JST ZR 1.5mm de 6 vias (B6B-ZR-3R4) e teste de terra obrigatório (Pino 4 GND).*
+* 📘 **[Inventário Técnico, Hashes Criptográficos e Guia de Operação](docs/pt-BR/INVENTARIO_TECNICO_E_GUIA_DE_OPERACAO.md)** ([English Mirror](docs/en-US/TECHNICAL_INVENTORY_AND_OPERATIONS_MANUAL.md))  
+  *Inventário criptográfico exaustivo de todos os artefatos com hashes SHA-256 fixados, indexação dos 15 manuais e roteiro de desbrick U99.*
+* 🔍 **[Relatório de Auditoria e Modularização de Código](docs/pt-BR/RELATORIO_AUDITORIA_E_MODULARIZACAO_FINAL.md)** ([English Mirror](docs/en-US/FINAL_AUDIT_AND_MODULARIZATION_REPORT.md))  
+  *Relatório de modularização cross-stack (Rust, C, TypeScript, Python), conformidade arquitetural e homologação dos 9 Quality Gates.*
+* 📡 **[Especificação Técnica do Subsistema de Logging e Telemetria](docs/pt-BR/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)** ([English Mirror](docs/en-US/LOGGING_AND_TELEMETRY_SUBSYSTEM.md))  
+  *Arquitetura do barramento de logs, eliminação de println e console.log, sinks desacoplados e telemetria serial em tempo real.*
+* 🔬 **[Teoria e Prática do Desbrick do Erro U99 e Criptografia Matsushita](docs/pt-BR/TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md)** ([English Mirror](docs/en-US/THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md))  
+  *Física de semicondutores da Flash NOR Spansion, motor EEMUL de nivelamento de desgaste e sanitização dos 64 KB de NVRAM.*
+* 🛡️ **[Dossiê do Motor RAG Zero-Error e Segurança Física](docs/pt-BR/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)** ([English Mirror](docs/en-US/ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md))  
+  *Arquitetura do motor RAG nativo em Rust, 6 camadas ativas de validação determinística e guardrails contra danos de bancada.*
 * 🔬 **[Especificação Técnica e Reconstrução da Interface DWire32A / OCD](dwire32a_jtag_research/PANASONIC_DWIRE32A_JTAG_RECONSTRUCTION.md)**  
-  *Documento fundacional do protocolo DWire32A, temporizações do barramento síncrono half-duplex, código assembly da máquina PIO do RP2040 e driver JEDEC nativo AM34.*
-* 🪛 **[Guia Prático de Bancada DWire32A Sem Dessolda (Cabo JST ZR 1.5mm - B6B-ZR-3R4)](dwire32a_jtag_research/GUIA_BANCADA_DWIRE32A_SEM_DESSOLDA.md)**  
-  *Procedimento completo de conexão no conector P7501/CN55001 sem dessolda, especificações mecânicas do conector JST ZR 1.5mm de 6 pinos (B6B-ZR-3R4) e testes de continuidade.*
+  *Documento fundacional do protocolo DWire32A, temporizações do barramento síncrono half-duplex e código assembly da máquina PIO.*
 * 🐛 **[Guia de Depuração Interativa de Hardware: GDB, Ghidra e IDA Pro](dwire32a_jtag_research/GUIA_DEPURACAO_GDB_GHIDRA_IDA.md)**  
-  *Tutorial prático para conectar depuradores interativos (gdb-multiarch, Ghidra Debugger, IDA Pro e OpenOCD) à CPU Matsushita AM34 via ponte TCP 'panadiga pico gdb-bridge', permitindo pausar a CPU, inspecionar registradores e executar passo a passo.*
-* 🤖 **[Guia de Governança de Inteligência Artificial, Subagentes e Servidor MCP](docs/AI_ARCHITECTURE_AND_AGENT_GUIDE.md)**  
-  *Diretrizes universais para modelos de IA no ecossistema Panadiga: matriz dos 6 subagentes especializados (.agents/agents/), runbooks operacionais (.agents/skills/), regras de segurança física e silício (.agents/rules/), ferramentas MCP em Python (panadiga_mcp_server.py) e metodologia MVP.*
-* 📡 **[Especificação Técnica do Subsistema de Logging e Telemetria](docs/SUBSISTEMA_LOGGING_E_TELEMETRIA.md)**  
-  *Arquitetura do motor thread-safe de logging em Rust (src/logger.rs), filtragem atômica com zero-overhead, macros estruturadas (log_info!, log_warn!, log_error!, log_debug!, log_trace!), suporte a interceptadores de GUI desktop e histórico de migração de 365 pontos de log.*
-* 🛡️ **[Dossiê do Motor RAG Zero-Error, Defesa em 6 Camadas e Invariantes Físicos](docs/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md)**  
-  *Arquitetura do motor RAG nativo em Rust (src/rag/), 6 camadas ativas de validação e veto mútuo (QueryGuard, CRAG, Self-RAG FactCritic, Hardware Safety Shield), abstenção epistêmica contra alucinações e justificativa técnica da coexistência com o servidor MCP.*
-* 🛡️ **[Relatório de Auditoria Red-Team, Refutação e Blindagem Lógica de Runtime](docs/RELATORIO_RED_TEAM_E_AUDITORIA_LOGICA.md)**  
-  *Relatório adversarial completo detalhando o diagnóstico, reprodução ao vivo de crashes UTF-8 e remediação cirúrgica de 14 vulnerabilidades lógicas, de silício, protocolo e forenses em Rust, C11 e Python.*
-
+  *Tutorial prático para conectar depuradores interativos à CPU Matsushita AM34 via ponte TCP 'panadiga pico gdb-bridge'.*
 
 ---
 
@@ -933,28 +932,28 @@ Para impedir regressões e garantir que nenhum commit quebre a codebase, o repos
                                             / \
                                            / E2E \   ◄── 8 Testes Playwright (Chromium Headless)
                                          /─────────\      Navegação, Bancada DWire32A, Cirurgia S29JL064H
-                                        /  VIEW-    \ ◄── 26 Testes Vitest (jsdom + Testing Library)
-                                       /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge
+                                        /  VIEW-    \ ◄── 33 Testes Vitest (jsdom + Testing Library)
+                                       /   MODELS    \    useSerialConsole, useInCircuitErase, useGdbBridge, Logger
                                       /───────────────\
-                                     / PYTHON & TOOLS  \ ◄── 26 Testes Pytest + Typer CLI + Mypy Strict + MCP Server
+                                     / PYTHON & TOOLS  \ ◄── 27 Testes Pytest + Typer CLI + Mypy Strict + MCP Server
                                     /                   \    tools/panadiga_cli.py, RAG Engine, panadiga_mcp_server.py
                                    /─────────────────────\
-                                  /   RUST CORE ENGINE    \ ◄── 33 Testes (17 unitários lib/RAG + 16 integração)
-                                 /                         \    MEIHDFS, Entropia Shannon, Cripto FRM, Logger
+                                  /   RUST CORE ENGINE    \ ◄── 41 Testes (23 unitários lib/RAG + 18 integração)
+                                 /                         \    MEIHDFS Pure FP, Entropia, Cripto FRM, CLI Matrix, SSOT
                                 /___________________________\
 ```
 
 ### 12.1. Os 9 Quality Gates Integrados e Ativos
 
-1. **Rust Workspace Check & Tests:** `cargo check --workspace --all-targets` e `cargo test --workspace --verbose` cobrindo 33 testes (17 unitários lib/RAG + 16 testes de integração) com memory-safety estrita.
+1. **Rust Workspace Check & Tests:** `cargo check --workspace --all-targets` e `cargo test --workspace --verbose` cobrindo **41 testes** (23 unitários lib/RAG + 18 testes de integração) com memory-safety estrita e funções puras sobre slices `&[u8]`.
 2. **TypeScript Strict Type-Check:** `npm run typecheck` (`tsc --noEmit`) em `apps/desktop` com zero erros de tipagem.
-3. **Vitest Frontend & ViewModels:** `npm test` em `apps/desktop` com 26 testes unitários cobrindo hooks e ViewModels da interface.
-4. **Copy/Paste Detector (jscpd):** Auditoria cross-language em Rust, TypeScript, Python e C com **limiar estrito de 0% de duplicação** (**0 clones permitidos**).
-5. **UI/UX Completeness Linter (uxlint):** Auditoria automatizada de completude de estados de UI no React (loading, error, empty, feedback) com pontuação 100/100.
-6. **Playwright E2E:** 8 testes end-to-end com Chromium headless cobrindo navegação, conexão de bancada e simulações de hardware.
+3. **Vitest Frontend & ViewModels:** `npm test` em `apps/desktop` com **33 testes unitários e de componentes** cobrindo hooks, barramento de log e ViewModels estritos baseados em ADTs.
+4. **Copy/Paste Detector (jscpd):** Auditoria cross-language em Rust, TypeScript, Python e C com **limiar estrito de 0% de duplicação** (**0 clones permitidos** em 10.000+ linhas).
+5. **UI/UX Completeness Linter (uxlint):** Auditoria automatizada de completude de estados de UI no React (loading, error, empty, feedback) com pontuação **100/100**.
+6. **Playwright E2E:** **8 testes end-to-end** com Chromium headless cobrindo navegação, conexão de bancada e simulações de hardware.
 7. **Ghidra Native Script Generator Gate:** Exportação idempotente de scripts a partir da SSOT nativa em Rust (`panadiga ghidra export-all`).
-8. **Pico C11 Firmware & RSP Server Host Tests:** Compilação e execução dos testes unitários do servidor GDB RSP com GCC `-Werror` (7 assertions validadas).
-9. **Python Typer CLI, Mypy Strict & Pytest:** Compilação de sintaxe, tipagem estrita com `mypy --strict` (0 erros) e suíte pytest cobrindo 26 testes unitários (`tools/tests` e `tools/rag_engine/tests`).
+8. **Pico C11 Firmware & RSP Server Host Tests:** Compilação e execução dos testes unitários do servidor GDB RSP com GCC `-Werror` (**7 assertions validadas**).
+9. **Python Typer CLI, Mypy Strict & Pytest:** Compilação de sintaxe, tipagem estrita com `mypy --strict` (0 erros) e suíte pytest cobrindo **27 testes unitários** (`tools/tests` e `tools/rag_engine/tests`).
 
 ### 12.2. Execução da Validação Completa Local
 

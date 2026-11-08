@@ -468,7 +468,10 @@ struct GdbConfigArgs {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    if cli.interactive || cli.command.is_none() || matches!(cli.command, Some(Commands::Interactive)) {
+    if cli.interactive
+        || cli.command.is_none()
+        || matches!(cli.command, Some(Commands::Interactive))
+    {
         return run_interactive_pipeline();
     }
 

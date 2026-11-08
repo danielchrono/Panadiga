@@ -297,7 +297,8 @@ pub const AM34_PATA_MMIO_SIZE: u32 = 0x0000_1000;
 // ============================================================================
 
 /// Default relative path to the sample Panasonic HDD 100MB dump.
-pub const DEFAULT_HDD_IMAGE_PATH: &str = "firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin";
+pub const DEFAULT_HDD_IMAGE_PATH: &str =
+    "firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin";
 
 /// Default relative path to the official Panasonic optical update container.
 pub const DEFAULT_FRM_CONTAINER_PATH: &str = "firmware_and_images/PANA_DVD.FRM";

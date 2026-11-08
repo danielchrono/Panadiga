@@ -36,22 +36,38 @@ pub fn prompt_line(prompt: &str) -> String {
 pub fn run_interactive_pipeline() -> Result<()> {
     loop {
         println!();
-        println!("\x1b[1;36m====================================================================\x1b[0m");
+        println!(
+            "\x1b[1;36m====================================================================\x1b[0m"
+        );
         println!("\x1b[1;36m      PANADIGA ENGINEERING SUITE - INTERACTIVE WORKBENCH (TUI)\x1b[0m");
-        println!("\x1b[1;33m      Matsushita AM34 / UniPhier MN2DS0016 / Spansion S29JL064H\x1b[0m");
-        println!("\x1b[1;36m====================================================================\x1b[0m");
+        println!(
+            "\x1b[1;33m      Matsushita AM34 / UniPhier MN2DS0016 / Spansion S29JL064H\x1b[0m"
+        );
+        println!(
+            "\x1b[1;36m====================================================================\x1b[0m"
+        );
         println!("  \x1b[1;32m[1]\x1b[0m Hardware Host Discovery & Ping (Pico RP2040 / RP2350)");
-        println!("  \x1b[1;32m[2]\x1b[0m NVRAM & NOR Flash Sanitization (Surgical Microsector U99 Fix)");
-        println!("  \x1b[1;32m[3]\x1b[0m HDD MEIHDFS Storage Forensics (Inspect & Extract Partitions)");
-        println!("  \x1b[1;32m[4]\x1b[0m Firmware & Optical Container (.FRM Cryptanalysis & Codebook)");
+        println!(
+            "  \x1b[1;32m[2]\x1b[0m NVRAM & NOR Flash Sanitization (Surgical Microsector U99 Fix)"
+        );
+        println!(
+            "  \x1b[1;32m[3]\x1b[0m HDD MEIHDFS Storage Forensics (Inspect & Extract Partitions)"
+        );
+        println!(
+            "  \x1b[1;32m[4]\x1b[0m Firmware & Optical Container (.FRM Cryptanalysis & Codebook)"
+        );
         println!("  \x1b[1;32m[5]\x1b[0m Matsushita AM34 Official Memory Map Architecture");
         println!("  \x1b[1;32m[6]\x1b[0m Export Ghidra Reverse Engineering Scripts (SSOT)");
         println!("  \x1b[1;32m[7]\x1b[0m Service Manuals & Schematic PDF Indexer & Search");
-        println!("  \x1b[1;32m[8]\x1b[0m Zero-Error Deterministic Safety RAG Engine (Ask Engineer)");
+        println!(
+            "  \x1b[1;32m[8]\x1b[0m Zero-Error Deterministic Safety RAG Engine (Ask Engineer)"
+        );
         println!("  \x1b[1;32m[9]\x1b[0m Cryptographic Artifact Hash Verification (SHA-256)");
         println!("  \x1b[1;35m[D]\x1b[0m Launch Panadiga Native Desktop GUI (Tauri / React)");
         println!("  \x1b[1;31m[0]\x1b[0m Exit Workbench");
-        println!("\x1b[1;36m--------------------------------------------------------------------\x1b[0m");
+        println!(
+            "\x1b[1;36m--------------------------------------------------------------------\x1b[0m"
+        );
 
         let choice = prompt_line("\x1b[1;37mSelect an option [1-9, D, 0]: \x1b[0m");
         println!();
@@ -99,11 +115,16 @@ fn handle_pico_option() -> Result<()> {
                 dev.description
             );
         }
-        let sub = prompt_line("\x1b[1;37mAction ([P]ing / [G]DB Bridge / [Enter] to return): \x1b[0m");
+        let sub =
+            prompt_line("\x1b[1;37mAction ([P]ing / [G]DB Bridge / [Enter] to return): \x1b[0m");
         if sub.eq_ignore_ascii_case("P") {
             let prompt_msg = format!("Enter COM port [default: {}]: ", DEFAULT_SERIAL_PORT);
             let port = prompt_line(&prompt_msg);
-            let p = if port.is_empty() { DEFAULT_SERIAL_PORT } else { &port };
+            let p = if port.is_empty() {
+                DEFAULT_SERIAL_PORT
+            } else {
+                &port
+            };
             match ping_pico(p, DEFAULT_BAUD_RATE) {
                 Ok(res) => println!("\x1b[1;32m{}\x1b[0m", res),
                 Err(e) => println!("\x1b[1;31m[ERROR] Failed to ping {}: {}\x1b[0m", p, e),
@@ -111,7 +132,11 @@ fn handle_pico_option() -> Result<()> {
         } else if sub.eq_ignore_ascii_case("G") {
             let prompt_msg = format!("Enter COM port [default: {}]: ", DEFAULT_SERIAL_PORT);
             let port = prompt_line(&prompt_msg);
-            let p = if port.is_empty() { DEFAULT_SERIAL_PORT } else { &port };
+            let p = if port.is_empty() {
+                DEFAULT_SERIAL_PORT
+            } else {
+                &port
+            };
             println!(
                 "\x1b[1;32m[INFO] Starting GDB RSP bridge on port {} -> {}...\x1b[0m",
                 p, DEFAULT_GDB_LISTEN_SOCKET
@@ -155,7 +180,9 @@ fn handle_hdd_option() -> Result<()> {
     if !img_path.exists() {
         println!("\x1b[1;31m[ERROR] File not found: {:?}\x1b[0m", img_path);
     } else {
-        let act = prompt_line("Action ([I]nspect partitions / [E]xtract partitions / [D]ecode descriptors): ");
+        let act = prompt_line(
+            "Action ([I]nspect partitions / [E]xtract partitions / [D]ecode descriptors): ",
+        );
         if act.eq_ignore_ascii_case("E") {
             let outdir = prompt_line(&format!(
                 "Destination directory [default: {}]: ",
@@ -190,7 +217,8 @@ fn handle_frm_option() -> Result<()> {
     if !frm_path.exists() {
         println!("\x1b[1;31m[ERROR] File not found: {:?}\x1b[0m", frm_path);
     } else {
-        let act = prompt_line("Action ([A]nalyze container / [T]OC dump / [C]odebook comparison): ");
+        let act =
+            prompt_line("Action ([A]nalyze container / [T]OC dump / [C]odebook comparison): ");
         if act.eq_ignore_ascii_case("T") {
             dump_toc(&frm_path, None)?;
         } else if act.eq_ignore_ascii_case("C") {
@@ -230,7 +258,10 @@ fn handle_ghidra_export() -> Result<()> {
         PathBuf::from(out)
     };
     export_all_ghidra_scripts(&dest)?;
-    println!("\x1b[1;32m[OK] Ghidra scripts exported successfully into {:?}\x1b[0m", dest);
+    println!(
+        "\x1b[1;32m[OK] Ghidra scripts exported successfully into {:?}\x1b[0m",
+        dest
+    );
     Ok(())
 }
 
@@ -250,7 +281,9 @@ fn handle_rag_query() {
     let q = prompt_line("Enter engineering or electrical safety question: ");
     if !q.is_empty() {
         let ans = rag_query(&q);
-        println!("\x1b[1;36m--------------------------------------------------------------------\x1b[0m");
+        println!(
+            "\x1b[1;36m--------------------------------------------------------------------\x1b[0m"
+        );
         println!("Groundedness Score: {:.2}%", ans.groundedness_score * 100.0);
         println!("Confidence:         {:.2}%", ans.confidence * 100.0);
         println!(
@@ -266,7 +299,9 @@ fn handle_rag_query() {
         }
         println!();
         println!("Answer:\n{}", ans.answer_text);
-        println!("\x1b[1;36m--------------------------------------------------------------------\x1b[0m");
+        println!(
+            "\x1b[1;36m--------------------------------------------------------------------\x1b[0m"
+        );
     }
 }
 
@@ -282,8 +317,15 @@ fn handle_verify_artifact() -> Result<()> {
         let mut hasher = Sha256::new();
         hasher.update(&data);
         let computed = hex::encode(hasher.finalize());
-        println!("File:     {}", p.file_name().and_then(|n| n.to_str()).unwrap_or(""));
-        println!("Size:     {} bytes ({:.2} KB)", data.len(), data.len() as f64 / 1024.0);
+        println!(
+            "File:     {}",
+            p.file_name().and_then(|n| n.to_str()).unwrap_or("")
+        );
+        println!(
+            "Size:     {} bytes ({:.2} KB)",
+            data.len(),
+            data.len() as f64 / 1024.0
+        );
         println!("SHA-256:  \x1b[1;33m{}\x1b[0m", computed);
         if !exp.is_empty() {
             if computed.eq_ignore_ascii_case(&exp) {

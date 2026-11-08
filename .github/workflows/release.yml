@@ -29,27 +29,27 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - name: Windows x86_64
+          - name: windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
             cli_bin: target/x86_64-pc-windows-msvc/release/panadiga.exe
             desktop_bin: target/x86_64-pc-windows-msvc/release/panasonic-diga-desktop.exe
             archive_ext: zip
-            archive_name: panadiga-${{ github.ref_name || inputs.tag_name }}-windows-x86_64.zip
-          - name: Linux x86_64
+            archive_name: panadiga-windows-x86_64.zip
+          - name: linux-x86_64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             cli_bin: target/x86_64-unknown-linux-gnu/release/panadiga
             desktop_bin: target/x86_64-unknown-linux-gnu/release/panasonic-diga-desktop
             archive_ext: tar.gz
-            archive_name: panadiga-${{ github.ref_name || inputs.tag_name }}-linux-x86_64.tar.gz
-          - name: macOS Apple Silicon
+            archive_name: panadiga-linux-x86_64.tar.gz
+          - name: macos-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
             cli_bin: target/aarch64-apple-darwin/release/panadiga
             desktop_bin: target/aarch64-apple-darwin/release/panasonic-diga-desktop
             archive_ext: tar.gz
-            archive_name: panadiga-${{ github.ref_name || inputs.tag_name }}-macos-aarch64.tar.gz
+            archive_name: panadiga-macos-aarch64.tar.gz
 
     steps:
       - name: Checkout repository
@@ -166,7 +166,7 @@ EOF
       - name: Upload Release Archive
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform.name }}
+          name: panadiga-${{ matrix.platform.name }}
           path: |
             ${{ matrix.platform.archive_name }}
             ${{ matrix.platform.archive_name }}.sha256

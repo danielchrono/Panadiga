@@ -6,9 +6,9 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-# Default to standard RP2040 (pico) if not specified, support pico2 (RP2350)
+# Default to standard RP2040 (pico) if not specified, support pico_w, pico2, pico2_w
 if(NOT DEFINED PICO_BOARD)
-    set(PICO_BOARD pico CACHE STRING "Target Pico Board: 'pico' (RP2040) or 'pico2' (RP2350)")
+    set(PICO_BOARD pico CACHE STRING "Target Pico Board: 'pico', 'pico_w', 'pico2', or 'pico2_w'")
 endif()
 
 # Include official Raspberry Pi Pico SDK import helper
@@ -46,6 +46,18 @@ target_link_libraries(panasonic_dwire32a
     hardware_adc
     hardware_clocks
 )
+
+# Optional Bluetooth Low Energy (CYW43439 / BTstack) support for Pico W and Pico 2 W
+if(PICO_BOARD STREQUAL "pico_w" OR PICO_BOARD STREQUAL "pico2_w")
+    message(STATUS "[PANADIGA] Enabling Bluetooth LE Nordic UART Service (NUS) for ${PICO_BOARD}")
+    target_compile_definitions(panasonic_dwire32a PRIVATE
+        PANADIGA_BLE_ENABLED=1
+    )
+    target_link_libraries(panasonic_dwire32a
+        pico_cyw43_arch_none
+        pico_btstack_ble
+    )
+endif()
 
 # Enable USB CDC serial console, disable UART0
 pico_enable_stdio_usb(panasonic_dwire32a 1)

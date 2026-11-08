@@ -9,6 +9,7 @@ describe('useInCircuitErase ViewModel', () => {
 
   it('initializes in non-erasing state with null eraseResult', () => {
     const { result } = renderHook(() => useInCircuitErase());
+    expect(result.current.state.status).toBe('idle');
     expect(result.current.isErasing).toBe(false);
     expect(result.current.eraseResult).toBeNull();
     expect(typeof result.current.injectRamLoaderAndErase).toBe('function');

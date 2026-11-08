@@ -8,20 +8,39 @@ export interface UseGdbBridgeOptions {
 }
 
 /**
+ * Closed algebraic state machine for GDB RSP server bridge lifecycle.
+ * Eliminates illegal states at compile time (ADTs / Discriminated Union).
+ */
+export type GdbBridgeState =
+  | { status: 'stopped' }
+  | { status: 'starting'; listenAddr: string }
+  | { status: 'running'; listenAddr: string; clientCount: number }
+  | { status: 'error'; message: string };
+
+/**
  * Single Responsibility: Manages the GDB RSP TCP server bridge lifecycle and AM34 register telemetry.
  */
 export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
   const [gdbStatus, setGdbStatus] = useState<GdbBridgeStatus | null>(null);
   const [am34Registers, setAm34Registers] = useState<Am34RegisterState | null>(null);
-  const [isGdbStarting, setIsGdbStarting] = useState<boolean>(false);
+  const [state, setState] = useState<GdbBridgeState>({ status: 'stopped' });
+
+  const isGdbStarting = state.status === 'starting';
 
   const pollGdbState = useCallback(async () => {
     try {
       const gdb = await invokeCommand<GdbBridgeStatus>('get_gdb_bridge_status_command');
       setGdbStatus(gdb);
       if (gdb?.running) {
+        setState({
+          status: 'running',
+          listenAddr: gdb.listen_addr,
+          clientCount: gdb.connected_clients,
+        });
         const regs = await invokeCommand<Am34RegisterState>('get_am34_registers_command');
         setAm34Registers(regs);
+      } else {
+        setState(prev => (prev.status === 'starting' ? prev : { status: 'stopped' }));
       }
     } catch (err) {
       console.warn('Failed querying GDB status:', err);
@@ -29,7 +48,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
   }, []);
 
   const startGdbServer = useCallback(async (listenAddr = '127.0.0.1:3333') => {
-    setIsGdbStarting(true);
+    setState({ status: 'starting', listenAddr });
     onLog?.('info', 'HOST', `Iniciando Servidor Ponte GDB RSP em ${listenAddr} (Porta: ${selectedPort})...`);
     try {
       const status = await invokeCommand<GdbBridgeStatus>('start_gdb_bridge_command', {
@@ -37,11 +56,16 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
         listen_addr: listenAddr,
       });
       setGdbStatus(status);
+      setState({
+        status: 'running',
+        listenAddr: status.listen_addr,
+        clientCount: status.connected_clients,
+      });
       onLog?.('success', 'HOST', `Ponte GDB RSP ativa! Conecte seu depurador com: (gdb) target remote ${listenAddr}`);
     } catch (err) {
-      onLog?.('error', 'HOST', `Falha ao iniciar ponte GDB: ${err}`);
-    } finally {
-      setIsGdbStarting(false);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setState({ status: 'error', message: errMsg });
+      onLog?.('error', 'HOST', `Falha ao iniciar ponte GDB: ${errMsg}`);
     }
   }, [selectedPort, onLog]);
 
@@ -50,9 +74,12 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     try {
       const status = await invokeCommand<GdbBridgeStatus>('stop_gdb_bridge_command');
       setGdbStatus(status);
+      setState({ status: 'stopped' });
       onLog?.('info', 'HOST', 'Servidor Ponte GDB desativado.');
     } catch (err) {
-      onLog?.('error', 'HOST', `Falha ao parar ponte GDB: ${err}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      setState({ status: 'error', message: errMsg });
+      onLog?.('error', 'HOST', `Falha ao parar ponte GDB: ${errMsg}`);
     }
   }, [onLog]);
 
@@ -76,6 +103,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
   }, [pollGdbState]);
 
   return {
+    state,
     gdbStatus,
     am34Registers,
     isGdbStarting,

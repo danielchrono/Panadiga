@@ -95,3 +95,12 @@ export interface Am34RegisterState {
   is_halted: boolean;
 }
 
+export interface GdbPacketTelemetryEvent {
+  timestamp_ms: number;
+  direction: string;
+  command_type: string;
+  raw_packet: string;
+  checksum_valid: boolean;
+}
+
+

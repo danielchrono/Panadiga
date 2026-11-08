@@ -62,6 +62,11 @@ static void ui_print_banner(void) {
     printf("   Target SoC   : MN2DS0016 (Panasonic DMR-EH55 Digital Board VEP79138)\n");
     printf("   Flash Memory : Spansion S29JL064H70TFI00 (64 Mbit / 8 MB TSOP-48)\n");
     printf("   Host Control : %s\n", gdb_rsp_get_status_info());
+#if defined(PANADIGA_BLE_ENABLED)
+    printf("   Wireless     : CYW43439 Bluetooth LE NUS (Nordic UART Service Enabled)\n");
+#else
+    printf("   Wireless     : Disabled (USB CDC Only / Standard RP2040/RP2350)\n");
+#endif
     printf("   Status LED   : GP25 (Heartbeat: 1Hz, Active: Solid, GDB: 5Hz, Fault: 3x)\n");
     printf("   C Standard   : ISO C11 Embedded System Architecture\n");
     printf("====================================================================\n");

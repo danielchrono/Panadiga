@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PicoDeviceStatus, ColdBreakinMode } from '@/models';
 import { invokeCommand } from '@/services/ipc';
+import { bleService } from '@/services/bleService';
 
 export interface UsePicoDeviceOptions {
   onLog?: (level: 'info' | 'warn' | 'error' | 'success', source: 'HOST' | 'PICO', message: string) => void;
@@ -14,6 +15,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   const [availablePorts, setAvailablePorts] = useState<string[]>([
     'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]',
     'MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]',
+    'BLE_PICO_W [Bluetooth LE - Nordic UART Service (NUS)]',
   ]);
   const [selectedPort, setSelectedPort] = useState<string>(
     'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]'
@@ -22,11 +24,13 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   const refreshPorts = useCallback(async () => {
     try {
       const ports = await invokeCommand<string[]>('list_pico_serial_ports');
-      if (ports && ports.length > 0) {
-        setAvailablePorts(ports);
-        if (!ports.includes(selectedPort)) {
-          setSelectedPort(ports[0]);
-        }
+      const allPorts = [...(ports || [])];
+      if (!allPorts.some(p => p.includes('BLE_PICO_W'))) {
+        allPorts.push('BLE_PICO_W [Bluetooth LE - Nordic UART Service (NUS)]');
+      }
+      setAvailablePorts(allPorts);
+      if (!allPorts.includes(selectedPort)) {
+        setSelectedPort(allPorts[0]);
       }
     } catch (err) {
       console.warn('Failed loading system serial ports:', err);
@@ -55,9 +59,38 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     [onLog]
   );
 
-  const toggleConnection = useCallback(() => {
+  const toggleConnection = useCallback(async () => {
     if (!deviceStatus) return;
     const nextConnected = !deviceStatus.connected;
+
+    if (nextConnected && selectedPort.startsWith('BLE_')) {
+      try {
+        const bleDev = await bleService.connect();
+        onLog?.('success', 'HOST', `Conectado via Bluetooth LE NUS: ${bleDev.name}`);
+        setDeviceStatus(prev =>
+          prev
+            ? {
+                ...prev,
+                connected: true,
+                core_state: 'HALTED',
+                port: selectedPort,
+              }
+            : null
+        );
+        return;
+      } catch (err) {
+        onLog?.(
+          'error',
+          'HOST',
+          `Falha ao parear Bluetooth LE: ${err instanceof Error ? err.message : String(err)}`
+        );
+        return;
+      }
+    } else if (!nextConnected && bleService.isConnected()) {
+      bleService.disconnect();
+      onLog?.('warn', 'HOST', 'Desconectado do link Bluetooth LE');
+    }
+
     setDeviceStatus(prev =>
       prev
         ? {

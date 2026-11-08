@@ -48,6 +48,16 @@ pub struct Am34RegisterState {
     pub is_halted: bool,
 }
 
+/// Telemetry event recorded by the introspective GDB RSP bridge.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GdbPacketTelemetryEvent {
+    pub timestamp_ms: u64,
+    pub direction: String,
+    pub command_type: String,
+    pub raw_packet: String,
+    pub checksum_valid: bool,
+}
+
 /// Pure helper function to normalize port name string, extracting "COMx" or detecting mock mode.
 pub fn extract_port_name(input: &str) -> String {
     let trimmed = input.trim();

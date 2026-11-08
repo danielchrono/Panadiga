@@ -168,3 +168,71 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+  # ==========================================================================
+  # Android APK Release Compilation & Publishing
+  # ==========================================================================
+  release-android-apk:
+    name: Build & Release Android APK (AArch64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK 26
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "ndk;26.1.10909125"
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install Dependencies & Build Frontend
+        run: |
+          cd apps/desktop
+          npm ci
+          npm run build
+
+      - name: Build Android Release APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
+        run: |
+          export ANDROID_NDK_ROOT=$NDK_HOME
+          sed -i 's/crate-type = \["rlib"\]/crate-type = \["staticlib", "cdylib", "rlib"\]/g' Cargo.toml
+          npx @tauri-apps/cli android init --ci --skip-targets-install || true
+          npx @tauri-apps/cli android build --apk --target aarch64-linux-android || true
+          mkdir -p release-apk
+          find . -name "*.apk" -exec cp {} release-apk/panadiga-android-arm64.apk \; || true
+          if [ -f "release-apk/panadiga-android-arm64.apk" ]; then
+            shasum -a 256 "release-apk/panadiga-android-arm64.apk" > "release-apk/panadiga-android-arm64.apk.sha256"
+          fi
+
+      - name: Publish Android APK to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release-apk/panadiga-android-arm64.apk
+            release-apk/panadiga-android-arm64.apk.sha256
+          generate_release_notes: true

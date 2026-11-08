@@ -13,6 +13,7 @@ describe('useGdbBridge ViewModel', () => {
       useGdbBridge({ selectedPort: 'COM5', onLog })
     );
 
+    expect(result.current.state.status).toBe('stopped');
     expect(result.current.gdbStatus).toBeNull();
     expect(result.current.isGdbStarting).toBe(false);
     expect(typeof result.current.startGdbServer).toBe('function');

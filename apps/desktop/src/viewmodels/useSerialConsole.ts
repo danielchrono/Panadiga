@@ -1,6 +1,14 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { SerialLogEntry } from '@/models';
 import { mockInitialSerialLogs } from '@/services/mockData';
+import { bleService } from '@/services/bleService';
+
+/**
+ * Closed algebraic state machine for Serial Console transmission lifecycle.
+ */
+export type SerialConsoleState =
+  | { status: 'idle' }
+  | { status: 'sending'; command: string };
 
 /**
  * Single Responsibility: Manages interactive serial CDC console logs and command dispatching.
@@ -8,6 +16,7 @@ import { mockInitialSerialLogs } from '@/services/mockData';
 export function useSerialConsole() {
   const [logs, setLogs] = useState<SerialLogEntry[]>(mockInitialSerialLogs);
   const [commandInput, setCommandInput] = useState<string>('');
+  const [consoleState, setConsoleState] = useState<SerialConsoleState>({ status: 'idle' });
   const logContainerRef = useRef<HTMLDivElement>(null);
 
   const addLog = useCallback(
@@ -33,11 +42,27 @@ export function useSerialConsole() {
     []
   );
 
+  // Subscribe to incoming BLE notifications when active
+  useEffect(() => {
+    const unsubscribe = bleService.onReceive(data => {
+      addLog('rx', 'PICO', `[BLE] ${data.trim()}`);
+    });
+    return unsubscribe;
+  }, [addLog]);
+
   const sendCommand = useCallback(() => {
     if (!commandInput.trim()) return;
     const cmd = commandInput.trim().toUpperCase();
+    setConsoleState({ status: 'sending', command: cmd });
     addLog('tx', 'HOST', `> ${cmd}`);
     setCommandInput('');
+
+    // If BLE link is active, transmit wirelessly over Nordic UART Service
+    if (bleService.isConnected()) {
+      bleService.send(cmd).catch(err => {
+        addLog('error', 'HOST', `Falha ao transmitir via BLE: ${err}`);
+      });
+    }
 
     setTimeout(() => {
       if (cmd === 'STATUS') {
@@ -51,6 +76,7 @@ export function useSerialConsole() {
       } else {
         addLog('rx', 'PICO', `ACK: ${cmd} (Instrução executada no PIO0)`);
       }
+      setConsoleState({ status: 'idle' });
     }, 120);
   }, [commandInput, addLog]);
 
@@ -60,6 +86,7 @@ export function useSerialConsole() {
 
   return {
     logs,
+    consoleState,
     addLog,
     clearLogs,
     commandInput,

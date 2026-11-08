@@ -3,6 +3,7 @@
 //! Manages the background TCP-to-Serial proxy thread, mock RSP packet simulation,
 //! client connection lifecycle, and AM34 shadow register file state.
 
+use std::collections::VecDeque;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -10,7 +11,9 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
-use super::types::{extract_port_name, Am34RegisterState, GdbBridgeStatus};
+use super::types::{
+    extract_port_name, Am34RegisterState, GdbBridgeStatus, GdbPacketTelemetryEvent,
+};
 
 struct GdbBridgeController {
     running: Arc<AtomicBool>,
@@ -21,6 +24,7 @@ struct GdbBridgeController {
     last_event: Mutex<String>,
     thread_handle: Mutex<Option<thread::JoinHandle<()>>>,
     registers: Mutex<Am34RegisterState>,
+    telemetry_ring: Mutex<VecDeque<GdbPacketTelemetryEvent>>,
 }
 
 static GDB_CONTROLLER: OnceLock<GdbBridgeController> = OnceLock::new();
@@ -43,7 +47,91 @@ fn get_controller() -> &'static GdbBridgeController {
             sp: 0x0003FFF0,
             is_halted: true,
         }),
+        telemetry_ring: Mutex::new(VecDeque::with_capacity(128)),
     })
+}
+
+/// Pure helper to verify GDB RSP packet checksum and classify the command.
+pub fn verify_and_classify_rsp_packet(packet: &str) -> (String, bool) {
+    let raw = packet.trim();
+    if raw == "+" || raw == "-" {
+        return ("AckNak".to_string(), true);
+    }
+
+    let trimmed = raw.trim_start_matches('+').trim();
+    if !trimmed.starts_with('$') {
+        return ("RawBytes".to_string(), false);
+    }
+
+    let without_dollar = &trimmed[1..];
+    let parts: Vec<&str> = without_dollar.split('#').collect();
+    if parts.len() != 2 {
+        return ("Malformed".to_string(), false);
+    }
+
+    let payload = parts[0];
+    let expected_csum_str = parts[1];
+    let expected_csum = u8::from_str_radix(expected_csum_str, 16).unwrap_or(0);
+
+    let actual_csum: u8 = payload.bytes().fold(0u8, |acc, b| acc.wrapping_add(b));
+    let checksum_valid = actual_csum == expected_csum;
+
+    let cmd_type = if payload.starts_with("qSupported") {
+        "qSupported"
+    } else if payload.starts_with('?') {
+        "HaltReason"
+    } else if payload == "g" {
+        "ReadRegs"
+    } else if payload.starts_with('G') {
+        "WriteRegs"
+    } else if payload.starts_with('m') {
+        "ReadMem"
+    } else if payload.starts_with('M') || payload.starts_with('X') {
+        "WriteMem"
+    } else if payload.starts_with('c') {
+        "Continue"
+    } else if payload.starts_with('s') {
+        "Step"
+    } else if payload.starts_with('k') || payload.starts_with('D') {
+        "Detach/Kill"
+    } else {
+        "RspPayload"
+    };
+
+    (cmd_type.to_string(), checksum_valid)
+}
+
+/// Records a packet event into the circular telemetry ring buffer.
+pub fn record_telemetry(direction: &str, raw_packet: &str) {
+    let ctrl = get_controller();
+    let (command_type, checksum_valid) = verify_and_classify_rsp_packet(raw_packet);
+    let event = GdbPacketTelemetryEvent {
+        timestamp_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64,
+        direction: direction.to_string(),
+        command_type,
+        raw_packet: raw_packet.to_string(),
+        checksum_valid,
+    };
+
+    let mut ring = ctrl.telemetry_ring.lock().unwrap();
+    if ring.len() >= 128 {
+        ring.pop_front();
+    }
+    ring.push_back(event);
+}
+
+/// Retrieves all recorded GDB packet telemetry events.
+pub fn get_gdb_telemetry() -> Vec<GdbPacketTelemetryEvent> {
+    let ctrl = get_controller();
+    ctrl.telemetry_ring
+        .lock()
+        .unwrap()
+        .iter()
+        .cloned()
+        .collect()
 }
 
 /// Starts the GDB TCP-to-Serial bridge server in a background thread.
@@ -158,26 +246,32 @@ fn handle_mock_session(
             Ok(0) => break,
             Ok(n) => {
                 let packet = String::from_utf8_lossy(&buf[..n]);
+                record_telemetry("INBOUND", &packet);
+
                 let cmd = packet
                     .split('$')
                     .nth(1)
                     .and_then(|s| s.split('#').next())
                     .unwrap_or(&packet)
                     .trim_start_matches('+');
-                if cmd.starts_with("qSupported") {
-                    let _ = tcp_stream.write_all(b"+$PacketSize=800;qXfer:memory-map:read+#3f");
+                let resp = if cmd.starts_with("qSupported") {
+                    b"+$PacketSize=800;qXfer:memory-map:read+#3f".as_slice()
                 } else if cmd.starts_with('?') {
-                    let _ = tcp_stream.write_all(b"+$S05#b8");
+                    b"+$S05#b8".as_slice()
                 } else if cmd == "g" {
-                    let mock_g = "+$00000000000000000000000000000000000000000000000000000000f0ff0300000000000001000000000080f0ff0300#44";
-                    let _ = tcp_stream.write_all(mock_g.as_bytes());
+                    b"+$00000000000000000000000000000000000000000000000000000000f0ff0300000000000001000000000080f0ff0300#44".as_slice()
                 } else if cmd.starts_with('c') || cmd.starts_with('s') {
-                    let _ = tcp_stream.write_all(b"+$S05#b8");
+                    b"+$S05#b8".as_slice()
                 } else if cmd.starts_with('k') || cmd.starts_with('D') {
-                    let _ = tcp_stream.write_all(b"+$OK#9a");
-                    break;
+                    b"+$OK#9a".as_slice()
                 } else {
-                    let _ = tcp_stream.write_all(b"+$#00");
+                    b"+$#00".as_slice()
+                };
+
+                record_telemetry("OUTBOUND", &String::from_utf8_lossy(resp));
+                let _ = tcp_stream.write_all(resp);
+                if cmd.starts_with('k') || cmd.starts_with('D') {
+                    break;
                 }
             }
             Err(ref e)
@@ -208,6 +302,8 @@ fn handle_serial_session(
         match tcp_stream.read(&mut t_buf) {
             Ok(0) => break,
             Ok(n) => {
+                let packet = String::from_utf8_lossy(&t_buf[..n]);
+                record_telemetry("INBOUND", &packet);
                 let _ = serial_port.write_all(&t_buf[..n]);
             }
             Err(ref e)
@@ -220,6 +316,8 @@ fn handle_serial_session(
         match serial_port.read(&mut s_buf) {
             Ok(0) => {}
             Ok(n) => {
+                let packet = String::from_utf8_lossy(&s_buf[..n]);
+                record_telemetry("OUTBOUND", &packet);
                 if tcp_stream.write_all(&s_buf[..n]).is_err() {
                     break;
                 }
@@ -271,4 +369,37 @@ pub fn get_gdb_bridge_status() -> Result<GdbBridgeStatus, String> {
 pub fn get_am34_registers() -> Result<Am34RegisterState, String> {
     let ctrl = get_controller();
     Ok(ctrl.registers.lock().unwrap().clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_verify_and_classify_rsp_packet() {
+        let (cmd, valid) = verify_and_classify_rsp_packet("$g#67");
+        assert_eq!(cmd, "ReadRegs");
+        assert!(valid);
+
+        let (cmd_halt, valid_halt) = verify_and_classify_rsp_packet("$?#3f");
+        assert_eq!(cmd_halt, "HaltReason");
+        assert!(valid_halt);
+
+        let (cmd_invalid, valid_invalid) = verify_and_classify_rsp_packet("$g#00");
+        assert_eq!(cmd_invalid, "ReadRegs");
+        assert!(!valid_invalid);
+
+        let (cmd_ack, valid_ack) = verify_and_classify_rsp_packet("+");
+        assert_eq!(cmd_ack, "AckNak");
+        assert!(valid_ack);
+    }
+
+    #[test]
+    fn test_telemetry_ring_capacity() {
+        for i in 0..150 {
+            record_telemetry("INBOUND", &format!("$m{:x},4#00", i));
+        }
+        let telemetry = get_gdb_telemetry();
+        assert_eq!(telemetry.len(), 128);
+    }
 }

@@ -232,6 +232,46 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
       } as unknown as T;
     }
 
+    case 'get_gdb_telemetry_command': {
+      return [
+        {
+          timestamp_ms: Date.now() - 500,
+          direction: 'INBOUND',
+          command_type: 'qSupported',
+          raw_packet: '$qSupported:multiprocess+;swbreak+#df',
+          checksum_valid: true,
+        },
+        {
+          timestamp_ms: Date.now() - 400,
+          direction: 'OUTBOUND',
+          command_type: 'RspPayload',
+          raw_packet: '$PacketSize=1000;qXfer:features:read+#d7',
+          checksum_valid: true,
+        },
+        {
+          timestamp_ms: Date.now() - 300,
+          direction: 'INBOUND',
+          command_type: 'HaltReason',
+          raw_packet: '$?#3f',
+          checksum_valid: true,
+        },
+        {
+          timestamp_ms: Date.now() - 200,
+          direction: 'OUTBOUND',
+          command_type: 'RspPayload',
+          raw_packet: '$S05#b8',
+          checksum_valid: true,
+        },
+        {
+          timestamp_ms: Date.now() - 100,
+          direction: 'INBOUND',
+          command_type: 'ReadRegs',
+          raw_packet: '$g#67',
+          checksum_valid: true,
+        },
+      ] as unknown as T;
+    }
+
     case 'launch_external_tool_command': {
       const tool = (args?.tool as string) || 'desconhecido';
       return `[Modo Demonstração] Ferramenta externa '${tool}' executada com sucesso.` as unknown as T;

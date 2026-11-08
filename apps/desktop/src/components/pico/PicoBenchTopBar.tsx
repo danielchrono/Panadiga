@@ -1,7 +1,7 @@
 import React from 'react';
 import { PicoDeviceStatus } from '@/models';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Radio, RefreshCw, Sparkles } from 'lucide-react';
+import { Radio, RefreshCw, Sparkles, Bluetooth } from 'lucide-react';
 
 export interface PicoBenchTopBarProps {
   deviceStatus: PicoDeviceStatus | null;
@@ -25,11 +25,19 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   onToggleConnection,
   onInjectAndErase,
 }) => {
+  const isBle = selectedPort.startsWith('BLE_');
+
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-2xl bg-bench-900 border border-slate-800 shadow-xl">
       <div className="flex items-center gap-3.5">
-        <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-          <Radio className="w-6 h-6" />
+        <div
+          className={`p-3 rounded-xl border ${
+            isBle
+              ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+              : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+          }`}
+        >
+          {isBle ? <Bluetooth className="w-6 h-6" /> : <Radio className="w-6 h-6" />}
         </div>
         <div>
           <div className="flex items-center gap-2">
@@ -37,7 +45,11 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
               Raspberry Pi Pico (RP2040 / RP2350) DWire32A Bus Master
             </h2>
             {deviceStatus?.connected ? (
-              <StatusBadge variant="success" label="CONECTADO" />
+              deviceStatus.port.startsWith('BLE_') ? (
+                <StatusBadge variant="info" label="BLE CONECTADO" />
+              ) : (
+                <StatusBadge variant="success" label="CONECTADO" />
+              )
             ) : (
               <StatusBadge variant="error" label="DESCONECTADO" />
             )}
@@ -71,10 +83,16 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
           className={`px-4 py-2 rounded-xl font-bold text-xs transition-colors ${
             deviceStatus?.connected
               ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700'
-              : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/40'
+              : isBle
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-950/40'
+                : 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/40'
           }`}
         >
-          {deviceStatus?.connected ? 'Desconectar' : 'Conectar Serial'}
+          {deviceStatus?.connected
+            ? 'Desconectar'
+            : isBle
+              ? 'Conectar BLE (Pico W)'
+              : 'Conectar Serial'}
         </button>
 
         <button

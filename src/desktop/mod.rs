@@ -26,6 +26,7 @@ pub fn run_desktop_app() {
             stop_gdb_bridge_command,
             get_gdb_bridge_status_command,
             get_am34_registers_command,
+            get_gdb_telemetry_command,
             launch_external_tool_command,
             query_rag_engine,
         ])

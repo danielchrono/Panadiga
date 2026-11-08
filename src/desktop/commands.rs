@@ -6,7 +6,9 @@
 use std::path::Path;
 use std::process::Command;
 
-pub use super::pico::{Am34RegisterState, GdbBridgeStatus, PicoStatusResponse};
+pub use super::pico::{
+    Am34RegisterState, GdbBridgeStatus, GdbPacketTelemetryEvent, PicoStatusResponse,
+};
 pub use crate::crypto::{
     CodebookReport, CryptanalysisReport as FrmEntropyReport, FrmTocDumpReport,
 };
@@ -160,6 +162,12 @@ pub fn get_gdb_bridge_status_command() -> Result<GdbBridgeStatus, String> {
 #[tauri::command]
 pub fn get_am34_registers_command() -> Result<Am34RegisterState, String> {
     super::pico::get_am34_registers()
+}
+
+/// Retrieves recorded GDB RSP packet telemetry events from the introspective ring buffer.
+#[tauri::command]
+pub fn get_gdb_telemetry_command() -> Result<Vec<GdbPacketTelemetryEvent>, String> {
+    Ok(super::pico::get_gdb_telemetry())
 }
 
 /// Launches external engineering tools (GDB Multiarch, OpenOCD, Ghidra scripts, HxD, PowerShell).

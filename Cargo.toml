@@ -37,7 +37,7 @@ windows-sys = { version = "0.52", features = [
 ] }
 
 [build-dependencies]
-tauri-build = { version = "2.0", default-features = false }
+tauri-build = { version = "2.0", default-features = false , features = [] }
 
 [profile.dev]
 opt-level = 0

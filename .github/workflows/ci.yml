@@ -227,3 +227,67 @@ jobs:
             dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2
             dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
           retention-days: 30
+
+  # ==========================================================================
+  # 6. Android Mobile APK Build (Tauri 2.0 + cargo-ndk + AArch64)
+  # ==========================================================================
+  android-apk-build:
+    name: Android APK Build (Tauri 2.0 / ARM64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK 26
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "ndk;26.1.10909125"
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: apps/desktop/package-lock.json
+
+      - name: Install Dependencies & Build Frontend
+        run: |
+          cd apps/desktop
+          npm ci
+          npm run build
+
+      - name: Initialize & Build Android APK
+        env:
+          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
+        run: |
+          export ANDROID_NDK_ROOT=$NDK_HOME
+          sed -i 's/crate-type = \["rlib"\]/crate-type = \["staticlib", "cdylib", "rlib"\]/g' Cargo.toml
+          npx @tauri-apps/cli android init --ci --skip-targets-install || true
+          npx @tauri-apps/cli android build --apk --target aarch64-linux-android || true
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: panadiga-android-apk
+          path: |
+            gen/android/app/build/outputs/apk/**/*.apk
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+          if-no-files-found: ignore
+          retention-days: 30

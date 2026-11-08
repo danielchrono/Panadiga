@@ -3,11 +3,12 @@
 setlocal enabledelayedexpansion
 title Panadiga Suite - Fast Launcher
 
-set SCRIPT_DIR=%~dp0
+set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-set DESKTOP_EXE=%SCRIPT_DIR%dist_bin\panadiga-desktop.exe
-set CLI_EXE=%SCRIPT_DIR%dist_bin\panadiga-cli.exe
+set "DIST_EXE=%SCRIPT_DIR%dist\panadiga-desktop.exe"
+set "DIST_BIN_EXE=%SCRIPT_DIR%dist_bin\panadiga-desktop.exe"
+set "CLI_EXE=%SCRIPT_DIR%dist\panadiga-cli.exe"
 
 :: Argument dispatching
 if "%1"=="--help" goto :help
@@ -25,18 +26,36 @@ if "%1"=="pico" goto :run_cli_direct
 if "%1"=="ghidra" goto :run_cli_direct
 if "%1"=="rag" goto :run_cli_direct
 
-:: Default: Run Desktop GUI immediately
-if exist "%DESKTOP_EXE%" (
-    echo [INFO] Iniciando Panadiga Desktop diretamente do binario consolidado...
-    start "" "%DESKTOP_EXE%"
+:: Default: Run Desktop GUI immediately from dist\ or dist_bin\
+if exist "%DIST_EXE%" (
+    if not exist "%SCRIPT_DIR%dist\WebView2Loader.dll" (
+        if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
+        if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
+    )
+    echo [INFO] Iniciando Panadiga Desktop diretamente de dist\...
+    start "" "%DIST_EXE%"
     exit /b 0
 )
 
-echo [AVISO] Executavel desktop nao encontrado em dist_bin\.
-echo [INFO] Executando build acelerado (paralelismo total)...
-call build_all.bat
-if exist "%DESKTOP_EXE%" (
-    start "" "%DESKTOP_EXE%"
+if exist "%DIST_BIN_EXE%" (
+    if not exist "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" (
+        if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
+        if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
+    )
+    echo [INFO] Iniciando Panadiga Desktop diretamente de dist_bin\...
+    start "" "%DIST_BIN_EXE%"
+    exit /b 0
+)
+
+:: If executable not found, compile and run
+echo [AVISO] Executavel desktop nao encontrado em dist\.
+echo [INFO] Executando build unificado acelerado...
+call "%SCRIPT_DIR%build.cmd"
+if exist "%DIST_EXE%" (
+    start "" "%DIST_EXE%"
+    exit /b 0
+) else if exist "%DIST_BIN_EXE%" (
+    start "" "%DIST_BIN_EXE%"
     exit /b 0
 ) else (
     echo [ERRO] Falha ao localizar o binario compilado apos o build.
@@ -51,9 +70,11 @@ exit /b 0
 
 :build_and_run
 echo [INFO] Forcando rebuild completo do ecossistema...
-call build_all.bat
-if exist "%DESKTOP_EXE%" (
-    start "" "%DESKTOP_EXE%"
+call "%SCRIPT_DIR%build.cmd"
+if exist "%DIST_EXE%" (
+    start "" "%DIST_EXE%"
+) else if exist "%DIST_BIN_EXE%" (
+    start "" "%DIST_BIN_EXE%"
 )
 exit /b 0
 
@@ -62,7 +83,7 @@ shift
 if exist "%CLI_EXE%" (
     "%CLI_EXE%" %*
 ) else (
-    cargo run -- %*
+    cargo run -p panadiga -- %*
 )
 exit /b %errorlevel%
 
@@ -70,7 +91,7 @@ exit /b %errorlevel%
 if exist "%CLI_EXE%" (
     "%CLI_EXE%" %*
 ) else (
-    cargo run -- %*
+    cargo run -p panadiga -- %*
 )
 exit /b %errorlevel%
 
@@ -79,13 +100,13 @@ echo ====================================================================
 echo Panadiga Suite - Inicializador Rapido
 echo ====================================================================
 echo Uso:
-echo   run.bat                 Inicia a interface Desktop nativa instantaneamente
-echo   run.bat --dev           Inicia em modo de desenvolvimento (Hot-Reload)
-echo   run.bat --build         Forca compilacao completa e inicia o app
-echo   run.bat --cli [args]    Executa a CLI nativa com argumentos
-echo   run.bat nvram clean ... Atalho direto para comandos da CLI Panadiga
-echo   run.bat hdd inspect ... Atalho direto para inspecao de disco
-echo   run.bat ghidra ...      Atalho direto para gerador de scripts Ghidra
-echo   run.bat rag query ...   Atalho direto para consulta ao motor RAG Zero-Error
+echo   run.cmd                 Inicia a interface Desktop nativa instantaneamente
+echo   run.cmd --dev           Inicia em modo de desenvolvimento (Hot-Reload)
+echo   run.cmd --build         Forca compilacao completa e inicia o app
+echo   run.cmd --cli [args]    Executa a CLI nativa com argumentos
+echo   run.cmd nvram clean ... Atalho direto para comandos da CLI Panadiga
+echo   run.cmd hdd inspect ... Atalho direto para inspecao de disco
+echo   run.cmd ghidra ...      Atalho direto para gerador de scripts Ghidra
+echo   run.cmd rag query ...   Atalho direto para consulta ao motor RAG Zero-Error
 echo ====================================================================
 exit /b 0

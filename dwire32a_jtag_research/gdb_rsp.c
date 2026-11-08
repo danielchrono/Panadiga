@@ -21,6 +21,8 @@
 #if defined(PICO_HOST_TEST) && (PICO_HOST_TEST != 0)
 void sleep_ms(uint32_t ms);
 static void gdb_rsp_test_record_response(const char *payload);
+#else
+#include "pico/stdlib.h"
 #endif
 
 /* =========================================================================

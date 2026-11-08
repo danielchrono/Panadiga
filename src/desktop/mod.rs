@@ -3,9 +3,9 @@
 pub mod commands;
 pub mod pico;
 
-use commands::*;
+pub use commands::*;
 
-pub fn run() {
+pub fn run_desktop_app() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![

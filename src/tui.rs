@@ -5,7 +5,7 @@
 //! memory map telemetry, and zero-error safety queries.
 
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
@@ -340,24 +340,13 @@ fn handle_verify_artifact() -> Result<()> {
 
 fn handle_launch_desktop() {
     println!("\x1b[1;35m>> Launching Panadiga Native Desktop GUI...\x1b[0m");
-    let candidates = [
-        "dist/panadiga-desktop.exe",
-        "dist_bin/panadiga-desktop.exe",
-        "target/release/panasonic-diga-desktop.exe",
-        "dist/panadiga-desktop",
-        "target/release/panasonic-diga-desktop",
-    ];
-    let mut found = false;
-    for c in &candidates {
-        let path = Path::new(c);
-        if path.exists() {
-            println!("\x1b[1;32m[INFO] Spawning: {:?}\x1b[0m", path);
-            let _ = std::process::Command::new(path).spawn();
-            found = true;
-            break;
-        }
-    }
-    if !found {
-        println!("\x1b[1;33m[!] Desktop binary not found. Build it with: build.cmd (or npm run tauri build)\x1b[0m");
+    if let Ok(exe_path) = std::env::current_exe() {
+        println!(
+            "\x1b[1;32m[INFO] Spawning GUI instance: {:?} desktop\x1b[0m",
+            exe_path
+        );
+        let _ = std::process::Command::new(exe_path).arg("desktop").spawn();
+    } else {
+        println!("\x1b[1;31m[ERROR] Unable to locate current executable path.\x1b[0m");
     }
 }

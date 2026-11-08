@@ -6,6 +6,14 @@ authors = ["Antigravity Systems Engineering Team"]
 description = "Panasonic DMR-EH55 & DIGA Engineering, Storage Forensics, and Reverse Engineering Suite"
 readme = "README.md"
 
+[lib]
+name = "panadiga"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "panadiga"
+path = "src/main.rs"
+
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 sha2 = "0.10"
@@ -20,13 +28,16 @@ thiserror = "2.0"
 lopdf = "0.47.0"
 serialport = "4.5"
 regex = "1.10"
+tauri = { version = "2.0", default-features = false, features = ["wry"] }
+tauri-plugin-shell = "2.0"
 
-[workspace]
-members = [
-    ".",
-    "apps/desktop/src-tauri",
-]
-resolver = "2"
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.52", features = [
+    "Win32_System_Console",
+] }
+
+[build-dependencies]
+tauri-build = { version = "2.0", default-features = false }
 
 [profile.dev]
 opt-level = 0

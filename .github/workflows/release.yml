@@ -32,22 +32,19 @@ jobs:
           - name: windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            cli_bin: target/x86_64-pc-windows-msvc/release/panadiga.exe
-            desktop_bin: target/x86_64-pc-windows-msvc/release/panasonic-diga-desktop.exe
+            bin: target/x86_64-pc-windows-msvc/release/panadiga.exe
             archive_ext: zip
             archive_name: panadiga-windows-x86_64.zip
           - name: linux-x86_64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            cli_bin: target/x86_64-unknown-linux-gnu/release/panadiga
-            desktop_bin: target/x86_64-unknown-linux-gnu/release/panasonic-diga-desktop
+            bin: target/x86_64-unknown-linux-gnu/release/panadiga
             archive_ext: tar.gz
             archive_name: panadiga-linux-x86_64.tar.gz
           - name: macos-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
-            cli_bin: target/aarch64-apple-darwin/release/panadiga
-            desktop_bin: target/aarch64-apple-darwin/release/panasonic-diga-desktop
+            bin: target/aarch64-apple-darwin/release/panadiga
             archive_ext: tar.gz
             archive_name: panadiga-macos-aarch64.tar.gz
 
@@ -98,11 +95,8 @@ jobs:
           cd apps/desktop
           npm run build
 
-      - name: Compile Panadiga CLI Binary
+      - name: Compile Unified Panadiga Binary
         run: cargo build --release --target ${{ matrix.platform.target }} -p panadiga
-
-      - name: Compile Desktop Binary (Tauri)
-        run: cargo build --release --target ${{ matrix.platform.target }} -p panasonic-diga-desktop
 
       - name: Package Windows Artifacts
         if: runner.os == 'Windows'
@@ -110,8 +104,7 @@ jobs:
         run: |
           $staging = "staging_release"
           New-Item -ItemType Directory -Path $staging | Out-Null
-          Copy-Item "${{ matrix.platform.cli_bin }}" -Destination "$staging\panadiga-cli.exe"
-          Copy-Item "${{ matrix.platform.desktop_bin }}" -Destination "$staging\panadiga-desktop.exe"
+          Copy-Item "${{ matrix.platform.bin }}" -Destination "$staging\panadiga.exe"
           $webview2 = "target/${{ matrix.platform.target }}/release/WebView2Loader.dll"
           if (Test-Path $webview2) {
               Copy-Item $webview2 -Destination "$staging\WebView2Loader.dll"
@@ -128,12 +121,11 @@ jobs:
         run: |
           staging="staging_release"
           mkdir -p "$staging"
-          cp "${{ matrix.platform.cli_bin }}" "$staging/panadiga-cli"
-          cp "${{ matrix.platform.desktop_bin }}" "$staging/panadiga-desktop"
+          cp "${{ matrix.platform.bin }}" "$staging/panadiga"
           cp -r tools "$staging/tools"
           cp README.md "$staging/README.md"
           cp LICENSE "$staging/LICENSE"
-          chmod +x "$staging/panadiga-cli" "$staging/panadiga-desktop"
+          chmod +x "$staging/panadiga"
 
           tar -czvf "${{ matrix.platform.archive_name }}" -C "$staging" .
           shasum -a 256 "${{ matrix.platform.archive_name }}" > "${{ matrix.platform.archive_name }}.sha256"
@@ -145,9 +137,8 @@ jobs:
             mkdir -p "$deb_dir/DEBIAN"
             mkdir -p "$deb_dir/usr/bin"
             mkdir -p "$deb_dir/usr/share/panadiga"
-            cp "${{ matrix.platform.cli_bin }}" "$deb_dir/usr/bin/panadiga"
-            cp "${{ matrix.platform.desktop_bin }}" "$deb_dir/usr/bin/panadiga-desktop"
-            chmod 755 "$deb_dir/usr/bin/panadiga" "$deb_dir/usr/bin/panadiga-desktop"
+            cp "${{ matrix.platform.bin }}" "$deb_dir/usr/bin/panadiga"
+            chmod 755 "$deb_dir/usr/bin/panadiga"
             cp -r tools "$deb_dir/usr/share/panadiga/tools"
             printf "Package: panadiga\nVersion: 0.1.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: OrgChrono Engineering <support@orgchrono.com>\nDepends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1\nDescription: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite\n" > "$deb_dir/DEBIAN/control"
             dpkg-deb --build "$deb_dir" "panadiga-linux-amd64.deb"

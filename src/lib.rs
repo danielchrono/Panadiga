@@ -8,6 +8,7 @@ pub mod logger;
 
 pub mod constants;
 pub mod crypto;
+pub mod desktop;
 pub mod ghidra;
 pub mod hdd;
 pub mod headers;

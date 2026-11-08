@@ -6,9 +6,8 @@ title Panadiga Suite - Fast Launcher
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
-set "DIST_EXE=%SCRIPT_DIR%dist\panadiga-desktop.exe"
-set "DIST_BIN_EXE=%SCRIPT_DIR%dist_bin\panadiga-desktop.exe"
-set "CLI_EXE=%SCRIPT_DIR%dist\panadiga-cli.exe"
+set "DIST_EXE=%SCRIPT_DIR%dist\panadiga.exe"
+set "TARGET_EXE=%SCRIPT_DIR%target\release\panadiga.exe"
 
 :: Argument dispatching
 if "%1"=="--help" goto :help
@@ -26,36 +25,31 @@ if "%1"=="pico" goto :run_cli_direct
 if "%1"=="ghidra" goto :run_cli_direct
 if "%1"=="rag" goto :run_cli_direct
 
-:: Default: Run Desktop GUI immediately from dist\ or dist_bin\
+:: Default: Run Desktop GUI immediately from dist\ or target\release\
 if exist "%DIST_EXE%" (
     if not exist "%SCRIPT_DIR%dist\WebView2Loader.dll" (
         if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
-        if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
     )
     echo [INFO] Iniciando Panadiga Desktop diretamente de dist\...
     start "" "%DIST_EXE%"
     exit /b 0
 )
 
-if exist "%DIST_BIN_EXE%" (
-    if not exist "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" (
-        if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
-        if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
-    )
-    echo [INFO] Iniciando Panadiga Desktop diretamente de dist_bin\...
-    start "" "%DIST_BIN_EXE%"
+if exist "%TARGET_EXE%" (
+    echo [INFO] Iniciando Panadiga Desktop diretamente de target\release\...
+    start "" "%TARGET_EXE%"
     exit /b 0
 )
 
 :: If executable not found, compile and run
-echo [AVISO] Executavel desktop nao encontrado em dist\.
+echo [AVISO] Executavel unificado nao encontrado.
 echo [INFO] Executando build unificado acelerado...
 call "%SCRIPT_DIR%build.cmd"
 if exist "%DIST_EXE%" (
     start "" "%DIST_EXE%"
     exit /b 0
-) else if exist "%DIST_BIN_EXE%" (
-    start "" "%DIST_BIN_EXE%"
+) else if exist "%TARGET_EXE%" (
+    start "" "%TARGET_EXE%"
     exit /b 0
 ) else (
     echo [ERRO] Falha ao localizar o binario compilado apos o build.
@@ -65,7 +59,7 @@ if exist "%DIST_EXE%" (
 
 :run_dev
 echo [INFO] Iniciando ambiente de desenvolvimento Desktop (Vite + Tauri Dev)...
-call npm --prefix apps\desktop run tauri dev
+call npm --prefix apps\desktop run dev
 exit /b 0
 
 :build_and_run
@@ -73,23 +67,27 @@ echo [INFO] Forcando rebuild completo do ecossistema...
 call "%SCRIPT_DIR%build.cmd"
 if exist "%DIST_EXE%" (
     start "" "%DIST_EXE%"
-) else if exist "%DIST_BIN_EXE%" (
-    start "" "%DIST_BIN_EXE%"
+) else if exist "%TARGET_EXE%" (
+    start "" "%TARGET_EXE%"
 )
 exit /b 0
 
 :run_cli
 shift
-if exist "%CLI_EXE%" (
-    "%CLI_EXE%" %*
+if exist "%DIST_EXE%" (
+    "%DIST_EXE%" %*
+) else if exist "%TARGET_EXE%" (
+    "%TARGET_EXE%" %*
 ) else (
     cargo run -p panadiga -- %*
 )
 exit /b %errorlevel%
 
 :run_cli_direct
-if exist "%CLI_EXE%" (
-    "%CLI_EXE%" %*
+if exist "%DIST_EXE%" (
+    "%DIST_EXE%" %*
+) else if exist "%TARGET_EXE%" (
+    "%TARGET_EXE%" %*
 ) else (
     cargo run -p panadiga -- %*
 )

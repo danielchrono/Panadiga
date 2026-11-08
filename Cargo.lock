@@ -2453,22 +2453,11 @@ dependencies = [
  "serde_json",
  "serialport",
  "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "panasonic-diga-desktop"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "panadiga",
- "serde",
- "serde_json",
- "serialport",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
  "thiserror 2.0.21",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

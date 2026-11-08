@@ -17,11 +17,8 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
         for p in available {
             let mut label = p.port_name.clone();
             if let SerialPortType::UsbPort(info) = &p.port_type {
-                let (_plat, desc) = panadiga::pico::classify_usb_device(
-                    info.vid,
-                    info.pid,
-                    info.product.as_deref(),
-                );
+                let (_plat, desc) =
+                    crate::pico::classify_usb_device(info.vid, info.pid, info.product.as_deref());
                 label = format!(
                     "{} [{} - VID:{:04X} PID:{:04X}]",
                     p.port_name, desc, info.vid, info.pid

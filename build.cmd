@@ -42,17 +42,16 @@ if errorlevel 1 (
 echo [OK] 100%% dos testes do workspace passaram!
 echo.
 
-:: [3/5] Rust Workspace Release Compilation (Paralelismo Total: CLI + Desktop GUI)
-echo [3/5] Compilando Workspace Rust em modo Release (%NUMBER_OF_PROCESSORS% threads)...
-cargo build --release --workspace
+:: [3/5] Rust Release Compilation (Unified Desktop GUI + Core CLI Engine)
+echo [3/5] Compilando Binario Unificado Panadiga em modo Release (%NUMBER_OF_PROCESSORS% threads)...
+cargo build --release -p panadiga
 if errorlevel 1 (
-    echo [ERRO] Falha ao compilar workspace em modo release.
+    echo [ERRO] Falha ao compilar binario unificado em modo release.
     if "%1"=="" pause
     exit /b 1
 )
-echo [OK] Binarios gerados com sucesso:
+echo [OK] Binario unificado gerado com sucesso:
 echo      - target\release\panadiga.exe
-echo      - target\release\panasonic-diga-desktop.exe
 echo.
 
 :: [4/5] Raspberry Pi Pico Firmware (RP2040 & RP2350)
@@ -75,8 +74,7 @@ if not exist "dist\tools" mkdir "dist\tools"
 if not exist "dist\firmware" mkdir "dist\firmware"
 if not exist "dist\releases" mkdir "dist\releases"
 
-copy /y "target\release\panadiga.exe" "dist\panadiga-cli.exe" >nul
-copy /y "target\release\panasonic-diga-desktop.exe" "dist\panadiga-desktop.exe" >nul
+copy /y "target\release\panadiga.exe" "dist\panadiga.exe" >nul
 
 :: Ensure WebView2Loader.dll is packaged next to the desktop binary
 if exist "target\release\WebView2Loader.dll" (

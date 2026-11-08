@@ -149,16 +149,7 @@ jobs:
             cp "${{ matrix.platform.desktop_bin }}" "$deb_dir/usr/bin/panadiga-desktop"
             chmod 755 "$deb_dir/usr/bin/panadiga" "$deb_dir/usr/bin/panadiga-desktop"
             cp -r tools "$deb_dir/usr/share/panadiga/tools"
-            cat << 'EOF' > "$deb_dir/DEBIAN/control"
-Package: panadiga
-Version: 0.1.0
-Section: utils
-Priority: optional
-Architecture: amd64
-Maintainer: OrgChrono Engineering <support@orgchrono.com>
-Depends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1
-Description: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite
-EOF
+            printf "Package: panadiga\nVersion: 0.1.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: OrgChrono Engineering <support@orgchrono.com>\nDepends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1\nDescription: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite\n" > "$deb_dir/DEBIAN/control"
             dpkg-deb --build "$deb_dir" "panadiga-linux-amd64.deb"
             shasum -a 256 "panadiga-linux-amd64.deb" > "panadiga-linux-amd64.deb.sha256"
           fi

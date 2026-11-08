@@ -16,5 +16,6 @@ pub mod nvram;
 pub mod pico;
 pub mod rag;
 pub mod scan;
+pub mod tui;
 
 pub use logger::LogLevel;

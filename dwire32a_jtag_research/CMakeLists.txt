@@ -27,6 +27,7 @@ message(STATUS "[PANADIGA] Configuring DWire32A Engine for Board: ${PICO_BOARD} 
 add_executable(panasonic_dwire32a
     dwire32a_pico_main.c
     dwire32a_hw.c
+    dwire32a_led.c
     gdb_rsp.c
 )
 

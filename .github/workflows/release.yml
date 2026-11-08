@@ -112,9 +112,6 @@ jobs:
           New-Item -ItemType Directory -Path $staging | Out-Null
           Copy-Item "${{ matrix.platform.cli_bin }}" -Destination "$staging\panadiga-cli.exe"
           Copy-Item "${{ matrix.platform.desktop_bin }}" -Destination "$staging\panadiga-desktop.exe"
-          if (Test-Path "apps/desktop/src-tauri/panadiga-desktop.exe.manifest") {
-              Copy-Item "apps/desktop/src-tauri/panadiga-desktop.exe.manifest" -Destination "$staging\panadiga-desktop.exe.manifest"
-          }
           $webview2 = "target/${{ matrix.platform.target }}/release/WebView2Loader.dll"
           if (Test-Path $webview2) {
               Copy-Item $webview2 -Destination "$staging\WebView2Loader.dll"

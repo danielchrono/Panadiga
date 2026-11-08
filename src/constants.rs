@@ -291,3 +291,37 @@ pub const AM34_ASIC_MMIO_SIZE: u32 = 0x0001_0000;
 pub const AM34_PATA_MMIO_BASE: u32 = 0xD400_0000;
 /// PATA / IDE Controller Space Size (4 Kilobytes).
 pub const AM34_PATA_MMIO_SIZE: u32 = 0x0000_1000;
+
+// ============================================================================
+// 8. Default System Paths, Network Settings & Hardware Parameters
+// ============================================================================
+
+/// Default relative path to the sample Panasonic HDD 100MB dump.
+pub const DEFAULT_HDD_IMAGE_PATH: &str = "firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin";
+
+/// Default relative path to the official Panasonic optical update container.
+pub const DEFAULT_FRM_CONTAINER_PATH: &str = "firmware_and_images/PANA_DVD.FRM";
+
+/// Default directory containing Panasonic DMR-EH55 PDF service manuals and schematics.
+pub const DEFAULT_MANUALS_DIR: &str = "manuals_and_schematics";
+
+/// Default output directory for exported Ghidra scripts.
+pub const DEFAULT_TOOLS_DIR: &str = "tools";
+
+/// Default directory for partition extraction.
+pub const DEFAULT_HDD_EXTRACT_DIR: &str = "hdd_extracted";
+
+/// Default serial COM port for host communication with the Pico controller.
+pub const DEFAULT_SERIAL_PORT: &str = "COM5";
+
+/// Default baud rate for Pico USB CDC communication.
+pub const DEFAULT_BAUD_RATE: u32 = 115_200;
+
+/// Default TCP listen host address for the GDB RSP bridge.
+pub const DEFAULT_GDB_LISTEN_HOST: &str = "127.0.0.1";
+
+/// Default TCP listen port for the GDB RSP bridge.
+pub const DEFAULT_GDB_LISTEN_PORT: u16 = 3333;
+
+/// Default TCP listen address and port for the GDB RSP bridge.
+pub const DEFAULT_GDB_LISTEN_SOCKET: &str = "127.0.0.1:3333";

@@ -85,11 +85,6 @@ if exist "target\release\WebView2Loader.dll" (
     copy /y "target\debug\WebView2Loader.dll" "dist\WebView2Loader.dll" >nul
 )
 
-:: Ensure side-by-side application manifest for Common-Controls v6 / TaskDialogIndirect
-if exist "apps\desktop\src-tauri\panadiga-desktop.exe.manifest" (
-    copy /y "apps\desktop\src-tauri\panadiga-desktop.exe.manifest" "dist\panadiga-desktop.exe.manifest" >nul
-)
-
 :: Export Ghidra scripts directly from native Rust SSOT
 cargo run -- ghidra export-all --dir "dist\tools" >nul 2>nul
 xcopy /e /i /y "tools" "dist\tools" >nul 2>nul
@@ -114,7 +109,7 @@ if not exist "dist_bin" mkdir "dist_bin"
 xcopy /e /i /y "dist" "dist_bin" >nul 2>nul
 
 :: Generate release archive .zip with SHA256 checksum
-powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; Compress-Archive -Path 'dist\panadiga-cli.exe', 'dist\panadiga-desktop.exe', 'dist\panadiga-desktop.exe.manifest', 'dist\WebView2Loader.dll', 'dist\Executar_Panadiga.bat', 'dist\tools', 'dist\firmware', 'README.md', 'LICENSE' -DestinationPath $zip -CompressionLevel Optimal; $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; [IO.File]::WriteAllText('dist\releases\SHA256SUMS.txt', \"$hash  panadiga-windows-x86_64.zip`r`n\", [Text.Encoding]::UTF8)"
+powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; Compress-Archive -Path 'dist\panadiga-cli.exe', 'dist\panadiga-desktop.exe', 'dist\WebView2Loader.dll', 'dist\Executar_Panadiga.bat', 'dist\tools', 'dist\firmware', 'README.md', 'LICENSE' -DestinationPath $zip -CompressionLevel Optimal; $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; [IO.File]::WriteAllText('dist\releases\SHA256SUMS.txt', \"$hash  panadiga-windows-x86_64.zip`r`n\", [Text.Encoding]::UTF8)"
 
 echo.
 echo ====================================================================
@@ -122,7 +117,6 @@ echo    [OK] BUILD CONCLUIDO COM SUCESSO!
 echo    - Panadiga Desktop: dist\panadiga-desktop.exe
 echo    - Panadiga CLI:     dist\panadiga-cli.exe
 echo    - Runtime DLL:      dist\WebView2Loader.dll
-echo    - Manifest v6:      dist\panadiga-desktop.exe.manifest
 echo    - Ferramentas:      dist\tools\ (GDB, Ghidra scripts, HxD)
 echo    - Firmware Pico:    dist\firmware\ (.UF2 RP2040 e RP2350)
 echo    - Pacote Release:   dist\releases\panadiga-windows-x86_64.zip

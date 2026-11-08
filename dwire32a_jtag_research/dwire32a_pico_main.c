@@ -28,92 +28,7 @@
 #include "dwire32a_hw.h"
 #include "ram_loader_payload.h"
 #include "gdb_rsp.h"
-
-/* =========================================================================
- * Onboard LED Visual Activity & Heartbeat Subsystem
- * ========================================================================= */
-
-#ifndef PICO_DEFAULT_LED_PIN
-#define PICO_DEFAULT_LED_PIN 25U
-#endif
-
-typedef enum {
-    LED_MODE_HEARTBEAT_IDLE = 0, /* Gentle 1 Hz pulse: Firmware running & USB CDC ready */
-    LED_MODE_DWIRE_ACTIVE   = 1, /* Solid ON: Bus transaction / Cold Break-In / Scan active */
-    LED_MODE_GDB_RSP        = 2, /* Rapid 5 Hz pulse / toggle on packet: GDB/Ghidra debug session */
-    LED_MODE_BUS_FAULT      = 3, /* Triple warning blink: Target VDD < 3.0V or bus grounded */
-} pico_led_mode_t;
-
-static pico_led_mode_t s_led_mode = LED_MODE_HEARTBEAT_IDLE;
-static uint32_t s_led_last_ms = 0U;
-static bool s_led_state = false;
-
-static void led_init(void) {
-#if !defined(PICO_HOST_TEST)
-    gpio_init(PICO_DEFAULT_LED_PIN);
-    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
-    gpio_put(PICO_DEFAULT_LED_PIN, 0);
-#endif
-}
-
-static void led_set_mode(pico_led_mode_t mode) {
-    s_led_mode = mode;
-#if !defined(PICO_HOST_TEST)
-    if (mode == LED_MODE_DWIRE_ACTIVE) {
-        gpio_put(PICO_DEFAULT_LED_PIN, 1);
-        s_led_state = true;
-    }
-#endif
-}
-
-static void led_notify_activity(void) {
-#if !defined(PICO_HOST_TEST)
-    s_led_state = !s_led_state;
-    gpio_put(PICO_DEFAULT_LED_PIN, s_led_state ? 1 : 0);
-#endif
-}
-
-static void led_tick(void) {
-#if !defined(PICO_HOST_TEST)
-    const uint32_t now = to_ms_since_boot(get_absolute_time());
-
-    switch (s_led_mode) {
-        case LED_MODE_HEARTBEAT_IDLE: {
-            const uint32_t phase = now % 1000U;
-            const bool target_state = (phase < 100U);
-            if (target_state != s_led_state) {
-                s_led_state = target_state;
-                gpio_put(PICO_DEFAULT_LED_PIN, s_led_state ? 1 : 0);
-            }
-            break;
-        }
-        case LED_MODE_DWIRE_ACTIVE: {
-            if (!s_led_state) {
-                s_led_state = true;
-                gpio_put(PICO_DEFAULT_LED_PIN, 1);
-            }
-            break;
-        }
-        case LED_MODE_GDB_RSP: {
-            if (now - s_led_last_ms >= 100U) {
-                s_led_last_ms = now;
-                s_led_state = !s_led_state;
-                gpio_put(PICO_DEFAULT_LED_PIN, s_led_state ? 1 : 0);
-            }
-            break;
-        }
-        case LED_MODE_BUS_FAULT: {
-            const uint32_t phase = now % 1200U;
-            const bool target_state = (phase < 600U) && (((phase / 100U) % 2U) == 0U);
-            if (target_state != s_led_state) {
-                s_led_state = target_state;
-                gpio_put(PICO_DEFAULT_LED_PIN, s_led_state ? 1 : 0);
-            }
-            break;
-        }
-    }
-#endif
-}
+#include "dwire32a_led.h"
 
 /* =========================================================================
  * Scanner Data Structures & Configuration
@@ -512,7 +427,7 @@ static void process_serial_command(char *line) {
             mode = (uint32_t)atoi(arg);
         }
         if (mode > 3U) mode = 0U;
-        led_set_mode((pico_led_mode_t)mode);
+        dwire_led_set_mode((pico_led_mode_t)mode);
         printf("[LED] Mode set to %" PRIu32 " (%s)\n",
                mode,
                (mode == 0U) ? "HEARTBEAT 1Hz" :
@@ -562,11 +477,11 @@ int main(void) {
            (initial_vdd >= DWIRE_VDD_THRESHOLD_V) ? "POWERED / OK" : "UNPOWERED / LOW");
 
     /* Initialize onboard LED controller */
-    led_init();
+    dwire_led_init();
     if (initial_vdd >= DWIRE_VDD_THRESHOLD_V) {
-        led_set_mode(LED_MODE_HEARTBEAT_IDLE);
+        dwire_led_set_mode(LED_MODE_HEARTBEAT_IDLE);
     } else {
-        led_set_mode(LED_MODE_BUS_FAULT);
+        dwire_led_set_mode(LED_MODE_BUS_FAULT);
     }
 
     /* Print initial interactive prompt */
@@ -578,7 +493,7 @@ int main(void) {
 
     /* Main interactive non-blocking serial CDC loop */
     while (true) {
-        led_tick();
+        dwire_led_tick();
         const int ch = getchar_timeout_us(1000);
         if (ch == PICO_ERROR_TIMEOUT) {
             continue;
@@ -586,16 +501,16 @@ int main(void) {
 
         /* If GDB RSP mode is currently active, route bytes directly to RSP parser */
         if (gdb_rsp_is_active()) {
-            led_set_mode(LED_MODE_GDB_RSP);
-            led_notify_activity();
+            dwire_led_set_mode(LED_MODE_GDB_RSP);
+            dwire_led_notify_activity();
             gdb_rsp_process_char((char)ch);
             continue;
         }
 
         /* Auto-switch to GDB RSP mode on standard GDB packet header '$' or Ctrl-C */
         if (ch == '$' || ch == 0x03) {
-            led_set_mode(LED_MODE_GDB_RSP);
-            led_notify_activity();
+            dwire_led_set_mode(LED_MODE_GDB_RSP);
+            dwire_led_notify_activity();
             gdb_rsp_set_active(true);
             gdb_rsp_process_char((char)ch);
             continue;

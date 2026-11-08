@@ -32,9 +32,6 @@ if exist "%DIST_EXE%" (
         if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
         if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
     )
-    if not exist "%SCRIPT_DIR%dist\panadiga-desktop.exe.manifest" (
-        if exist "%SCRIPT_DIR%apps\desktop\src-tauri\panadiga-desktop.exe.manifest" copy /y "%SCRIPT_DIR%apps\desktop\src-tauri\panadiga-desktop.exe.manifest" "%SCRIPT_DIR%dist\panadiga-desktop.exe.manifest" >nul
-    )
     echo [INFO] Iniciando Panadiga Desktop diretamente de dist\...
     start "" "%DIST_EXE%"
     exit /b 0
@@ -44,9 +41,6 @@ if exist "%DIST_BIN_EXE%" (
     if not exist "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" (
         if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
         if exist "%SCRIPT_DIR%target\debug\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\debug\WebView2Loader.dll" "%SCRIPT_DIR%dist_bin\WebView2Loader.dll" >nul
-    )
-    if not exist "%SCRIPT_DIR%dist_bin\panadiga-desktop.exe.manifest" (
-        if exist "%SCRIPT_DIR%apps\desktop\src-tauri\panadiga-desktop.exe.manifest" copy /y "%SCRIPT_DIR%apps\desktop\src-tauri\panadiga-desktop.exe.manifest" "%SCRIPT_DIR%dist_bin\panadiga-desktop.exe.manifest" >nul
     )
     echo [INFO] Iniciando Panadiga Desktop diretamente de dist_bin\...
     start "" "%DIST_BIN_EXE%"

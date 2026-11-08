@@ -244,13 +244,13 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK 26
+      - name: Configure Android SDK & NDK Environment
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "ndk;26.1.10909125"
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          NDK_PATH=$(find /usr/local/lib/android/sdk/ndk -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
+          echo "NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$NDK_PATH" >> $GITHUB_ENV
+          echo "Using Android NDK at: $NDK_PATH"
 
       - name: Install stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable

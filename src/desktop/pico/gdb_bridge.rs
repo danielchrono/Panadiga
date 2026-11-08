@@ -123,7 +123,12 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
                     if thread_port.starts_with("MOCK") {
                         handle_mock_session(tcp_stream, &running_flag, &connected_flag);
                     } else if let Some(ref mut serial_port) = maybe_serial {
-                        handle_serial_session(tcp_stream, serial_port, &running_flag, &connected_flag);
+                        handle_serial_session(
+                            tcp_stream,
+                            serial_port,
+                            &running_flag,
+                            &connected_flag,
+                        );
                     }
                     connected_flag.store(false, Ordering::Relaxed);
                 }

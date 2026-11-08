@@ -40,6 +40,8 @@ try {
     # -------------------------------------------------------------------------
     Write-Step "1/9. Validating Rust Workspace (Cargo Check & Tests)"
     Set-Location $ScriptRoot
+    cargo fmt --all -- --check
+    Assert-LastExitCode "Cargo Fmt Check"
     cargo check --workspace --all-targets
     Assert-LastExitCode "Cargo Check"
     cargo test --workspace --verbose

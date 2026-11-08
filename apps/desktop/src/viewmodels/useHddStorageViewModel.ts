@@ -5,6 +5,7 @@ import {
   PartitionExtractionManifest,
 } from '@/models';
 import { invokeCommand } from '@/services/ipc';
+import { logger } from '@/utils/logger';
 
 export type HddTab = 'overview' | 'mbr' | 'meihdfs' | 'journal' | 'density' | 'extract';
 
@@ -28,7 +29,7 @@ export function useHddStorageViewModel() {
       setHddReport(hddData);
       setMeihdfsReport(meihdfsData);
     } catch (err) {
-      console.error('Failed loading HDD forensics:', err);
+      logger.error('HddStorageViewModel', 'Failed loading HDD forensics', err);
     } finally {
       setLoading(false);
     }
@@ -45,7 +46,7 @@ export function useHddStorageViewModel() {
       setManifest(res);
       setActiveTab('extract');
     } catch (err) {
-      console.error('Failed extracting partitions:', err);
+      logger.error('HddStorageViewModel', 'Failed extracting partitions', err);
     } finally {
       setExtracting(false);
     }

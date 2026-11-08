@@ -53,7 +53,8 @@ pub fn extract_hdd_partitions_command(
     image_path: String,
     output_dir: Option<String>,
 ) -> Result<Vec<ExtractedPartitionReport>, String> {
-    let out_dir = output_dir.unwrap_or_else(|| "extracted_partitions".to_string());
+    let out_dir =
+        output_dir.unwrap_or_else(|| crate::constants::DEFAULT_HDD_EXTRACT_DIR.to_string());
     crate::hdd::extract_hdd_partitions(Path::new(&image_path), Path::new(&out_dir), None)
         .map_err(|e| e.to_string())
 }
@@ -61,11 +62,10 @@ pub fn extract_hdd_partitions_command(
 /// Performs Shannon entropy calculation, cipher frequency analysis, and ECB leak detection.
 #[tauri::command]
 pub fn analyze_frm_command(frm_path: String) -> Result<FrmEntropyReport, String> {
-    let hdd_candidates = [
-        Path::new("firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin"),
-        Path::new("../../firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin"),
-        Path::new("../../../firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin"),
-    ];
+    let hdd_candidates: Vec<&Path> = crate::constants::CANDIDATE_HDD_RAW_BACKUP_PATHS
+        .iter()
+        .map(Path::new)
+        .collect();
     let hdd_path = hdd_candidates.iter().find(|p| p.exists()).copied();
 
     crate::crypto::analyze_frm_container(Path::new(&frm_path), hdd_path, 25, None)
@@ -91,14 +91,14 @@ pub fn get_frm_codebook_command(
 /// Searches official Panasonic DMR-EH55 service manuals and schematics for technical terms.
 #[tauri::command]
 pub fn search_manuals_command(term: String) -> Result<Vec<ManualSearchResult>, String> {
-    let candidate_dirs = [
-        Path::new("manuals_and_schematics"),
-        Path::new("../../manuals_and_schematics"),
-        Path::new("../../../manuals_and_schematics"),
-    ];
+    let candidate_dirs: Vec<&Path> = crate::constants::CANDIDATE_MANUALS_DIRS
+        .iter()
+        .map(Path::new)
+        .collect();
     let manuals_dir = candidate_dirs
         .iter()
         .find(|p| p.exists())
+        .copied()
         .ok_or_else(|| "Manuals directory 'manuals_and_schematics' not found".to_string())?;
 
     crate::manuals::search_manuals(manuals_dir, Some(vec![term]), None).map_err(|e| e.to_string())

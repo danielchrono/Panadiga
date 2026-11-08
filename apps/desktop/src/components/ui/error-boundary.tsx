@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from './button';
+import { logger } from '@/utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -23,7 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('[Panadiga ErrorBoundary] Uncaught rendering exception:', error, errorInfo);
+    logger.error('ErrorBoundary', 'Uncaught rendering exception', { error, errorInfo });
   }
 
   private handleReset = () => {

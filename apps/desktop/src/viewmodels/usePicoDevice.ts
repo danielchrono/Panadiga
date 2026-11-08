@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { PicoDeviceStatus, ColdBreakinMode } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
+import { logger } from '@/utils/logger';
 
 export interface UsePicoDeviceOptions {
   onLog?: (level: 'info' | 'warn' | 'error' | 'success', source: 'HOST' | 'PICO', message: string) => void;
@@ -33,7 +34,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         setSelectedPort(allPorts[0]);
       }
     } catch (err) {
-      console.warn('Failed loading system serial ports:', err);
+      logger.warn('PicoDevice', 'Failed loading system serial ports', err);
     }
   }, [selectedPort]);
 
@@ -42,7 +43,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       const status = await invokeCommand<PicoDeviceStatus>('pico_get_status');
       setDeviceStatus(status);
     } catch (err) {
-      console.warn('Failed querying Pico device telemetry:', err);
+      logger.warn('PicoDevice', 'Failed querying Pico device telemetry', err);
     }
   }, []);
 

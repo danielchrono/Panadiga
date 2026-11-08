@@ -3,6 +3,7 @@ import { HexDumpRow, HexBookmark } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { mockHexBookmarks } from '@/services/mockData';
 import { useToast } from '../context/ToastContext';
+import { logger } from '@/utils/logger';
 
 export function useHexInspectorViewModel() {
   const { showToast } = useToast();
@@ -24,7 +25,7 @@ export function useHexInspectorViewModel() {
       });
       setHexRows(data);
     } catch (err) {
-      console.error('Failed reading hex dump:', err);
+      logger.error('HexInspectorViewModel', 'Failed reading hex dump', err);
     } finally {
       setLoading(false);
     }

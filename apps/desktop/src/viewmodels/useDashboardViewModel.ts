@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SystemOverview } from '@/models';
 import { invokeCommand, isDemoModeActive, setDemoMode } from '@/services/ipc';
+import { logger } from '@/utils/logger';
 
 export function useDashboardViewModel() {
   const [overview, setOverview] = useState<SystemOverview | null>(null);
@@ -13,7 +14,7 @@ export function useDashboardViewModel() {
       const data = await invokeCommand<SystemOverview>('get_system_overview');
       setOverview(data);
     } catch (err) {
-      console.error('Error fetching system overview:', err);
+      logger.error('DashboardViewModel', 'Error fetching system overview', err);
     } finally {
       setLoading(false);
     }

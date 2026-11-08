@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { GdbBridgeStatus, Am34RegisterState } from '@/models';
 import { invokeCommand } from '@/services/ipc';
+import { logger } from '@/utils/logger';
 
 export interface UseGdbBridgeOptions {
   selectedPort: string;
@@ -43,7 +44,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
         setState(prev => (prev.status === 'starting' ? prev : { status: 'stopped' }));
       }
     } catch (err) {
-      console.warn('Failed querying GDB status:', err);
+      logger.warn('GdbBridge', 'Failed querying GDB status', err);
     }
   }, []);
 

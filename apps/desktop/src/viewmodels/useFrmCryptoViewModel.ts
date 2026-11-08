@@ -5,6 +5,7 @@ import {
   CodebookReport,
 } from '@/models';
 import { invokeCommand } from '@/services/ipc';
+import { logger } from '@/utils/logger';
 
 export type FrmTab = 'entropy' | 'toc' | 'codebook' | 'correlation';
 
@@ -28,7 +29,7 @@ export function useFrmCryptoViewModel() {
       setTocReport(toc);
       setCodebookReport(codebook);
     } catch (err) {
-      console.error('Failed loading crypto forensic reports:', err);
+      logger.error('FrmCryptoViewModel', 'Failed loading crypto forensic reports', err);
     } finally {
       setLoading(false);
     }

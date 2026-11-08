@@ -326,3 +326,137 @@ pub const DEFAULT_GDB_LISTEN_PORT: u16 = 3333;
 
 /// Default TCP listen address and port for the GDB RSP bridge.
 pub const DEFAULT_GDB_LISTEN_SOCKET: &str = "127.0.0.1:3333";
+
+/// Candidate search paths for the raw Panasonic HDD backup image across development directories.
+pub const CANDIDATE_HDD_RAW_BACKUP_PATHS: &[&str] = &[
+    "firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin",
+    "../../firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin",
+    "../../../firmware_and_images/panasonic_dmr-eh55_hdd_raw_backup.bin",
+];
+
+/// Candidate directory search paths for Panasonic service manuals and schematics.
+pub const CANDIDATE_MANUALS_DIRS: &[&str] = &[
+    "manuals_and_schematics",
+    "../../manuals_and_schematics",
+    "../../../manuals_and_schematics",
+];
+
+// ============================================================================
+// 9. Structured Memory Map Definitions (SSOT for CLI, TUI, and Ghidra)
+// ============================================================================
+
+/// Strongly-typed hardware memory region descriptor for Panasonic MN2DS0016 / AM34.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct MemoryRegionDefinition {
+    pub name: &'static str,
+    pub start: u32,
+    pub end: u32,
+    pub size_kb: usize,
+    pub perms: &'static str,
+}
+
+impl MemoryRegionDefinition {
+    /// Formats the region descriptor into standard JSON format for CLI and API consumers.
+    pub fn to_json_value(&self) -> serde_json::Value {
+        serde_json::json!({
+            "name": self.name,
+            "start": format!("0x{:08X}", self.start),
+            "end": format!("0x{:08X}", self.end),
+            "size_kb": self.size_kb,
+            "perms": self.perms
+        })
+    }
+}
+
+/// Official Matsushita AM34 / Panasonic MN2DS0016 memory map regions.
+pub const AM34_SYSTEM_MEMORY_REGIONS: &[MemoryRegionDefinition] = &[
+    MemoryRegionDefinition {
+        name: "INTERNAL_SRAM",
+        start: 0x0000_0000,
+        end: 0x0003_FFFF,
+        size_kb: 256,
+        perms: "rwx",
+    },
+    MemoryRegionDefinition {
+        name: "CORE_MMIO",
+        start: 0x1000_0000,
+        end: 0x1000_FFFF,
+        size_kb: 64,
+        perms: "rw-",
+    },
+    MemoryRegionDefinition {
+        name: "MAIN_SDRAM",
+        start: 0x4000_0000,
+        end: 0x43FF_FFFF,
+        size_kb: 65536,
+        perms: "rwx",
+    },
+    MemoryRegionDefinition {
+        name: "FLASH_NOR_IPL",
+        start: 0x8000_0000,
+        end: 0x807E_FFFF,
+        size_kb: 8128,
+        perms: "r-x",
+    },
+    MemoryRegionDefinition {
+        name: "NVRAM_U99",
+        start: 0x807F_0000,
+        end: 0x807F_FFFF,
+        size_kb: 64,
+        perms: "rw-",
+    },
+    MemoryRegionDefinition {
+        name: "SYSTEM_MMIO",
+        start: 0xC000_0000,
+        end: 0xC000_3FFF,
+        size_kb: 16,
+        perms: "rw-",
+    },
+    MemoryRegionDefinition {
+        name: "DWIRE32A_OCD",
+        start: 0xC000_4000,
+        end: 0xC000_40FF,
+        size_kb: 1,
+        perms: "rw-",
+    },
+    MemoryRegionDefinition {
+        name: "ATA_IDE_MMIO",
+        start: 0xD400_0000,
+        end: 0xD400_0FFF,
+        size_kb: 4,
+        perms: "rw-",
+    },
+];
+
+/// Returns all AM34 memory map regions as a JSON array value.
+pub fn get_am34_memory_map_json() -> serde_json::Value {
+    let list: Vec<serde_json::Value> = AM34_SYSTEM_MEMORY_REGIONS
+        .iter()
+        .map(|r| r.to_json_value())
+        .collect();
+    serde_json::Value::Array(list)
+}
+
+/// Formats the AM34 memory map architecture into a clean ASCII table.
+pub fn format_memory_map_table() -> String {
+    let mut out = String::new();
+    out.push_str(
+        "+------------------+---------------+---------------+-----------+-------------+\n",
+    );
+    out.push_str(
+        "| Region           | Start Address | End Address   | Size (KB) | Permissions |\n",
+    );
+    out.push_str(
+        "+------------------+---------------+---------------+-----------+-------------+\n",
+    );
+    for r in AM34_SYSTEM_MEMORY_REGIONS {
+        out.push_str(&format!(
+            "| {:<16} | 0x{:08X}    | 0x{:08X}    | {:>9} | {:<11} |\n",
+            r.name, r.start, r.end, r.size_kb, r.perms
+        ));
+    }
+    out.push_str(
+        "+------------------+---------------+---------------+-----------+-------------+\n",
+    );
+    out
+}

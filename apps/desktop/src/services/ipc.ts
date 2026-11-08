@@ -32,6 +32,7 @@ import {
   mockManualSearchResults,
   generateMockHexDump,
 } from './mockData';
+import { logger } from '@/utils/logger';
 
 // Determine if running inside a Tauri container
 export const isTauriEnvironment = (): boolean => {
@@ -277,8 +278,40 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
       return `[Modo Demonstração] Ferramenta externa '${tool}' executada com sucesso.` as unknown as T;
     }
 
+    case 'query_rag_engine': {
+      const q = (args?.query as string) || '';
+      return {
+        query: q,
+        answer:
+          'Error U99 indicates NVRAM corruption on the Spansion S29JL064H NOR Flash (micro-sectors SA134..SA141). Erase sectors SA134..SA141 (0x007F0000..0x007FFFFF) to restore virgin 0xFF state while preserving bootloader IPL at SA0..SA133.',
+        confidence: 0.98,
+        groundedness_score: 1.0,
+        is_abstained: false,
+        abstention_reason: null,
+        citations: [
+          {
+            doc: 'manuals_and_schematics/panasonic_dmr-eh55p9_eh55pc9.pdf',
+            section: 'Self-Diagnostic and Error Codes',
+            lines: 'P.21-22',
+            excerpt: 'U99: System microprocessor communication fault or NVRAM checksum mismatch.',
+          },
+        ],
+        safety: {
+          is_safe: true,
+          violations: [],
+          alerts: [],
+        },
+        critic: {
+          is_faithful: true,
+          ungrounded_entities: [],
+        },
+        retrieved_chunks_count: 3,
+        execution_time_ms: 12,
+      } as unknown as T;
+    }
+
     default:
-      console.warn(`[MockIPC] Unhandled command: ${cmd}`);
+      logger.warn('MockIPC', `Unhandled command: ${cmd}`);
       return {} as unknown as T;
   }
 }

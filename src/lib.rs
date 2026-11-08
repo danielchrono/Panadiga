@@ -6,6 +6,7 @@
 #[macro_use]
 pub mod logger;
 
+pub mod cli;
 pub mod constants;
 pub mod crypto;
 pub mod desktop;

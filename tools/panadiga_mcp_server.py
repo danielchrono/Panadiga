@@ -427,9 +427,11 @@ def run_stdio() -> None:
 
 def main() -> None:
     if "--tools" in sys.argv:
-        print(json.dumps(TOOLS_DEFINITIONS, indent=2))
+        sys.stdout.write(json.dumps(TOOLS_DEFINITIONS, indent=2) + "\n")
+        sys.stdout.flush()
     elif "--ping" in sys.argv:
-        print("PONG - Panadiga MCP Server OK")
+        sys.stdout.write("PONG - Panadiga MCP Server OK\n")
+        sys.stdout.flush()
     else:
         run_stdio()
 

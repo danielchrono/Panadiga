@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { digaApi } from '@/services/digaApi';
-import { RagQueryResult, ExecutionStatus } from '@/types/domain';
+import { invokeCommand } from '@/services/ipc';
+import { RagQueryResult } from '@/models';
+import { ExecutionStatus } from '@/types/domain';
 
 export function useRagViewModel(initialQuery: string = 'How to recover error U99 on Spansion Flash?') {
   const [ragQuery, setRagQuery] = useState<string>(initialQuery);
@@ -13,12 +14,12 @@ export function useRagViewModel(initialQuery: string = 'How to recover error U99
     setRagStatus(ExecutionStatus.RUNNING);
     setRagError(null);
 
-    const res = await digaApi.queryRag(ragQuery);
-    if (res.success) {
-      setRagResult(res.data);
+    try {
+      const res = await invokeCommand<RagQueryResult>('query_rag_engine', { query: ragQuery });
+      setRagResult(res);
       setRagStatus(ExecutionStatus.SUCCESS);
-    } else {
-      setRagError(res.error);
+    } catch (err) {
+      setRagError(err instanceof Error ? err.message : String(err));
       setRagStatus(ExecutionStatus.ERROR);
     }
   }, [ragQuery]);

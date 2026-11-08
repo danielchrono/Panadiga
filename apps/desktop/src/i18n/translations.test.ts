@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { translations, TranslationKey } from './translations';
 import { useTranslation, setGlobalLocale, getGlobalLocale } from './useTranslation';
-import { useManualsSearch } from '../viewmodels/useManualsSearch';
+import { useManualsViewModel } from '../viewmodels/useManualsViewModel';
 import { renderHook, act } from '@testing-library/react';
 
 describe('i18n strictly-typed translations', () => {
@@ -47,7 +47,7 @@ describe('i18n strictly-typed translations', () => {
   });
 
   it('reactively updates ViewModel error message on locale switch (OPUS-09)', async () => {
-    const { result } = renderHook(() => useManualsSearch());
+    const { result } = renderHook(() => useManualsViewModel());
 
     // Trigger error by searching empty query
     act(() => {

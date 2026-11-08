@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ManualSearchResult, ManualDocumentMetadata } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { mockManualDocuments } from '@/services/mockData';
+import { useTranslation, TranslationKey } from '@/i18n/useTranslation';
 
 export function useManualsViewModel() {
+  const { t } = useTranslation();
   const [documents] = useState<ManualDocumentMetadata[]>(mockManualDocuments);
   const [searchResults, setSearchResults] = useState<ManualSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('U99');
+  const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
+  const [rawError, setRawError] = useState<string | null>(null);
   const [activeTerms] = useState<string[]>([
     'U99',
     'S29JL064',
@@ -23,17 +27,30 @@ export function useManualsViewModel() {
   const [loading, setLoading] = useState<boolean>(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
-  const executeSearch = useCallback(async (query: string) => {
-    setLoading(true);
-    try {
-      const results = await invokeCommand<ManualSearchResult[]>('search_manuals', { query });
-      setSearchResults(results);
-    } catch (err) {
-      console.error('Failed searching manuals:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const executeSearch = useCallback(
+    async (queryParam?: string) => {
+      const q = (queryParam !== undefined ? queryParam : searchQuery).trim();
+      if (!q) {
+        setErrorKey('manuals.search.emptyQuery');
+        setRawError(null);
+        setSearchResults([]);
+        return;
+      }
+
+      setErrorKey(null);
+      setRawError(null);
+      setLoading(true);
+      try {
+        const results = await invokeCommand<ManualSearchResult[]>('search_manuals', { query: q });
+        setSearchResults(results);
+      } catch (err) {
+        setRawError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [searchQuery]
+  );
 
   useEffect(() => {
     executeSearch('U99');
@@ -44,12 +61,19 @@ export function useManualsViewModel() {
     return documents.filter(d => d.category === categoryFilter);
   }, [documents, categoryFilter]);
 
-  const selectTerm = useCallback((term: string) => {
-    setSearchQuery(term);
-    executeSearch(term);
-  }, [executeSearch]);
+  const selectTerm = useCallback(
+    (term: string) => {
+      setSearchQuery(term);
+      executeSearch(term);
+    },
+    [executeSearch]
+  );
+
+  const errorMessage = errorKey ? t(errorKey) : rawError;
 
   return {
+    query: searchQuery,
+    setQuery: setSearchQuery,
     documents: filteredDocs,
     allDocuments: documents,
     searchResults,
@@ -63,5 +87,6 @@ export function useManualsViewModel() {
     setCategoryFilter,
     executeSearch,
     selectTerm,
+    errorMessage,
   };
 }

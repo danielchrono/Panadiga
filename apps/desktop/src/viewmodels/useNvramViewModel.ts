@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NvramCleanReport, FlashSectorInfo } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { mockFlashSectorMap } from '@/services/mockData';
+import { logger } from '@/utils/logger';
 
 export function useNvramViewModel() {
   const [report, setReport] = useState<NvramCleanReport | null>(null);
@@ -21,7 +22,7 @@ export function useNvramViewModel() {
       const sa134 = mockFlashSectorMap.find(s => s.name === 'SA134');
       if (sa134) setSelectedSector(sa134);
     } catch (err) {
-      console.error('Failed analyzing flash dump:', err);
+      logger.error('NvramViewModel', 'Failed analyzing flash dump', err);
     } finally {
       setLoading(false);
     }
@@ -46,7 +47,7 @@ export function useNvramViewModel() {
       );
       setCleanSuccess(true);
     } catch (err) {
-      console.error('Failed cleaning NVRAM:', err);
+      logger.error('NvramViewModel', 'Failed cleaning NVRAM', err);
     } finally {
       setCleaning(false);
     }

@@ -46,7 +46,7 @@ try {
     Assert-LastExitCode "Cargo Check"
     cargo test --workspace --verbose
     Assert-LastExitCode "Cargo Test"
-    Write-Success "Rust engine compiled cleanly and all 33 tests passed (17 lib/RAG + 16 integration)!"
+    Write-Success "Rust engine compiled cleanly and all 41 tests passed (23 lib/RAG + 18 integration)!"
 
     # -------------------------------------------------------------------------
     # 2. TypeScript Strict Type-Check (tsc --noEmit)
@@ -64,7 +64,7 @@ try {
     Set-Location "$ScriptRoot/apps/desktop"
     npm test
     Assert-LastExitCode "Vitest Suite"
-    Write-Success "All Vitest frontend and ViewModel unit tests passed (26/26)!"
+    Write-Success "All Vitest frontend and ViewModel unit tests passed (33/33)!"
 
     # -------------------------------------------------------------------------
     # 4. Copy/Paste Code Duplication Gate (jscpd)

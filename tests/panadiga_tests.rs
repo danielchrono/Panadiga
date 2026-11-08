@@ -530,3 +530,89 @@ fn test_gdb_rsp_checksum_calculation() {
     assert_eq!(calc_gdb_checksum("s"), "73");
     assert_eq!(calc_gdb_checksum("OK"), "9a");
 }
+
+#[test]
+fn test_cli_args_parsing_matrix() {
+    use clap::Parser;
+    use panadiga::cli::{Cli, Commands};
+
+    // 1. memory-map
+    let cli = Cli::try_parse_from(["panadiga", "memory-map", "--format", "json"]).unwrap();
+    match cli.command {
+        Some(Commands::MemoryMap(args)) => {
+            assert_eq!(args.format, "json");
+            assert!(args.output.is_none());
+        }
+        _ => panic!("Expected MemoryMap command"),
+    }
+
+    // 2. gdb-config
+    let cli = Cli::try_parse_from([
+        "panadiga",
+        "gdb-config",
+        "--port",
+        "COM7",
+        "--tcp-port",
+        "4444",
+    ])
+    .unwrap();
+    match cli.command {
+        Some(Commands::GdbConfig(args)) => {
+            assert_eq!(args.port, "COM7");
+            assert_eq!(args.tcp_port, 4444);
+        }
+        _ => panic!("Expected GdbConfig command"),
+    }
+
+    // 3. pico list
+    let cli = Cli::try_parse_from(["panadiga", "pico", "list"]).unwrap();
+    assert!(matches!(cli.command, Some(Commands::Pico(_))));
+
+    // 4. interactive flag
+    let cli = Cli::try_parse_from(["panadiga", "-i"]).unwrap();
+    assert!(cli.interactive);
+
+    // 5. invalid command rejection
+    let err = Cli::try_parse_from(["panadiga", "non-existent-subcommand"]);
+    assert!(err.is_err());
+}
+
+#[test]
+fn test_constants_memory_map_and_candidate_paths() {
+    // Verify 8 architectural regions defined in SSOT
+    assert_eq!(AM34_SYSTEM_MEMORY_REGIONS.len(), 8);
+
+    let names: Vec<&str> = AM34_SYSTEM_MEMORY_REGIONS.iter().map(|r| r.name).collect();
+    assert_eq!(
+        names,
+        vec![
+            "INTERNAL_SRAM",
+            "CORE_MMIO",
+            "MAIN_SDRAM",
+            "FLASH_NOR_IPL",
+            "NVRAM_U99",
+            "SYSTEM_MMIO",
+            "DWIRE32A_OCD",
+            "ATA_IDE_MMIO",
+        ]
+    );
+
+    // Verify ASCII table generation
+    let table = format_memory_map_table();
+    assert!(table.contains("INTERNAL_SRAM"));
+    assert!(table.contains("0x00000000"));
+    assert!(table.contains("DWIRE32A_OCD"));
+    assert!(table.contains("0xC0004000"));
+
+    // Verify JSON array generation
+    let json_val = get_am34_memory_map_json();
+    assert!(json_val.is_array());
+    let arr = json_val.as_array().unwrap();
+    assert_eq!(arr.len(), 8);
+    assert_eq!(arr[0]["name"], "INTERNAL_SRAM");
+    assert_eq!(arr[0]["perms"], "rwx");
+
+    // Verify candidate paths non-empty
+    assert!(!CANDIDATE_HDD_RAW_BACKUP_PATHS.is_empty());
+    assert!(!CANDIDATE_MANUALS_DIRS.is_empty());
+}

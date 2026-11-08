@@ -41,8 +41,8 @@ Decouple low-level forensic and cryptanalysis logic from disk I/O. All math, par
 | :------------------------------------ | :-------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/nvram/pure_fp_tests.rs`        | `clean_nvram_slice(&[u8])`            | Tests surgical microsector sanitization (SA134..SA141) directly in RAM, verifying bootloader immutability and zeroing of corrupt U99 parameters. |
 | `src/hdd/inspect/pure_hdd_tests.rs` | `inspect_hdd_slice_pure(&[u8])`       | Validates proprietary Panasonic MBR, mirror table at LBA 57344, and partition descriptors over memory buffers without filesystem access.         |
-| `tests/panadiga_tests.rs`           | `calculate_entropy(&[u8])`            | Validates Shannon entropy calculation (0.0 for pure patterns, 1.0 for alternating binary, 8.0 for uniform distribution).                         |
-| `tests/panadiga_tests.rs`           | `test_real_frm_dump_toc_and_codebook` | Dissects 48-byte periodic TOC entries and known plaintext-ciphertext dictionary from `PANA_DVD.FRM`.                                           |
+| `tests/entropy_math_tests.rs`       | `calculate_entropy(&[u8])`            | Validates Shannon entropy calculation (0.0 for pure patterns, 1.0 for alternating binary, 8.0 for uniform distribution).                         |
+| `tests/crypto_codebook_tests.rs`     | `test_real_frm_dump_toc_and_codebook` | Dissects 48-byte periodic TOC entries and known plaintext-ciphertext dictionary from `PANA_DVD.FRM`.                                           |
 
 ---
 
@@ -56,7 +56,7 @@ Guarantee absolute protocol fidelity in the serial-to-TCP GDB bridge, prevent pa
 
 | Test File                                            | Tested Function / Module                | Compliance Assurance                                                                                                                                    |
 | :--------------------------------------------------- | :-------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `tests/panadiga_tests.rs`                          | `test_gdb_rsp_checksum_calculation`   | Formal validation of 2-digit hex checksum calculation (`sum % 256`) for RSP commands (`qSupported`, `g`, `?`, `c`, `s`, `OK`).            |
+| `tests/debugger_gdb_tests.rs`        | `test_gdb_rsp_checksum_calculation`   | Formal validation of 2-digit hex checksum calculation (`sum % 256`) for RSP commands (`qSupported`, `g`, `?`, `c`, `s`, `OK`).            |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_verify_and_classify_rsp_packet` | Tests formal RSP packet classifier: `$` prefix, `#` delimiter, checksum comparison, and command type tagging.                                       |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_telemetry_ring_capacity`        | Validates introspective circular buffer (`RingBuffer<GdbPacketTelemetryEvent>`): fixed capacity, FIFO eviction without leaks, chronological ordering. |
 | `dwire32a_jtag_research/tests/test_gdb_rsp_host.c` | Host C11 Firmware (`-Werror`)         | 7 protocol integration tests compiled under GCC C11: SRAM read/write, rejection of write to IPL flash (`E05`), AM34 registers, halt/continue control. |
@@ -92,9 +92,9 @@ Guarantee strong CLI argument parsing via Clap, deterministic handler routing, a
 
 | Test File                   | Tested Module                                     | Compliance Assurance                                                                                                                                                                            |
 | :-------------------------- | :------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tests/panadiga_tests.rs` | `test_cli_args_parsing_matrix`                  | Validates parsing and deserialization of CLI subcommands (`memory-map`, `gdb-config`, `pico list`, `nvram clean`, etc.), aliases (`tui`, `verify`), and rejection of unknown flags. |
-| `tests/panadiga_tests.rs` | `test_constants_memory_map_and_candidate_paths` | Validates all 8 official AM34/UniPhier memory regions, ASCII table formatting, canonical JSON schema export, and presence of universal candidate paths.                                         |
-| `tests/panadiga_tests.rs` | `test_all_host_controller_platforms_matrix`     | Validates USB VID/PID hardware identification matrix for Raspberry Pi Pico, Pico W, Pico 2 (ARM/RISC-V), and clones.                                                                            |
+| `tests/firmware_scan_tests.rs`       | `test_cli_args_parsing_matrix`                  | Validates parsing and deserialization of CLI subcommands (`memory-map`, `gdb-config`, `pico list`, `nvram clean`, etc.), aliases (`tui`, `verify`), and rejection of unknown flags. |
+| `tests/system_constants_tests.rs`    | `test_constants_memory_map_and_candidate_paths` | Validates all 8 official AM34/UniPhier memory regions, ASCII table formatting, canonical JSON schema export, and presence of universal candidate paths.                                         |
+| `tests/pico_bench_tests.rs`          | `test_all_host_controller_platforms_matrix`     | Validates USB VID/PID hardware identification matrix for Raspberry Pi Pico, Pico W, Pico 2 (ARM/RISC-V), and clones.                                                                            |
 
 ---
 

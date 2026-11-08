@@ -58,7 +58,14 @@ FILES_TO_AUDIT: Dict[str, List[str]] = {
         "src/rag/pipeline.rs",
         "src/rag/safety.rs",
         "src/rag/tests.rs",
-        "tests/panadiga_tests.rs",
+        "tests/system_constants_tests.rs",
+        "tests/entropy_math_tests.rs",
+        "tests/nvram_clean_tests.rs",
+        "tests/hdd_forensics_tests.rs",
+        "tests/crypto_codebook_tests.rs",
+        "tests/pico_bench_tests.rs",
+        "tests/debugger_gdb_tests.rs",
+        "tests/firmware_scan_tests.rs",
     ],
     "Domain 2: Python Workbench Administration, MCP Server & Memory Map (Typer / Mypy)": [
         "tools/panadiga_cli.py",
@@ -256,7 +263,7 @@ def generate_minimal_dossier(output_path: Path, run_checks: bool = True) -> None
 - Journal Catalog: LBA 16,384 (0x800000, 8 MB), 10 transactional blocks of 128 KB.
 - Partition 1 (LBA 65,536 / 32 MB): Main Firmware (~5.89 MB), magic '51 87 13 8D 5B 0A FB 22'.
 - Partition 2 (LBA 131,072 / 64 MB): Sub-system / OSD (~704 KB), magic '51 87 13 8D 5B 0A FB 22'.
-- Verified in: src/hdd.rs, src/constants.rs, tests/panadiga_tests.rs.
+- Verified in: src/hdd/mod.rs, src/constants.rs, tests/hdd_forensics_tests.rs.
 
 [INVARIANT 4: DWIRE32A HALF-DUPLEX SYNCHRONOUS BUS PROTOCOL]
 - Connector CN55001: JST ZR 1.5mm 6-pin.

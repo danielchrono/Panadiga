@@ -1,13 +1,13 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
+import { resolve } from "path";
 import tailwindcss from "tailwindcss";
 import autoprefixer from "autoprefixer";
 
 const tailwindConfig = {
   content: [
-    path.resolve(__dirname, "./index.html"),
-    path.resolve(__dirname, "./src/**/*.{ts,tsx}"),
+    resolve(import.meta.dirname, "./index.html"),
+    resolve(import.meta.dirname, "./src/**/*.{ts,tsx}"),
   ],
   theme: {
     extend: {
@@ -42,7 +42,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": resolve(import.meta.dirname, "./src"),
     },
   },
   css: {

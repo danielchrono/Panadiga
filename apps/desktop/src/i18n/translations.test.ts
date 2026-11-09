@@ -69,8 +69,8 @@ describe('i18n strictly-typed translations', () => {
   });
 
   it('verifies all Views integrate useTranslation strictly (OPUS-09 Static Scanner)', () => {
-    const viewsDir = path.resolve(__dirname, '../views');
-    const files = fs.readdirSync(viewsDir).filter(f => f.endsWith('.tsx'));
+    const viewsDir = path.resolve(import.meta.dirname, '../views');
+    const files = fs.readdirSync(viewsDir).filter((f: string) => f.endsWith('.tsx'));
 
     expect(files.length).toBeGreaterThanOrEqual(6);
 

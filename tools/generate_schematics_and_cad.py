@@ -537,9 +537,9 @@ def generate_all_assets() -> None:
     for d in target_dirs:
         os.makedirs(d, exist_ok=True)
 
-    # 1. Canonical English Assets (in docs/images/ for root readmes and docs/en-US/images/)
-    schem_en = 'docs/images/dwire32a_pico_probe_assembly_schematic.png'
-    cad_en = 'docs/images/panasonic_dmr_eh55_pcb_p7501_orientation.png'
+    # 1. Canonical English Assets (in docs/en-US/images/ for root readmes and docs/en-US/images/)
+    schem_en = 'docs/en-US/images/dwire32a_pico_probe_assembly_schematic.png'
+    cad_en = 'docs/en-US/images/panasonic_dmr_eh55_pcb_p7501_orientation.png'
     generate_electrical_schematic(schem_en, lang='en')
     generate_mechanical_cad_drawing(cad_en, lang='en')
 

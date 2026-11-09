@@ -39,73 +39,63 @@ This repository establishes the **definitive forensic reverse engineering, physi
 ## 2. End-to-End System Architecture
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'background': '#161b22',
-    'primaryColor': '#21262d',
-    'primaryTextColor': '#f0f6fc',
-    'primaryBorderColor': '#30363d',
-    'lineColor': '#8b949e',
-    'secondaryColor': '#21262d',
-    'tertiaryColor': '#21262d',
-    'clusterBkg': '#161b22',
-    'clusterBorder': '#30363d',
-    'defaultLinkColor': '#8b949e',
-    'titleColor': '#f0f6fc',
-    'edgeLabelBackground': '#161b22'
-  }
-}}%%
-flowchart TD
-    subgraph LAB_BENCH["1. LABORATORY BENCH AND COMMUNICATIONS"]
-        direction LR
-        USER["Forensic Engineer / Operator"]
-        BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
-        PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>C11 Firmware + DWire32A PIO"]
-        USER <--> BLE <--> PICO
-    end
+%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-monospace, SFMono-Regular, Menlo, monospace','fontSize':'13px','background':'#161b22','primaryColor':'#21262d','primaryTextColor':'#e6edf3','primaryBorderColor':'#484f58','lineColor':'#8b949e','secondaryColor':'#21262d','tertiaryColor':'#21262d','edgeLabelBackground':'#161b22','titleColor':'#e6edf3'},'flowchart':{'nodeSpacing':70,'rankSpacing':120,'curve':'basis','padding':24}}}%%
+flowchart TB
+    USER(["Forensic Engineer<br/>Operator"])
 
-    subgraph SOFTWARE_SUITE["2. PANADIGA SOFTWARE ECOSYSTEM"]
-        direction TB
-        GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
-        CLI["Unified Core Engine<br/>(Native Rust 1.85+ Binary)"]
-        GUI <--> CLI
+    GUI["Desktop · Android GUI<br/>Tauri 2.0 · React 19 · TS"]
 
-        RAG["Zero-Error RAG Engine<br/>(6 Invariant Shields)"]
-        DW_HAL["DWire32A HAL<br/>(115200 / PIO Sync)"]
-        GDB_SRV["GDB RSP Server (:3333)<br/>(Register Cache)"]
-        MEIHDFS["MEIHDFS Parser<br/>(Storage Forensics)"]
-        CRYPTO["Cryptanalysis Engine<br/>(ECB 64-bit & KPA)"]
-        NVRAM["NVRAM Sanitizer<br/>(Safe 0xFF Clean)"]
+    BLE(["BLE NUS<br/>wireless"])
+    USB(["USB-C OTG<br/>wired"])
 
-        CLI <--> RAG
-        CLI <--> DW_HAL
-        CLI <--> GDB_SRV
-        CLI <--> MEIHDFS
-        CLI <--> CRYPTO
-        CLI <--> NVRAM
-    end
+    PICO{{"Raspberry Pi Pico<br/>RP2040 · RP2350<br/>C11 + PIO DWire32A"}}
 
-    subgraph TARGET_HARDWARE["3. PANASONIC DIGA TARGET HARDWARE"]
-        direction LR
-        P7501["Port P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
-        AM34["Matsushita UniPhier MN2DS0016<br/>32-bit AM34 RISC CPU"]
-        FLASH["Parallel NOR Flash (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
-        HDD["PATA/IDE or SATA Hard Disk<br/>LBA 0 Superblock (SH) + Partitions"]
-        P7501 <--> AM34
-        AM34 <--> FLASH
-        AM34 <--> HDD
-    end
+    CLI["panadiga Core<br/>Rust 1.85+"]
 
-    PICO <-->|"DWire32A Bus 1.0 MHz"| P7501
-    BLE <--> GUI
+    P7501{{"P7501 · JST ZR-6<br/>VDD·nRESET·SDATA<br/>GND·SCLK·EXTRG"}}
 
-    style LAB_BENCH fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
-    style SOFTWARE_SUITE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
-    style TARGET_HARDWARE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
+    DW_HAL["DWire32A HAL<br/>115200 · PIO"]
+    GDB_SRV["GDB RSP :3333"]
+    MEIHDFS["MEIHDFS Parser"]
+    CRYPTO["Cryptanalysis<br/>ECB · KPA"]
+    NVRAM["NVRAM Sanitizer<br/>64 / 128 KB"]
+    RAG["RAG Zero-Error<br/>6 shields"]
 
-    classDef greyBox fill:#21262d,stroke:#30363d,color:#f0f6fc,stroke-width:1.5px;
-    class USER,BLE,PICO,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
+    AM34{{"MN2DS0016 · AM34<br/>108 / 162 MHz"}}
+    FLASH[("NOR Flash 2–16 MB<br/>IPL · EEMUL")]
+    HDD[("PATA · SATA HDD<br/>LBA 0 'SH'")]
+
+    USER --> |"operates"| GUI
+
+    GUI <--> |"uses"| BLE
+    GUI <--> |"uses"| USB
+    BLE <--> |"radio"| PICO
+    USB <--> |"cable"| PICO
+
+    GUI <--> |"Tauri IPC"| CLI
+    CLI <--> DW_HAL
+    CLI <--> GDB_SRV
+    CLI <--> MEIHDFS
+    CLI <--> CRYPTO
+    CLI <--> NVRAM
+    CLI <--> RAG
+
+    PICO <--> |"DWire32A 1.0 MHz"| P7501
+    P7501 <--> AM34
+    AM34 <--> FLASH
+    AM34 <--> HDD
+
+    classDef lab       fill:#21262d,stroke:#58a6ff,color:#e6edf3,stroke-width:2px
+    classDef transport fill:#21262d,stroke:#d29922,color:#e6edf3,stroke-width:2px
+    classDef probe     fill:#21262d,stroke:#f0883e,color:#e6edf3,stroke-width:2px
+    classDef sw        fill:#21262d,stroke:#3fb950,color:#e6edf3,stroke-width:2px
+    classDef tgt       fill:#21262d,stroke:#f85149,color:#e6edf3,stroke-width:2px
+
+    class USER lab
+    class GUI,CLI,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG sw
+    class BLE,USB transport
+    class PICO probe
+    class P7501,AM34,FLASH,HDD tgt
 ```
 
 ---
@@ -324,7 +314,7 @@ On the digital board `VEP79138` (and related `VEP79xxx` family boards across the
 > * **NEVER connect ground to Pin 1 or Pin 6** (which would short the 3.3V power plane or clamp the CPU interrupt trigger gate). Before powering the Raspberry Pi Pico or any bench instrument, **always verify with a digital multimeter a continuous $0.0\,\Omega$ resistance beep between Pin 4 and the bare metal chassis!**
 
 <p align="center">
-  <img src="docs/images/panasonic_dmr_eh55_pcb_p7501_orientation.png" alt="Physical Topography and P7501 Orientation on PCB VEP79138" width="720" />
+  <img src="docs/en-US/images/panasonic_dmr_eh55_pcb_p7501_orientation.png" alt="Physical Topography and P7501 Orientation on PCB VEP79138" width="720" />
   <br/>
   <em>Figure 5.1: Physical topography of the digital PCB VEP79138 showing connector P7501 between flat cables FP50003 (10-pin) and FP50004 (8-pin).</em>
 </p>
@@ -346,7 +336,7 @@ On the digital board `VEP79138` (and related `VEP79xxx` family boards across the
 ```
 
 <p align="center">
-  <img src="docs/images/schematic_p7501_panasonic_official.png" alt="Official Panasonic DMR-EH55 P7501 Schematic" width="460" />
+  <img src="docs/en-US/images/schematic_p7501_panasonic_official.png" alt="Official Panasonic DMR-EH55 P7501 Schematic" width="460" />
   <br/>
   <em>Figure 5.2: Excerpt from official Panasonic DMR-EH55 schematic (VEP79138) detailing header P7501 [B6B-ZR-3R4] "TO WRITE JIGU".</em>
 </p>
@@ -364,7 +354,7 @@ On the digital board `VEP79138` (and related `VEP79xxx` family boards across the
 |    **Pin 6**    |     `EXTRG`     |      `GP2` (Pin 4)      |             $100\,\Omega$ Series Resistor             |   Digital Trigger Output   | External trigger forcing CPU execution halt (*Halt Request*) on the AM34 core during Cold Break-In.                                    |
 
 <p align="center">
-  <img src="docs/images/dwire32a_pico_probe_assembly_schematic.png" alt="Standardized Electrical Schematic of DWire32A Pico Probe" width="760" />
+  <img src="docs/en-US/images/dwire32a_pico_probe_assembly_schematic.png" alt="Standardized Electrical Schematic of DWire32A Pico Probe" width="760" />
   <br/>
   <em>Figure 5.3: Standardized electrical schematic (IEEE Std 315 / IEC 60617) for building the laboratory bench probe linking Raspberry Pi Pico to header P7501.</em>
 </p>

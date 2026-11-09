@@ -2,7 +2,6 @@
 ␋
 ```
 
-
 <p align="center">
   <a href="README.md">English</a> | <strong>Português (Brasil)</strong>
 </p>
@@ -44,73 +43,66 @@ Este repositório consolida o **ecossistema definitivo de engenharia reversa, re
 ## 2. Diagrama Mermaid de Arquitetura Ponta-a-Ponta
 
 ```mermaid
-%%{init: {
-  'theme': 'base',
-  'themeVariables': {
-    'background': '#161b22',
-    'primaryColor': '#21262d',
-    'primaryTextColor': '#f0f6fc',
-    'primaryBorderColor': '#30363d',
-    'lineColor': '#8b949e',
-    'secondaryColor': '#21262d',
-    'tertiaryColor': '#21262d',
-    'clusterBkg': '#161b22',
-    'clusterBorder': '#30363d',
-    'defaultLinkColor': '#8b949e',
-    'titleColor': '#f0f6fc',
-    'edgeLabelBackground': '#161b22'
-  }
-}}%%
+%%{init: {'theme':'base','themeCSS':'.cluster rect { stroke: transparent !important; fill: transparent !important; }','themeVariables':{'fontFamily':'ui-monospace, SFMono-Regular, Menlo, monospace','fontSize':'13px','background':'#161b22','primaryColor':'#21262d','primaryTextColor':'#e6edf3','primaryBorderColor':'#484f58','lineColor':'#8b949e','secondaryColor':'#21262d','tertiaryColor':'#21262d','edgeLabelBackground':'#161b22','titleColor':'#e6edf3'},'flowchart':{'nodeSpacing':60,'rankSpacing':100,'curve':'basis','padding':28}}}%%
 flowchart TD
-    subgraph LAB_BENCH["1. BANCADA DE LABORATÓRIO E COMUNICAÇÃO"]
-        direction LR
-        USER["Engenheiro Forense / Operador"]
-        BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
-        PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>Firmware C11 + Máquinas PIO DWire32A"]
-        USER <--> BLE <--> PICO
-    end
+    USER(["Engenheiro Forense<br/>Operador"])
 
-    subgraph SOFTWARE_SUITE["2. ECOSSISTEMA DE SOFTWARE PANADIGA"]
+    subgraph SOFTWARE_SUITE["1 · Ecossistema de Software Panadiga"]
         direction TB
-        GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
-        CLI["Motor Central Unificado Panadiga<br/>(Binário Nativo Rust 1.85+)"]
-        GUI <--> CLI
+        GUI["GUI Desktop · Android<br/>Tauri 2.0 · React 19 · TS"]
+        CLI["Núcleo panadiga<br/>Rust 1.85+"]
+        GUI <--> |"IPC"| CLI
 
-        RAG["Motor RAG Zero-Error<br/>(6 Invariantes Físicas)"]
-        DW_HAL["HAL DWire32A<br/>(115200 / Sincronismo PIO)"]
-        GDB_SRV["Servidor GDB RSP (:3333)<br/>(Cache de Registradores)"]
-        MEIHDFS["Parser MEIHDFS<br/>(Storage Forensics)"]
-        CRYPTO["Motor de Criptoanálise<br/>(ECB 64-bit & KPA)"]
-        NVRAM["Sanitizador de NVRAM<br/>(Limpeza Segura a 0xFF)"]
+        DW_HAL["HAL DWire32A<br/>115200 · PIO"]
+        GDB_SRV["GDB RSP :3333"]
+        MEIHDFS["Parser MEIHDFS"]
+        CRYPTO["Criptoanálise<br/>ECB · KPA"]
+        NVRAM["Sanitizador NVRAM<br/>64 / 128 KB"]
+        RAG["RAG Zero-Error<br/>6 invariantes"]
 
-        CLI <--> RAG
         CLI <--> DW_HAL
         CLI <--> GDB_SRV
         CLI <--> MEIHDFS
         CLI <--> CRYPTO
         CLI <--> NVRAM
+        CLI <--> RAG
     end
 
-    subgraph TARGET_HARDWARE["3. HARDWARE ALVO FAMÍLIA PANASONIC DIGA"]
+    subgraph LAB_BENCH["2 · Transporte e Sonda de Bancada"]
+        BLE(["BLE NUS<br/>sem fio"])
+        USB(["USB-C OTG<br/>com fio"])
+        PICO{{"Raspberry Pi Pico<br/>RP2040 · RP2350<br/>C11 + PIO"}}
+        BLE <--> PICO
+        USB <--> PICO
+    end
+
+    subgraph TARGET_HARDWARE["3 · Hardware Alvo Panasonic DIGA"]
         direction LR
-        P7501["Porta P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
-        AM34["SoC Matsushita UniPhier MN2DS0016<br/>CPU 32-bit AM34 RISC"]
-        FLASH["Flash NOR Paralela (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
-        HDD["Disco Rígido PATA/IDE ou SATA<br/>LBA 0 Superblock (SH) + Partições"]
+        P7501{{"P7501 · JST ZR-6<br/>VDD·nRESET·SDATA<br/>GND·SCLK·EXTRG"}}
+        AM34{{"MN2DS0016 · AM34<br/>108 / 162 MHz"}}
+        FLASH[("Flash NOR 2–16 MB<br/>IPL · EEMUL")]
+        HDD[("HDD PATA · SATA<br/>LBA 0 'SH'")]
         P7501 <--> AM34
         AM34 <--> FLASH
         AM34 <--> HDD
     end
 
-    PICO <-->|"Barramento DWire32A 1.0 MHz"| P7501
-    BLE <--> GUI
+    USER --> |"opera"| GUI
+    GUI <--> |"usa"| BLE
+    GUI <--> |"usa"| USB
+    PICO <--> |"DWire32A 1.0 MHz"| P7501
 
-    style LAB_BENCH fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
-    style SOFTWARE_SUITE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
-    style TARGET_HARDWARE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
+    classDef lab       fill:#21262d,stroke:#58a6ff,color:#e6edf3,stroke-width:2px
+    classDef transport fill:#21262d,stroke:#d29922,color:#e6edf3,stroke-width:2px
+    classDef probe     fill:#21262d,stroke:#f0883e,color:#e6edf3,stroke-width:2px
+    classDef sw        fill:#21262d,stroke:#3fb950,color:#e6edf3,stroke-width:2px
+    classDef tgt       fill:#21262d,stroke:#f85149,color:#e6edf3,stroke-width:2px
 
-    classDef greyBox fill:#21262d,stroke:#30363d,color:#f0f6fc,stroke-width:1.5px;
-    class USER,BLE,PICO,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
+    class USER lab
+    class GUI,CLI,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG sw
+    class BLE,USB transport
+    class PICO probe
+    class P7501,AM34,FLASH,HDD tgt
 ```
 
 ---
@@ -145,7 +137,7 @@ Panadiga/
 │   │   ├── services/                                 <-- Transporte Tipado Tauri IPC & Pontes Nativas
 │   │   └── viewmodels/                               <-- Máquinas de Estados Algébricas (Lógica Pure FP)
 │   ├── package.json                                  <-- Dependências Node.js & Scripts de Automação
-│   └── playwright.config.ts                          <-- Configuração de Testes de Navegador End-to-End
+│   └── playwright.config.ts                          <-- Configuração de Testes de Navegador toEnd-to-End
 ├── docs/                                             <-- Acervo Oficial de Documentação Técnica
 │   ├── INDEX.md                                      <-- Portal e Índice Gateway de Documentação
 │   ├── en-US/                                        <-- Dossiês Técnicos Canônicos em Inglês (13 Dossiês)
@@ -329,7 +321,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 > * **NUNCA conecte o terra no Pino 1 ou Pino 6** (o que causaria curto-circuito na linha de alimentação de 3.3V ou no gate de interrupção da CPU). Antes de ligar o Raspberry Pi Pico ou qualquer ferramenta de bancada, **sempre valide com o multímetro o bipe sonoro de $0.0\,\Omega$ de continuidade direta entre o Pino 4 e a carcaça de lata metálica do chassi!**
 
 <p align="center">
-  <img src="docs/images/panasonic_dmr_eh55_pcb_p7501_orientation.png" alt="Topografia Física e Orientação do Conector P7501 na Placa VEP79138" width="720" />
+  <img src="docs/pt-BR/images/panasonic_dmr_eh55_pcb_p7501_orientation.png" alt="Topografia Física e Orientação do Conector P7501 na Placa VEP79138" width="720" />
   <br/>
   <em>Figura 5.1: Topografia física da PCB digital VEP79138 delimitando o conector P7501 entre os cabos flat FP50003 (10 vias) e FP50004 (8 vias).</em>
 </p>
@@ -351,7 +343,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 ```
 
 <p align="center">
-  <img src="docs/images/schematic_p7501_panasonic_official.png" alt="Esquemático Oficial Panasonic P7501" width="460" />
+  <img src="docs/pt-BR/images/schematic_p7501_panasonic_official.png" alt="Esquemático Oficial Panasonic P7501" width="460" />
   <br/>
   <em>Figura 5.2: Recorte do esquemático oficial da Panasonic DMR-EH55 (VEP79138) detalhando o barramento P7501 [B6B-ZR-3R4] "TO WRITE JIGU".</em>
 </p>
@@ -369,7 +361,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 |    **Pino 6**    |     `EXTRG`     |      `GP2` (Pino 4)      |                Resistor $100\,\Omega$ em série                |  Saída Digital de Trigger  | Gatilho externo para forçar parada de execução (*Halt Request*) do núcleo AM34 no Cold Break-In.                                          |
 
 <p align="center">
-  <img src="docs/images/dwire32a_pico_probe_assembly_schematic.png" alt="Esquema Elétrico Normatizado de Montagem da Sonda Pico DWire32A" width="760" />
+  <img src="docs/pt-BR/images/dwire32a_pico_probe_assembly_schematic.png" alt="Esquema Elétrico Normatizado de Montagem da Sonda Pico DWire32A" width="760" />
   <br/>
   <em>Figura 5.3: Esquema elétrico normatizado (IEEE Std 315 / IEC 60617) para montagem da sonda de bancada conectando o Raspberry Pi Pico ao conector P7501.</em>
 </p>

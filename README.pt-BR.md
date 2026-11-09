@@ -42,77 +42,69 @@ Este repositório consolida o **ecossistema definitivo de engenharia reversa, re
 %%{init: {
   'theme': 'base',
   'themeVariables': {
-    'background': '#1c2128',
-    'primaryColor': '#282e37',
+    'background': '#161b22',
+    'primaryColor': '#21262d',
     'primaryTextColor': '#f0f6fc',
-    'primaryBorderColor': '#444c56',
+    'primaryBorderColor': '#30363d',
     'lineColor': '#8b949e',
-    'secondaryColor': '#1c2128',
-    'tertiaryColor': '#1c2128',
-    'clusterBkg': '#1c2128',
+    'secondaryColor': '#21262d',
+    'tertiaryColor': '#21262d',
+    'clusterBkg': '#161b22',
     'clusterBorder': '#30363d',
     'defaultLinkColor': '#8b949e',
     'titleColor': '#f0f6fc',
-    'edgeLabelBackground': '#1c2128'
+    'edgeLabelBackground': '#161b22'
   }
 }}%%
 flowchart TD
-    subgraph MASTER[" "]
-        direction TB
-
-        subgraph LAB_BENCH["1. BANCADA DE LABORATÓRIO E COMUNICAÇÃO"]
-            direction LR
-            USER["Engenheiro Forense / Operador"]
-            BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
-            PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>Firmware C11 + Máquinas PIO DWire32A"]
-            USER <--> BLE <--> PICO
-        end
-
-        subgraph SOFTWARE_SUITE["2. ECOSSISTEMA DE SOFTWARE PANADIGA"]
-            direction TB
-            subgraph UI_TIER["Interfaces de Usuário e Controle"]
-                direction LR
-                GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
-                CLI["Motor Central Unificado Panadiga<br/>(Binário Nativo Rust 1.85+)"]
-                GUI <--> CLI
-            end
-
-            subgraph CORE_MODULES["Subsistemas do Motor Nativo em Rust"]
-                direction LR
-                RAG["Motor RAG Zero-Error<br/>(6 Invariantes Físicas)"]
-                DW_HAL["HAL DWire32A<br/>(115200 / Sincronismo PIO)"]
-                GDB_SRV["Servidor GDB RSP (:3333)<br/>(Cache de Registradores)"]
-                MEIHDFS["Parser MEIHDFS<br/>(Storage Forensics)"]
-                CRYPTO["Motor de Criptoanálise<br/>(ECB 64-bit & KPA)"]
-                NVRAM["Sanitizador de NVRAM<br/>(Limpeza Segura a 0xFF)"]
-            end
-        end
-
-        subgraph TARGET_HARDWARE["3. HARDWARE ALVO FAMÍLIA PANASONIC DIGA"]
-            direction LR
-            P7501["Porta P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
-            AM34["SoC Matsushita UniPhier MN2DS0016<br/>CPU 32-bit AM34 RISC"]
-            FLASH["Flash NOR Paralela (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
-            HDD["Disco Rígido PATA/IDE ou SATA<br/>LBA 0 Superblock (SH) + Partições"]
-            P7501 <--> AM34
-            AM34 <--> FLASH
-            AM34 <--> HDD
-        end
-
-        PICO <-->|"Barramento DWire32A 1.0 MHz"| P7501
-        UI_TIER <--> CORE_MODULES
-        BLE <--> GUI
-        CLI <--> DW_HAL
+    subgraph LAB_BENCH["1. BANCADA DE LABORATÓRIO E COMUNICAÇÃO"]
+        direction LR
+        USER["Engenheiro Forense / Operador"]
+        BLE["Bluetooth Low Energy (NUS) / USB-C OTG"]
+        PICO["Raspberry Pi Pico (RP2040 / RP2350)<br/>Firmware C11 + Máquinas PIO DWire32A"]
+        USER <--> BLE <--> PICO
     end
 
-    style MASTER fill:#1c2128,stroke:#30363d,stroke-width:1px
-    style LAB_BENCH fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
-    style SOFTWARE_SUITE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
-    style UI_TIER fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
-    style CORE_MODULES fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
-    style TARGET_HARDWARE fill:#1c2128,stroke:#30363d,stroke-width:1px,color:#f0f6fc
+    subgraph SOFTWARE_SUITE["2. ECOSSISTEMA DE SOFTWARE PANADIGA"]
+        direction TB
+        GUI["Panadiga Desktop / Android GUI<br/>(Tauri 2.0 + React 19 + TypeScript)"]
+        CLI["Motor Central Unificado Panadiga<br/>(Binário Nativo Rust 1.85+)"]
+        GUI <--> CLI
 
-    classDef greyBox fill:#282e37,stroke:#444c56,color:#f0f6fc,stroke-width:1px;
+        RAG["Motor RAG Zero-Error<br/>(6 Invariantes Físicas)"]
+        DW_HAL["HAL DWire32A<br/>(115200 / Sincronismo PIO)"]
+        GDB_SRV["Servidor GDB RSP (:3333)<br/>(Cache de Registradores)"]
+        MEIHDFS["Parser MEIHDFS<br/>(Storage Forensics)"]
+        CRYPTO["Motor de Criptoanálise<br/>(ECB 64-bit & KPA)"]
+        NVRAM["Sanitizador de NVRAM<br/>(Limpeza Segura a 0xFF)"]
+
+        CLI <--> RAG
+        CLI <--> DW_HAL
+        CLI <--> GDB_SRV
+        CLI <--> MEIHDFS
+        CLI <--> CRYPTO
+        CLI <--> NVRAM
+    end
+
+    subgraph TARGET_HARDWARE["3. HARDWARE ALVO FAMÍLIA PANASONIC DIGA"]
+        direction LR
+        P7501["Porta P7501 (JST ZR-6)<br/>Pins: VDD, nRESET, SDATA, GND, SCLK, EXTRG"]
+        AM34["SoC Matsushita UniPhier MN2DS0016<br/>CPU 32-bit AM34 RISC"]
+        FLASH["Flash NOR Paralela (2MB -- 16MB)<br/>IPL + 64 KB NVRAM (len - 64KB)"]
+        HDD["Disco Rígido PATA/IDE ou SATA<br/>LBA 0 Superblock (SH) + Partições"]
+        P7501 <--> AM34
+        AM34 <--> FLASH
+        AM34 <--> HDD
+    end
+
+    PICO <-->|"Barramento DWire32A 1.0 MHz"| P7501
+    BLE <--> GUI
+
+    style LAB_BENCH fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
+    style SOFTWARE_SUITE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
+    style TARGET_HARDWARE fill:#161b22,stroke:#30363d,stroke-width:1.5px,color:#f0f6fc
+
+    classDef greyBox fill:#21262d,stroke:#30363d,color:#f0f6fc,stroke-width:1.5px;
     class USER,BLE,PICO,GUI,CLI,RAG,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,P7501,AM34,FLASH,HDD greyBox;
 ```
 

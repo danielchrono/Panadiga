@@ -104,6 +104,18 @@ fn test_cli_args_parsing_matrix() {
     .unwrap();
     assert!(matches!(cli_format.command, Some(Commands::Hdd(_))));
 
+    let cli_restore = Cli::try_parse_from([
+        "panadiga",
+        "hdd",
+        "restore-mirrors",
+        "--target",
+        r"\\.\PhysicalDrive1",
+        "--confirm",
+        "CONFIRM-PhysicalDrive1",
+    ])
+    .unwrap();
+    assert!(matches!(cli_restore.command, Some(Commands::Hdd(_))));
+
     // 5. interactive flag
     let cli = Cli::try_parse_from(["panadiga", "-i"]).unwrap();
     assert!(cli.interactive);

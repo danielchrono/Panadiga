@@ -175,6 +175,10 @@ pub enum HddActions {
         #[arg(short, long, default_value_t = 160, value_name = "SIZE_GB")]
         size_gb: u64,
 
+        /// Optional path to PANA_DVD.FRM to inject Stage-2 AM34 OS kernel into Partition 1
+        #[arg(long, value_name = "FRM_FILE")]
+        inject_frm: Option<PathBuf>,
+
         /// Explicit safety confirmation token (e.g. CONFIRM-PhysicalDrive1)
         #[arg(long, value_name = "TOKEN")]
         confirm: String,
@@ -189,6 +193,17 @@ pub enum HddActions {
         /// Path to the source raw or gzipped disk image
         #[arg(short, long, value_name = "IMAGE_PATH")]
         image: PathBuf,
+
+        /// Explicit safety confirmation token (e.g. CONFIRM-PhysicalDrive1)
+        #[arg(long, value_name = "TOKEN")]
+        confirm: String,
+    },
+
+    /// Restores LBA 0 and LBA 24..31 primary structures atomically from dual backup mirrors (LBA 57344 and 57368)
+    RestoreMirrors {
+        /// Target device path (e.g. \\.\PhysicalDrive1 or /dev/sdb)
+        #[arg(short, long, value_name = "TARGET_DRIVE")]
+        target: String,
 
         /// Explicit safety confirmation token (e.g. CONFIRM-PhysicalDrive1)
         #[arg(long, value_name = "TOKEN")]

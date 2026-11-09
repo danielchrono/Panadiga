@@ -9,8 +9,8 @@
 use super::mkfs::MeihdfsImage;
 use crate::constants::*;
 use anyhow::{bail, Context, Result};
-use std::fs::OpenOptions;
-use std::io::{Seek, SeekFrom, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 /// Information regarding a discovered physical disk drive.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -135,19 +135,24 @@ pub fn verify_safety_lockout(device_path: &str, confirmation_token: &str) -> Res
     Ok(())
 }
 
+/// Helper to verify safety lockout and open a physical block device in read/write mode.
+pub fn open_verified_block_device(device_path: &str, confirmation_token: &str) -> Result<File> {
+    verify_safety_lockout(device_path, confirmation_token)?;
+
+    OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(device_path)
+        .with_context(|| format!("Failed to open physical block device at {}", device_path))
+}
+
 /// Writes procedurally synthesized MEIHDFS structures directly to a physical drive.
 pub fn write_meihdfs_procedural_to_drive(
     device_path: &str,
     layout: &MeihdfsImage,
     confirmation_token: &str,
 ) -> Result<DriveWriteReport> {
-    verify_safety_lockout(device_path, confirmation_token)?;
-
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(device_path)
-        .with_context(|| format!("Failed to open physical block device at {}", device_path))?;
+    let mut file = open_verified_block_device(device_path, confirmation_token)?;
 
     let mut total_written: u64 = 0;
 
@@ -197,8 +202,6 @@ pub fn write_raw_image_to_drive(
     image_bytes: &[u8],
     confirmation_token: &str,
 ) -> Result<DriveWriteReport> {
-    verify_safety_lockout(device_path, confirmation_token)?;
-
     if image_bytes.len() < LBA_SECTOR_SIZE_BYTES || image_bytes.len() % LBA_SECTOR_SIZE_BYTES != 0 {
         bail!(
             "Raw image length must be a multiple of 512 bytes (got {} bytes)",
@@ -206,11 +209,7 @@ pub fn write_raw_image_to_drive(
         );
     }
 
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(device_path)
-        .with_context(|| format!("Failed to open physical block device at {}", device_path))?;
+    let mut file = open_verified_block_device(device_path, confirmation_token)?;
 
     file.seek(SeekFrom::Start(0))?;
     file.write_all(image_bytes)?;
@@ -225,6 +224,69 @@ pub fn write_raw_image_to_drive(
         message: format!(
             "Successfully streamed {} bytes to {} without errors.",
             image_bytes.len(),
+            device_path
+        ),
+    })
+}
+
+/// Restores primary MEIHDFS structures atomically from dual redundancy mirrors:
+/// - Mirror MBR (LBA 57344 / 0x01C00000, 512B) -> Master MBR (LBA 0)
+/// - Mirror Allocation Descriptors (LBA 57368 / 0x01C03000, 4096B) -> Allocation Descriptors (LBA 24..31 / 0x00003000)
+pub fn restore_meihdfs_from_mirrors(
+    device_path: &str,
+    confirmation_token: &str,
+) -> Result<DriveWriteReport> {
+    let mut file = open_verified_block_device(device_path, confirmation_token)?;
+
+    // Step 1: Read Mirror MBR (LBA 57344 / 0x01C00000)
+    let mut mirror_mbr = [0u8; LBA_SECTOR_SIZE_BYTES];
+    file.seek(SeekFrom::Start(LBA_MIRROR_MBR_OFFSET))?;
+    file.read_exact(&mut mirror_mbr)
+        .context("Failed to read Mirror MBR at LBA 57344")?;
+
+    // Verify "SH" signature at bytes 6..7
+    if &mirror_mbr[0..8] != &PANASONIC_HDD_MBR_SIGNATURE {
+        bail!(
+            "Mirror MBR at LBA 57344 is invalid! Expected Panasonic 'SH' signature, got 0x{}",
+            hex::encode(&mirror_mbr[0..8])
+        );
+    }
+
+    // Step 2: Read Mirror Allocation Descriptors (LBA 57368 / 0x01C03000)
+    let mut mirror_desc = [0u8; ALLOCATION_DESCRIPTORS_SIZE];
+    file.seek(SeekFrom::Start(ALLOCATION_DESCRIPTORS_MIRROR_OFFSET))?;
+    file.read_exact(&mut mirror_desc)
+        .context("Failed to read Mirror Allocation Descriptors at LBA 57368")?;
+
+    // Verify first record has valid inverted extent tag
+    let first_tag = mirror_desc[0] ^ 0xFF;
+    if first_tag != MEIHDFS_TAG_EXTENT_HEADER && first_tag != MEIHDFS_TAG_FREE {
+        bail!(
+            "Mirror Allocation Descriptors at LBA 57368 contain invalid tag: 0x{:02X}",
+            first_tag
+        );
+    }
+
+    // Step 3: Atomically restore Master MBR (LBA 0)
+    file.seek(SeekFrom::Start(0))?;
+    file.write_all(&mirror_mbr)?;
+
+    // Step 4: Atomically restore Primary Allocation Descriptors (LBA 24..31 / 0x00003000)
+    file.seek(SeekFrom::Start(ALLOCATION_DESCRIPTORS_OFFSET))?;
+    file.write_all(&mirror_desc)?;
+
+    file.flush()?;
+
+    let total = (LBA_SECTOR_SIZE_BYTES + ALLOCATION_DESCRIPTORS_SIZE) as u64;
+
+    Ok(DriveWriteReport {
+        device_path: device_path.to_string(),
+        operation: "Atomic Dual-Mirror MEIHDFS Restoration".to_string(),
+        bytes_written: total,
+        sectors_written: total / 512,
+        success: true,
+        message: format!(
+            "Successfully restored LBA 0 (512B) and LBA 24..31 (4096B) from mirrors LBA 57344 and 57368 on {}.",
             device_path
         ),
     })
@@ -265,5 +327,15 @@ mod tests {
     fn test_valid_token_allows_non_system_drive() {
         let res = verify_safety_lockout(r"\\.\PhysicalDrive2", "CONFIRM-PhysicalDrive2");
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_restore_mirrors_blocks_system_drive() {
+        let res = restore_meihdfs_from_mirrors(r"\\.\PhysicalDrive0", "CONFIRM-PhysicalDrive0");
+        assert!(res.is_err());
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("SAFETY INVARIANT VIOLATION"));
     }
 }

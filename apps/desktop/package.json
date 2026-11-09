@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "lint": "tsc --noEmit",
-    "uxlint": "uxlint scan src",
+    "uxlint": "ux-guard scan src",
     "jscpd": "jscpd src --threshold 5",
     "preview": "vite preview"
   },

@@ -4,8 +4,8 @@
  *
  * Implements an interactive USB CDC serial console and automated command protocol
  * for in-circuit debugging, opcode scanning, RAM loader injection, and NVRAM
- * sanitization on the Matsushita MN2DS0016 / AM34 core (Panasonic DMR-EH55
- * Main Digital Board VEP79138).
+ * sanitization on the Matsushita UniPhier AM34 / MN103S SoC family across
+ * Panasonic DIGA recorders (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ).
  *
  * Physical Connections (RP2040 -> DWire32A CN55001):
  *   GP2  (Pin 4)  -> EXTRG  (via 100R series resistor)
@@ -59,8 +59,8 @@ static void ui_print_banner(void) {
     printf("====================================================================\n");
     printf("   PANASONIC DWIRE32A / OCD INTERFACE RECONSTRUCTION ENGINE\n");
     printf("   Architecture : Matsushita AM34 / MN103S (UniPhier 32-bit RISC)\n");
-    printf("   Target SoC   : MN2DS0016 (Panasonic DMR-EH55 Digital Board VEP79138)\n");
-    printf("   Flash Memory : Spansion S29JL064H70TFI00 (64 Mbit / 8 MB TSOP-48)\n");
+    printf("   Target Family: Panasonic DIGA (DMR-E / ExxH / ES / EH / EX / EZ)\n");
+    printf("   NOR Flash    : Multi-Geometry Top-Boot (2MB / 4MB / 8MB / 16MB)\n");
     printf("   Host Control : %s\n", gdb_rsp_get_status_info());
 #if defined(PANADIGA_BLE_ENABLED)
     printf("   Wireless     : CYW43439 Bluetooth LE NUS (Nordic UART Service Enabled)\n");
@@ -91,6 +91,9 @@ static void ui_print_help(void) {
     printf("  SCAN              - Full automated sweep across all modes & opcodes\n");
     printf("  INJECT_LOADER CONFIRM - Inject AM34 JEDEC RAM loader into SRAM at 0x00004000\n");
     printf("  ERASE_NVRAM CONFIRM   - Execute RAM loader to erase SA134..SA141 (U99 fix)\n");
+    printf("  ISOLATE | HIZ     - Tri-State (Hi-Z) all 6 pins so unified plug can stay connected\n");
+    printf("  ENGAGE            - Re-engage active PIO drive on the 6-pin connector\n");
+    printf("  FLASH_SIZE [2|4|8|16] - Configure target NOR Flash size in MB (Default: 8MB)\n");
     printf("  GDB               - Enter GDB Remote Serial Protocol (RSP) server mode\n");
     printf("  LED [0..3]        - Test onboard LED mode (0:Heartbeat, 1:Active, 2:GDB, 3:Fault)\n");
     printf("  HELP              - Display this command reference\n");
@@ -311,8 +314,8 @@ static void process_serial_command(char *line) {
         if (count == 0U) {
             count = 1U;
         }
-        if (count > 1024U) {
-            count = 1024U; /* Protect against inadvertent massive dump requests */
+        if (count > 16384U) {
+            count = 16384U; /* Allow full 64KB NVRAM (16,384 words) dump in a single command */
         }
 
         printf("[DUMP] Reading %" PRIu32 " words (%" PRIu32 " bytes) from 0x%08" PRIX32 "...\n",
@@ -414,7 +417,11 @@ static void process_serial_command(char *line) {
             return;
         }
         printf("[INJECT_LOADER] Initiating SRAM transfer via DWire32A...\n");
-        const dwire_status_t status = ram_loader_inject(AM34_SRAM_LOADER_BASE_ADDR, true);
+        const dwire_status_t status = ram_loader_inject_for_flash_size(
+            AM34_SRAM_LOADER_BASE_ADDR,
+            true,
+            gdb_rsp_get_flash_size()
+        );
         if (status == DWIRE_OK) {
             printf("INJECT_LOADER: OK (%u bytes written, %u words verified)\n",
                    (unsigned)AM34_RAM_LOADER_SIZE_BYTES, (unsigned)AM34_RAM_LOADER_WORD_COUNT);
@@ -444,6 +451,28 @@ static void process_serial_command(char *line) {
         printf("[GDB RSP] Auto-ready for mn10300-elf-gdb / gdb-multiarch.\n");
         gdb_rsp_set_active(true);
         return;
+    }
+    else if (strcmp(cmd, "ISOLATE") == 0 || strcmp(cmd, "HIZ") == 0) {
+        dwire_hw_isolate_bus_hiz();
+        printf("ISOLATE: OK (All 6 pins in High-Impedance Hi-Z mode; unified JST ZR-6 plug is electrically invisible)\n");
+    }
+    else if (strcmp(cmd, "ENGAGE") == 0) {
+        dwire_hw_engage_bus_active();
+        printf("ENGAGE: OK (Active PIO OCD bus drive restored on 6-pin connector)\n");
+    }
+    else if (strcmp(cmd, "FLASH_SIZE") == 0) {
+        uint32_t mb = 8U;
+        if (arg != NULL && *arg != '\0') {
+            mb = (uint32_t)strtoul(arg, NULL, 10);
+        }
+        const uint32_t bytes = mb * 1024UL * 1024UL;
+        if (gdb_rsp_set_flash_size(bytes)) {
+            const uint32_t nvram_base = 0x80000000UL + (bytes - 0x00010000UL);
+            printf("FLASH_SIZE: OK (%" PRIu32 " MB configured; Top-Boot 64KB EEMUL NVRAM @ 0x%08" PRIX32 ")\n",
+                   mb, nvram_base);
+        } else {
+            printf("FLASH_SIZE: ERROR (Invalid size %" PRIu32 " MB; valid options: 2, 4, 8, 16)\n", mb);
+        }
     }
     else if (strcmp(cmd, "LED") == 0) {
         uint32_t mode = 0U;

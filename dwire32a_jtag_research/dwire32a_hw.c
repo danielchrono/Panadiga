@@ -5,8 +5,9 @@
  * Implements low-level electrical controls, ADC VDD voltage sensing,
  * Open-Drain reset drive, and PIO half-duplex shift operations.
  *
- * Target: Panasonic DMR-EH55 (MN2DS0016 / AM34)
- * Host:   Raspberry Pi Pico (RP2040)
+ * Target: Panasonic UniPhier / Matsushita AM34 / MN103S SoC Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Models: Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ)
+ * Host:   Raspberry Pi Pico (RP2040 / RP2350)
  *
  * @standard ISO/IEC 9899:2011 (C11)
  */
@@ -109,6 +110,9 @@ uint32_t dwire_hw_read_bits(uint8_t n_bits) {
 }
 
 void dwire_hw_cold_break_in(dwire_breakin_mode_t mode) {
+    /* Ensure bus pins are engaged (in case ISOLATE/HIZ was previously active) */
+    dwire_hw_engage_bus_active();
+
     const bool extrg_idle   = ((uint32_t)mode & DWIRE_BREAKIN_FLAG_EXTRG_INVERT) != 0U;
     const bool extrg_active = !extrg_idle;
 
@@ -198,4 +202,27 @@ void dwire_hw_attach_pins_after_sniff(void) {
 
     pio_sm_set_pins_with_mask(s_pio_inst, s_pio_sm, 0, (1u << DWIRE_PIN_SCLK) | (1u << DWIRE_PIN_SDATA));
     pio_sm_set_pindirs_with_mask(s_pio_inst, s_pio_sm, (1u << DWIRE_PIN_SCLK), (1u << DWIRE_PIN_SCLK) | (1u << DWIRE_PIN_SDATA));
+}
+
+void dwire_hw_isolate_bus_hiz(void) {
+    /* 1. Release nRESET to High-Z Input with internal pulls disabled */
+    dwire_hw_reset_release();
+    gpio_disable_pulls(DWIRE_PIN_NRESET);
+
+    /* 2. Switch EXTRG to High-Z Input with internal pulls disabled so internal DMD0/DMD1 pull-downs win */
+    gpio_set_function(DWIRE_PIN_EXTRG, GPIO_FUNC_SIO);
+    gpio_set_dir(DWIRE_PIN_EXTRG, GPIO_IN);
+    gpio_disable_pulls(DWIRE_PIN_EXTRG);
+
+    /* 3. Detach SCLK and SDATA from PIO into High-Z Input with pulls disabled */
+    dwire_hw_detach_pins_for_sniff();
+}
+
+void dwire_hw_engage_bus_active(void) {
+    /* Restore EXTRG as digital output (idle Low) and re-attach SCLK/SDATA to PIO0 */
+    gpio_set_function(DWIRE_PIN_EXTRG, GPIO_FUNC_SIO);
+    gpio_put(DWIRE_PIN_EXTRG, false);
+    gpio_set_dir(DWIRE_PIN_EXTRG, GPIO_OUT);
+
+    dwire_hw_attach_pins_after_sniff();
 }

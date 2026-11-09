@@ -46,26 +46,31 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   const pollDeviceStatus = useCallback(async () => {
     setIsLoading(true);
     try {
-      const status = await invokeCommand<PicoDeviceStatus>('pico_get_status');
+      const status = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
+        port_name: selectedPort,
+      });
       setDeviceStatus(status);
     } catch (err) {
       logger.warn('PicoDevice', 'Failed querying Pico device telemetry', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedPort]);
 
   const changeBreakinMode = useCallback(
     async (mode: ColdBreakinMode) => {
       try {
-        const updated = await invokeCommand<PicoDeviceStatus>('pico_set_breakin_mode', { mode });
+        const updated = await invokeCommand<PicoDeviceStatus>('pico_set_breakin_mode', {
+          port_name: selectedPort,
+          mode,
+        });
         setDeviceStatus(updated);
         onLog?.('info', 'HOST', `Modo de Cold Break-In alterado para: Modo ${mode}`);
       } catch (err) {
         onLog?.('error', 'HOST', `Erro ao alterar modo: ${err}`);
       }
     },
-    [onLog]
+    [selectedPort, onLog]
   );
 
   const toggleConnection = useCallback(async () => {

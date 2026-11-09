@@ -3,8 +3,8 @@
  * @brief Strict type definitions, register bitfields, and physical constants
  *        for the Panasonic DWire32A / Matsushita AM34 OCD interface.
  *
- * Target Processor: Panasonic MN2DS0016 (UniPhier / AM34 / MN103S core)
- * Target Hardware:  Panasonic DMR-EH55 Main Digital PCB (VEP79138)
+ * Target Processor: Panasonic UniPhier / Matsushita AM34 / MN103S SoC Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Target Hardware:  Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ — 2MB / 4MB / 8MB / 16MB NOR Flash)
  * Host Controller:  Universal RP2 Family (RP2040 / RP2350 Dual-Core)
  *
  * @standard ISO/IEC 9899:2011 (C11)

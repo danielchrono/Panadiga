@@ -1,19 +1,18 @@
 //! Panasonic DMR-EH55 DIGA Suite - Pico USB Serial Driver
 //!
-//! Manages low-level USB CDC communication, device enumeration, Cold Break-In
-//! sequencing, and in-circuit NVRAM erasure with the Raspberry Pi Pico (RP2040 / RP2350).
+//! Single Responsibility: Manages low-level USB CDC communication, device enumeration,
+//! telemetry status querying, raw CDC command dispatch, and Cold Break-In sequencing.
+//! In-Circuit Flash/NVRAM erasure orchestration resides in `erase.rs`.
 
 use serialport::SerialPortType;
-use std::fs;
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
 use super::gdb_bridge::is_gdb_bridge_active;
-use super::types::{
-    extract_port_name, InCircuitNvramEraseResult, PicoDeviceStatusDto, PicoStatusResponse,
-};
+use super::types::{extract_port_name, PicoDeviceStatusDto, PicoStatusResponse};
 
-fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
+/// Verifies that the serial port is not currently owned by the active GDB RSP bridge thread.
+pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
     if !clean_port.starts_with("MOCK") && is_gdb_bridge_active() {
         return Err(format!(
             "Porta serial {} ocupada pela Ponte GDB RSP ativa. Encerre a sessão GDB antes de enviar comandos CDC.",
@@ -21,6 +20,60 @@ fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// Reads multi-chunk USB CDC serial output until a terminal prompt (`DWIRE32A>`),
+/// completion keyword (`OK`, `ERROR`, `COMPLETED`, `SUCCESS`, `FAILED`, `ABORT`, `ACTIVE`, `Auto-ready`),
+/// or until `max_wait` expires, preventing 64-byte USB packet truncation.
+pub fn read_serial_response_complete(
+    port: &mut dyn serialport::SerialPort,
+    max_wait: Duration,
+) -> Result<String, String> {
+    let _ = port.set_timeout(Duration::from_millis(180));
+    let start = Instant::now();
+    let mut out = String::new();
+    let mut chunk = [0u8; 1024];
+
+    while start.elapsed() < max_wait {
+        match port.read(&mut chunk) {
+            Ok(n) if n > 0 => {
+                out.push_str(&String::from_utf8_lossy(&chunk[..n]));
+                if out.contains("DWIRE32A>")
+                    || out.contains("DUMP: OK")
+                    || out.contains("ERASE_NVRAM: OK")
+                    || out.contains("ERASE_NVRAM: ERROR")
+                    || out.contains("INJECT_LOADER: OK")
+                    || out.contains("INJECT_LOADER: ERROR")
+                    || out.contains("SAFETY INTERLOCK")
+                    || out.contains("BREAK_IN: OK")
+                    || out.contains("SCAN: COMPLETED")
+                    || out.contains("SNIFF: OK")
+                    || out.contains("ISOLATE: OK")
+                    || out.contains("ENGAGE: OK")
+                    || out.contains("FLASH_SIZE: OK")
+                    || out.contains("FLASH_SIZE: ERROR")
+                    || out.contains("[HANDSHAKE] SUCCESS")
+                    || out.contains("[HANDSHAKE] FAILED")
+                    || out.contains("[HANDSHAKE] ABORT")
+                    || out.contains("[HANDSHAKE] ACTIVE")
+                    || out.contains("Auto-ready")
+                {
+                    break;
+                }
+            }
+            Ok(_) => {}
+            Err(ref e)
+                if e.kind() == std::io::ErrorKind::TimedOut
+                    || e.kind() == std::io::ErrorKind::WouldBlock =>
+            {
+                if !out.is_empty() && start.elapsed() > Duration::from_millis(350) {
+                    break;
+                }
+            }
+            Err(e) => return Err(format!("Erro de leitura USB CDC: {}", e)),
+        }
+    }
+    Ok(out.trim().to_string())
 }
 
 /// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
@@ -41,7 +94,6 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
             ports.push(label);
         }
     }
-    // Multi-platform bench simulator options for development and headless verification
     ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
     ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
     ports
@@ -100,13 +152,11 @@ pub fn pico_connect_and_test(
         .open()
         .map_err(|e| format!("Falha ao abrir porta serial {}: {}", clean, e))?;
 
-    // Probe with PING
     let _ = port.write_all(b"\r\nPING\r\n");
     let mut buffer = [0u8; 1024];
     let bytes_read = port.read(&mut buffer).unwrap_or(0);
     let response_text = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
 
-    // Query VDD voltage
     let _ = port.write_all(b"STATUS\r\n");
     let mut vdd_buf = [0u8; 512];
     let vdd_read = port.read(&mut vdd_buf).unwrap_or(0);
@@ -201,6 +251,12 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
             "RESET" => "D_RESET pulsed low for 10ms. Target reset asserted.".to_string(),
             "ADC" => "ADC0 Raw: 4072 (3.281 V). Rail within tolerance (+-5%).".to_string(),
             "GDB" => "GDB Remote Serial Protocol mode active.".to_string(),
+            "ISOLATE" | "HIZ" => {
+                "ISOLATE: OK (All 6 pins in High-Impedance Hi-Z mode; unified JST ZR-6 plug is electrically invisible)".to_string()
+            }
+            "ENGAGE" => {
+                "ENGAGE: OK (Active PIO OCD bus drive restored on 6-pin connector)".to_string()
+            }
             _ => format!("ACK: {} (Instrução executada no PIO0 @ 0x00004000)", trimmed),
         };
         return Ok(reply);
@@ -218,9 +274,7 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
         .map_err(|e| format!("Falha ao transmitir comando CDC: {}", e))?;
     let _ = port.flush();
 
-    let mut buffer = [0u8; 4096];
-    let n = port.read(&mut buffer).unwrap_or(0);
-    Ok(String::from_utf8_lossy(&buffer[..n]).trim().to_string())
+    read_serial_response_complete(&mut *port, Duration::from_millis(8000))
 }
 
 /// Executes Cold Break-In sequence on the DMR-EH55 via RP2040 PIO state machine.
@@ -259,125 +313,9 @@ pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String,
     let cmd = format!("BREAK_IN {}\r\n", mode);
     port.write_all(cmd.as_bytes())
         .map_err(|e| format!("Falha ao enviar comando BREAK_IN: {}", e))?;
+    let _ = port.flush();
 
-    let mut buffer = [0u8; 4096];
-    let bytes_read = port
-        .read(&mut buffer)
-        .map_err(|e| format!("Falha aguardando resposta do Pico: {}", e))?;
-
-    Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
-}
-
-/// Executes full in-circuit sequence:
-/// 1. Multi-mode Handshake (Mode 2 -> Mode 0 -> Mode 3 -> Mode 1)
-/// 2. Pre-Erase Live Secret & NVRAM Dump (`nvram_live_backup.bin` & `sram_secrets.bin`)
-/// 3. `INJECT_LOADER CONFIRM` into SRAM at `0x00004000` (`AM34_SRAM_LOADER_BASE`)
-/// 4. `ERASE_NVRAM CONFIRM` erasing SA134..SA141 (`0x807F0000..0x807FFFFF`)
-pub fn pico_execute_in_circuit_erase_full(
-    port_name: String,
-) -> Result<InCircuitNvramEraseResult, String> {
-    let start_ts = Instant::now();
-    let clean = extract_port_name(&port_name);
-
-    if clean.starts_with("MOCK") {
-        let _ = fs::write("nvram_live_backup.bin", vec![0xFFu8; 256]);
-        let _ = fs::write("sram_secrets.bin", vec![0x00u8; 256]);
-        return Ok(InCircuitNvramEraseResult {
-            success: true,
-            elapsed_ms: 1420,
-            voltage_before: 3.28,
-            voltage_after: 3.27,
-            ram_loader_addr: format!("0x{:08X}", crate::constants::AM34_SRAM_LOADER_BASE),
-            bytes_erased: crate::constants::SPANSION_NVRAM_SIZE_BYTES as u32,
-            verification_sha256:
-                "0a394c8e7710bcf1489e3a6a92ecda46e01768494c8fa72722ee20c5c363dc78".to_string(),
-            log_lines: vec![
-                "Multi-Mode HANDSHAKE (Mode 2 -> 0 -> 3 -> 1): AM34 core halted (PC=0x80000000, DCSR=0x00000001).".to_string(),
-                "Pre-Erase Live Backup: Saved nvram_live_backup.bin (0x807F0000) & sram_secrets.bin (0x00000000).".to_string(),
-                "INJECT_LOADER CONFIRM: Streaming 80-byte JEDEC RAM loader into SRAM at 0x00004000... OK".to_string(),
-                "Setting PC=0x00004000 and executing ERASE_NVRAM CONFIRM...".to_string(),
-                "Spansion S29JL064H Command 0xAA->0x55->0x80 Sector Erase SA134..SA141 issued.".to_string(),
-                "Polling Spansion RY/BY# (DQ7=1, DQ5=0)... Complete in 840ms.".to_string(),
-                "Verifying 65,536 bytes at 0x807F0000..0x807FFFFF read back as 0xFF: 100% FACTORY VIRGIN STATE.".to_string(),
-                "Releasing nRESET. DMR-EH55 now boots clean with U99 eliminated!".to_string(),
-            ],
-        });
-    }
-
-    ensure_serial_port_unlocked(&clean)?;
-
-    let mut port = serialport::new(&clean, 115200)
-        .timeout(Duration::from_millis(10000))
-        .open()
-        .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean, e))?;
-
-    let mut log_lines = Vec::new();
-    let mut buf = [0u8; 4096];
-
-    // Step 1: Multi-mode HANDSHAKE
-    port.write_all(b"HANDSHAKE\r\n")
-        .map_err(|e| format!("Falha ao enviar HANDSHAKE: {}", e))?;
-    let n_hs = port.read(&mut buf).unwrap_or(0);
-    let hs_out = String::from_utf8_lossy(&buf[..n_hs]).trim().to_string();
-    log_lines.push(format!("[HANDSHAKE] {}", hs_out));
-
-    // Step 2: Pre-Erase Live Secret & NVRAM Dump
-    let _ = port.write_all(b"DUMP 0x807F0000 64\r\n");
-    let n_nv = port.read(&mut buf).unwrap_or(0);
-    let _ = fs::write("nvram_live_backup.bin", &buf[..n_nv]);
-
-    let _ = port.write_all(b"DUMP 0x00000000 64\r\n");
-    let n_sr = port.read(&mut buf).unwrap_or(0);
-    let _ = fs::write("sram_secrets.bin", &buf[..n_sr]);
-    log_lines.push(
-        "Pre-Erase Live Backup: nvram_live_backup.bin & sram_secrets.bin salvos em disco."
-            .to_string(),
-    );
-
-    // Step 3: INJECT_LOADER CONFIRM (into 0x00004000)
-    port.write_all(b"INJECT_LOADER CONFIRM\r\n")
-        .map_err(|e| format!("Falha ao enviar INJECT_LOADER CONFIRM: {}", e))?;
-    let n_inj = port
-        .read(&mut buf)
-        .map_err(|e| format!("Falha aguardando INJECT_LOADER CONFIRM: {}", e))?;
-    let inj_out = String::from_utf8_lossy(&buf[..n_inj]).trim().to_string();
-    log_lines.push(inj_out.clone());
-    if inj_out.contains("ERROR") || inj_out.contains("SAFETY INTERLOCK") {
-        return Err(format!("Falha na injeção do RAM Loader: {}", inj_out));
-    }
-
-    // Step 4: ERASE_NVRAM CONFIRM
-    port.write_all(b"ERASE_NVRAM CONFIRM\r\n")
-        .map_err(|e| format!("Falha ao enviar ERASE_NVRAM CONFIRM: {}", e))?;
-    let mut erase_buf = [0u8; 8192];
-    let n_er = port
-        .read(&mut erase_buf)
-        .map_err(|e| format!("Falha aguardando ERASE_NVRAM CONFIRM: {}", e))?;
-    let erase_out = String::from_utf8_lossy(&erase_buf[..n_er])
-        .trim()
-        .to_string();
-    for line in erase_out.lines() {
-        log_lines.push(line.to_string());
-    }
-    let success = !erase_out.contains("ERROR") && !erase_out.contains("SAFETY INTERLOCK");
-
-    Ok(InCircuitNvramEraseResult {
-        success,
-        elapsed_ms: start_ts.elapsed().as_millis() as u64,
-        voltage_before: 3.30,
-        voltage_after: 3.29,
-        ram_loader_addr: format!("0x{:08X}", crate::constants::AM34_SRAM_LOADER_BASE),
-        bytes_erased: crate::constants::SPANSION_NVRAM_SIZE_BYTES as u32,
-        verification_sha256: "0a394c8e7710bcf1489e3a6a92ecda46e01768494c8fa72722ee20c5c363dc78"
-            .to_string(),
-        log_lines,
-    })
-}
-
-/// Executes in-circuit surgical erase of Spansion S29JL064H NVRAM (string summary wrapper).
-pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String> {
-    let res = pico_execute_in_circuit_erase_full(port_name)?;
-    Ok(res.log_lines.join("\n"))
+    read_serial_response_complete(&mut *port, Duration::from_millis(3000))
 }
 
 /// Switches the Pico firmware into GDB Remote Serial Protocol (RSP) bridge mode.
@@ -396,11 +334,7 @@ pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
 
     port.write_all(b"GDB\r\n")
         .map_err(|e| format!("Falha ao enviar comando GDB: {}", e))?;
+    let _ = port.flush();
 
-    let mut buffer = [0u8; 1024];
-    let bytes_read = port
-        .read(&mut buffer)
-        .map_err(|e| format!("Falha aguardando confirmação do modo GDB: {}", e))?;
-
-    Ok(String::from_utf8_lossy(&buffer[..bytes_read]).to_string())
+    read_serial_response_complete(&mut *port, Duration::from_millis(2000))
 }

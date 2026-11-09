@@ -5,8 +5,8 @@
  * Implements bidirectional GDB remote protocol framing, register caching,
  * zero-copy memory windowing, and DWire32A hardware orchestration.
  *
- * Target: Panasonic MN2DS0016 (Matsushita AM34 / MN103S core)
- * PCB:    Panasonic DMR-EH55 Main Digital Board VEP79138
+ * Target: Panasonic UniPhier / Matsushita AM34 / MN103S SoC Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Models: Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ — 2MB / 4MB / 8MB / 16MB NOR Flash)
  *
  * @standard ISO/IEC 9899:2011 (C11)
  */
@@ -52,17 +52,24 @@ static uint8_t            s_sector_cache[GDB_SECTOR_CACHE_SIZE];
 static uint32_t           s_cache_base_addr = 0xFFFFFFFFUL;
 static bool               s_cache_valid = false;
 
-/* XML Memory Map representation for GDB qXfer:memory-map */
-static const char * const GDB_XML_MEMORY_MAP =
-    "l<memory-map>"
-    "<memory type=\"ram\" start=\"0x00000000\" length=\"0x00040000\"/>"
-    "<memory type=\"ram\" start=\"0x10000000\" length=\"0x00010000\"/>"
-    "<memory type=\"ram\" start=\"0x40000000\" length=\"0x04000000\"/>"
-    "<memory type=\"rom\" start=\"0x80000000\" length=\"0x007F0000\"/>"
-    "<memory type=\"flash\" start=\"0x807F0000\" length=\"0x00010000\">"
-    "<property name=\"blocksize\">0x2000</property>"
-    "</memory>"
-    "</memory-map>";
+/* Multi-Model Dynamic NOR Flash Geometry (Default: 8 MB = 0x00800000 for DMR-EH55/ES15/EH65/EZ25) */
+static uint32_t           s_flash_size_bytes = 0x00800000UL;
+
+bool gdb_rsp_set_flash_size(uint32_t flash_size_bytes) {
+    if (flash_size_bytes != 0x00200000UL &&
+        flash_size_bytes != 0x00400000UL &&
+        flash_size_bytes != 0x00800000UL &&
+        flash_size_bytes != 0x01000000UL) {
+        return false;
+    }
+    s_flash_size_bytes = flash_size_bytes;
+    gdb_rsp_invalidate_cache();
+    return true;
+}
+
+uint32_t gdb_rsp_get_flash_size(void) {
+    return s_flash_size_bytes;
+}
 
 /* =========================================================================
  * Helper Utility Functions
@@ -158,8 +165,8 @@ static uint8_t memory_read_byte(uint32_t addr) {
         return s_sector_cache[addr - s_cache_base_addr];
     }
 
-    // Flash or NVRAM bus range (0x80000000..0x807FFFFF): populate sector cache for burst speed
-    if (addr >= 0x80000000UL && addr < 0x80800000UL) {
+    // Flash or NVRAM bus range (0x80000000..0x80000000 + s_flash_size_bytes): populate sector cache for burst speed
+    if (addr >= 0x80000000UL && addr < (0x80000000UL + s_flash_size_bytes)) {
         uint32_t aligned = addr & ~(GDB_SECTOR_CACHE_SIZE - 1U);
         populate_cache(aligned);
         return s_sector_cache[addr - aligned];
@@ -209,12 +216,15 @@ static void reg_file_set(size_t idx, uint32_t val) {
 }
 
 static bool is_valid_write_address(uint32_t addr) {
-    /* PICO-02 & OPUS-07: Defense-in-depth hardware air-gap against IPL ROM writes (SA0..SA133) */
-    if (addr >= 0x80000000UL && addr <= 0x807EFFFFUL) {
+    const uint32_t nvram_start = 0x80000000UL + (s_flash_size_bytes - 0x00010000UL);
+    const uint32_t flash_end   = 0x80000000UL + (s_flash_size_bytes - 1UL);
+
+    /* PICO-02 & OPUS-07: Defense-in-depth hardware air-gap against IPL ROM writes */
+    if (addr >= 0x80000000UL && addr < nvram_start) {
         return false;
     }
-    /* NVRAM top microsectors SA134..SA141 (0x807F0000..0x807FFFFF): writable for U99 recovery */
-    if (addr >= 0x807F0000UL && addr <= 0x807FFFFFUL) {
+    /* NVRAM top microsectors (top 64 KB of 2MB/4MB/8MB/16MB Flash): writable for U99 recovery */
+    if (addr >= nvram_start && addr <= flash_end) {
         return true;
     }
     /* Internal SRAM (0x00000000..0x0003FFFF): writable */
@@ -245,8 +255,12 @@ static bool is_valid_write_range(uint32_t addr, uint32_t length) {
     uint32_t end_addr = addr + (length - 1U);
     if (end_addr < addr) return false;
 
-    /* Reject any overlap with protected IPL ROM (0x80000000..0x807EFFFF) */
-    if (addr <= 0x807EFFFFUL && end_addr >= 0x80000000UL) {
+    const uint32_t nvram_start = 0x80000000UL + (s_flash_size_bytes - 0x00010000UL);
+    const uint32_t ipl_end     = nvram_start - 1UL;
+    const uint32_t flash_end   = 0x80000000UL + (s_flash_size_bytes - 1UL);
+
+    /* Reject any overlap with protected IPL ROM (0x80000000..ipl_end) */
+    if (addr <= ipl_end && end_addr >= 0x80000000UL) {
         return false;
     }
 
@@ -254,7 +268,7 @@ static bool is_valid_write_range(uint32_t addr, uint32_t length) {
     if (end_addr <= 0x0003FFFFUL) return true; /* Internal SRAM */
     if (addr >= 0x10000000UL && end_addr <= 0x1000FFFFUL) return true; /* Core MMIO */
     if (addr >= 0x40000000UL && end_addr <= 0x43FFFFFFUL) return true; /* System SDRAM */
-    if (addr >= 0x807F0000UL && end_addr <= 0x807FFFFFUL) return true; /* NVRAM SA134..SA141 */
+    if (addr >= nvram_start && end_addr <= flash_end) return true;     /* Top 64KB NVRAM */
     if (addr >= 0xC0000000UL && end_addr <= 0xC000FFFFUL) return true; /* System / DWire32A OCD MMIO */
     if (addr >= 0xD4000000UL && end_addr <= 0xD4000FFFUL) return true; /* ATA / IDE MMIO */
 
@@ -387,8 +401,22 @@ static void handle_gdb_command(const char *cmd) {
                 gdb_rsp_send_packet("PacketSize=800;qXfer:memory-map:read+;qAttached+");
             }
             else if (strncmp(cmd, "qXfer:memory-map:read::", 23) == 0) {
-                // Return XML memory map
-                gdb_rsp_send_packet(GDB_XML_MEMORY_MAP);
+                // Return dynamic XML memory map matching current NOR Flash size (2MB/4MB/8MB/16MB)
+                const uint32_t rom_len = s_flash_size_bytes - 0x00010000UL;
+                const uint32_t nvram_base = 0x80000000UL + rom_len;
+                snprintf(resp_buf, sizeof(resp_buf),
+                    "l<memory-map>"
+                    "<memory type=\"ram\" start=\"0x00000000\" length=\"0x00040000\"/>"
+                    "<memory type=\"ram\" start=\"0x10000000\" length=\"0x00010000\"/>"
+                    "<memory type=\"ram\" start=\"0x40000000\" length=\"0x04000000\"/>"
+                    "<memory type=\"rom\" start=\"0x80000000\" length=\"0x%08lX\"/>"
+                    "<memory type=\"flash\" start=\"0x%08lX\" length=\"0x00010000\">"
+                    "<property name=\"blocksize\">0x2000</property>"
+                    "</memory>"
+                    "</memory-map>",
+                    (unsigned long)rom_len,
+                    (unsigned long)nvram_base);
+                gdb_rsp_send_packet(resp_buf);
             }
             else if (strcmp(cmd, "qAttached") == 0) {
                 gdb_rsp_send_packet("1"); // Attached to existing hardware target
@@ -570,6 +598,17 @@ static void handle_gdb_command(const char *cmd) {
             gdb_rsp_invalidate_cache();
             s_reg_file.pc = 0x80000000UL;
             gdb_rsp_send_packet("OK");
+            break;
+        }
+
+        /* Hardware/Software Breakpoint Insert/Remove: 'Z0','z0','Z1','z1' */
+        case 'Z':
+        case 'z': {
+            if (cmd[1] == '0' || cmd[1] == '1') {
+                gdb_rsp_send_packet("OK");
+            } else {
+                gdb_rsp_send_packet("");
+            }
             break;
         }
 

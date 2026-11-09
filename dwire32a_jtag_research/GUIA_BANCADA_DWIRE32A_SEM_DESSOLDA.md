@@ -394,6 +394,38 @@ O microcódigo AM34 (`ram_loader_payload.h`) implementa a sequência padrão int
 
 ### 7.3. Compatibilidade com Outros Gravadores da Família Panasonic DIGA
 A arquitetura de emulação de EEPROM em Flash (`EEMUL`) é a causadora do clássico erro `U99` em toda a geração de gravadores Matsushita. Este procedimento atende:
-1. **Compatibilidade 100% Plug-and-Play Direta (8 MB Flash Top-Boot):** Panasonic DMR-EH55 (todas as versões mundiais), DMR-EH56, DMR-EH50, DMR-EH60, DMR-EH65 e gravadores OEM parceiros (ex: Philips chassi DIGA).
-2. **Gerações Anteriores (Flash de 2 MB / 4 MB):** Modelos como DMR-E85H, DMR-E95H, DMR-E55, DMR-ES10 sofrem da mesma corrupção de EEMUL. O algoritmo é idêntico, requerendo apenas apontar o endereço base do topo da Flash para `0x803F0000` (Flash de 4 MB) ou `0x801F0000` (Flash de 2 MB).
-3. **Documento Técnico de Referência Completa:** Para a análise profunda de silício, tempos de setup/hold e matriz cross-device detalhada, consulte o [Dossiê de Arquitetura da Suíte Panadiga e Matriz de Compatibilidade](../docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md).
+1. **Geração 8 MB NOR Flash (Top-Boot — `0x807F0000..0x807FFFFF`):** Panasonic **DMR-EH55**, **DMR-EH56**, **DMR-EH65**, **DMR-ES15**, **DMR-ES25**, **DMR-ES35V**, **DMR-EZ25** e gravadores OEM parceiros.
+2. **Geração 4 MB NOR Flash (Top-Boot — `0x803F0000..0x803FFFFF`):** Panasonic **DMR-ES10**, **DMR-ES20**, **DMR-ES30V**, **DMR-EH50**, **DMR-EH60**, **DMR-E100H**, **DMR-E500H**.
+3. **Geração 2 MB NOR Flash (Top-Boot — `0x801F0000..0x801FFFFF`):** Panasonic **DMR-E50**, **DMR-E55**, **DMR-E65**, **DMR-E80H**, **DMR-E85H**, **DMR-E95H**.
+4. **Geração 16 MB NOR Flash (DVB-T / HDMI — `0x80FF0000..0x80FFFFFF`):** Panasonic **DMR-EX75**, **DMR-EX85**, **DMR-EX77**, **DMR-EX87**, **DMR-EX95V**, **DMR-EZ27**, **DMR-EZ45V**, **DMR-EZ48V**.
+5. **Documento Técnico de Referência Completa:** Para a análise profunda de silício, tempos de setup/hold e matriz cross-device detalhada, consulte o [Dossiê de Arquitetura da Suíte Panadiga e Matriz de Compatibilidade](../docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md).
+
+---
+
+## 8. Conector Inteiriço de 6 Pinos (`JST ZR-6`) & Isolamento Tri-State (`ISOLATE` / `HIZ`)
+
+Como o conector `P7501` (`CN55001` — `B6B-ZR-3R4`) utiliza um plugue fêmea **inteiriço de 6 vias (1.5 mm)**, **não é necessário remover fios do alojamento plástico nem desencaixar o cabo** para fazer leituras ou deixar o gravador dar boot normal:
+
+1. **Os 6 Pinos Podem Ficar 100% Conectados no Chicote Inteiriço:**
+   * **Pino 3 (`GND`):** Terra comum ($0.0\,\Omega$).
+   * **Pino 6 (`VDD +3.3V`):** Vai para o `GP26 (ADC0)` do Pico via resistor de $1\,\text{k}\Omega$ (entrada de alta impedância do ADC, consome $< 1\,\mu\text{A}$). **Nota:** O pino `3V3_OUT` (Pino 36) do Pico **nunca** entra no cabo de 6 vias; quem alimenta o pull-up de $4.7\,\text{k}\Omega$ do `SDATA` é o próprio Pino 6 da placa Panasonic.
+   * **Pino 5 (`nRESET`):** Já opera em **Open-Drain** (`GPIO_IN` sem pull-up/pull-down quando solto).
+   * **Pinos 1, 2 e 4 (`EXTRG`, `SCLK`, `SDATA`):** Podem ser colocados em **Alta Impedância (`Hi-Z`)** por software pelo próprio Pico!
+2. **Comandos `ISOLATE` (ou `HIZ`) e `ENGAGE` no Firmware do Pico:**
+   * Ao enviar `ISOLATE` (ou `HIZ`), o Pico executa `dwire_hw_isolate_bus_hiz()`, desconectando a máquina PIO e colocando `EXTRG`, `SCLK`, `SDATA` e `nRESET` como entradas flutuantes (`GPIO_IN` + `gpio_disable_pulls`). O cabo de 6 pinos fica **eletricamente invisível** para a placa Panasonic, permitindo ligar/reiniciar o aparelho normalmente com o plugue encaixado.
+   * Ao enviar `ENGAGE` (ou qualquer comando `HANDSHAKE` / `BREAK_IN`), o Pico reativa automaticamente o transceptor PIO.
+
+---
+
+## 9. Protocolo "What's Next" — Checklist da 1ª Conexão Read-Only na Placa Real
+
+Antes de disparar qualquer apagamento (`ERASE_NVRAM`), execute obrigatoriamente os 4 passos não-destrutivos na 1ª conexão física:
+
+1. **Passo 1 (`STATUS` $\rightarrow$ `SNIFF 100` $\rightarrow$ `HANDSHAKE`):**
+   * Valida que `VDD` está entre $3.00\text{V}$ e $3.35\text{V}$, que as linhas `SCLK`/`SDATA` repousam em $3.3\text{V}$ e que o núcleo AM34 entra em `HALT` (`DCSR = 0x00000001`).
+2. **Passo 2 (Double-Read Binary Backup com Verificação SHA-256 — `pico_first_contact_backup`):**
+   * Lê duas vezes consecutivas os 64 KB da NVRAM (`DUMP 0x807F0000 16384`), converte para binário Little-Endian real (`nvram_live_backup.bin`) e exige que os dois hashes **SHA-256 sejam 100% idênticos**, garantindo zero ruído no chicote de 6 pinos e preservando a calibração óptica (`SA138`) e as chaves HDD/CPRM (`SA139`).
+3. **Passo 3 (Auto-Detecção de Modelo e Extração do Bootloader IPL `0x80000000`):**
+   * Extrai o cabeçalho do Bootloader (`ipl_bootcamp_header.bin`) e a SRAM (`sram_secrets.bin`), identificando automaticamente o modelo exato da família DIGA (`DMR-EH55`, `DMR-ES15`, `DMR-EH50`, `DMR-ES10`, `DMR-EX75`, `DMR-EZ27`, `DMR-E85H`, etc.) e permitindo localizar a chave mestra ECB de 64 bits e as S-Boxes no Ghidra.
+4. **Passo 4 (Limpeza Cirúrgica do Acumulador `U99`):**
+   * Com o backup binário validado por SHA-256, executa-se a limpeza cirúrgica eliminando o flag `U99` sem perder os parâmetros vitais da unidade.

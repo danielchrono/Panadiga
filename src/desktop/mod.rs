@@ -32,6 +32,7 @@ pub fn run_desktop_app() {
             pico_get_status,
             pico_set_breakin_mode,
             pico_inject_ram_loader,
+            pico_first_contact_backup,
             pico_send_serial_command,
             pico_connect_and_test,
             pico_execute_cold_break_in,

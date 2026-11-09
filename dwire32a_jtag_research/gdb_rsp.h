@@ -6,8 +6,8 @@
  * access, memory read/write, breakpoint management, and single-step control
  * over USB CDC serial on Raspberry Pi Pico (RP2040) and Pico 2 (RP2350).
  *
- * Target: Panasonic MN2DS0016 (Matsushita AM34 / MN103S core)
- * PCB:    Panasonic DMR-EH55 Main Digital Board VEP79138
+ * Target: Panasonic UniPhier / Matsushita AM34 / MN103S SoC Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Models: Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ — 2MB / 4MB / 8MB / 16MB NOR Flash)
  *
  * Architecture:
  *   [ mn10300-elf-gdb / gdb-multiarch ] <--- USB CDC (RSP) ---> [ Pico RP2040/RP2350 ] <--- DWire32A (PIO) ---> [ MN2DS0016 ]
@@ -138,6 +138,23 @@ void gdb_rsp_invalidate_cache(void);
  * @brief Get human-readable description of current hardware/cache allocation.
  */
 const char *gdb_rsp_get_status_info(void);
+
+/**
+ * @brief Configure target NOR Flash geometry dynamically (2 MB, 4 MB, 8 MB, or 16 MB).
+ *
+ * Updates the protected Bootloader IPL ceiling and top-boot 64 KB EEMUL NVRAM
+ * window (`0x801F0000`, `0x803F0000`, `0x807F0000`, or `0x80FF0000`), as well
+ * as the GDB `qXfer:memory-map:read` XML descriptor.
+ *
+ * @param flash_size_bytes Total NOR Flash size in bytes (Default: 8 MB = 0x00800000).
+ * @return true if valid geometry (2MB/4MB/8MB/16MB), false otherwise.
+ */
+bool gdb_rsp_set_flash_size(uint32_t flash_size_bytes);
+
+/**
+ * @brief Get currently configured NOR Flash size in bytes.
+ */
+uint32_t gdb_rsp_get_flash_size(void);
 
 #ifdef __cplusplus
 }

@@ -93,6 +93,19 @@ pub struct InCircuitNvramEraseResult {
     pub log_lines: Vec<String>,
 }
 
+/// Result of the non-destructive "What's Next" 1st-Contact Read-Only Backup & Auto-Model Probe.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FirstContactBackupResult {
+    pub success: bool,
+    pub detected_model: String,
+    pub nvram_bytes: usize,
+    pub nvram_sha256: String,
+    pub double_read_verified: bool,
+    pub sram_bytes: usize,
+    pub ipl_bytes: usize,
+    pub log_lines: Vec<String>,
+}
+
 /// Pure helper function to normalize port name string, extracting "COMx" or detecting mock mode.
 pub fn extract_port_name(input: &str) -> String {
     let trimmed = input.trim();

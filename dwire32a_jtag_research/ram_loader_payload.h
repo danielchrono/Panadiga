@@ -8,10 +8,10 @@
  * S29JL064H70TFI00 NOR Flash (IC55007), clearing the fatal U99 error state
  * without desoldering the memory IC from the VEP79138 digital board.
  *
- * Target Processor: Panasonic / Matsushita MN2DS0016 (UniPhier AM34 / MN103S)
- * Target Board:     Panasonic DMR-EH55 Main Digital Board (VEP79138)
- * Flash Memory:     Spansion S29JL064H70TFI00 (64 Mbit / 8 MB TSOP-48)
- * Injection Engine: Raspberry Pi Pico (RP2040) DWire32A PIO Transceiver
+ * Target Processor: Panasonic / Matsushita UniPhier AM34 / MN103S Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Target Models:    Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ)
+ * Flash Memory:     Parallel NOR Flash Top-Boot (2 MB / 4 MB / 8 MB / 16 MB — Spansion S29JL/GL, ST M29W, Macronix MX29LV)
+ * Injection Engine: Raspberry Pi Pico (RP2040 / RP2350) DWire32A PIO Transceiver
  *
  * @standard ISO/IEC 9899:2011 (C11)
  */
@@ -248,29 +248,65 @@ static inline uint32_t ram_loader_calc_sum32(const uint32_t *words, size_t count
  * @param verify           Whether to read back each word to verify integrity.
  * @return DWIRE_OK on success, or error code on failure.
  */
-static inline dwire_status_t ram_loader_inject(uint32_t target_sram_addr, bool verify) {
+static inline dwire_status_t ram_loader_inject_for_flash_size(
+    uint32_t target_sram_addr,
+    bool verify,
+    uint32_t flash_size_bytes
+) {
     if (!dwire_hw_is_target_powered()) {
-        printf("[INJECT_LOADER] Error: Target DMR-EH55 board is unpowered (VDD < 2.5V)!\n");
+        printf("[INJECT_LOADER] Error: Target DIGA board is unpowered (VDD < 2.5V)!\n");
         return DWIRE_ERR_TARGET_UNPOWERED;
     }
 
     const uint32_t crc = ram_loader_calc_crc32(am34_ram_loader_bin, AM34_RAM_LOADER_SIZE_BYTES);
-    const uint32_t *words = (const uint32_t *)(const void *)am34_ram_loader_bin;
-    const uint32_t sum = ram_loader_calc_sum32(words, AM34_RAM_LOADER_WORD_COUNT);
-
-    printf("[INJECT_LOADER] Target Address : 0x%08lX (AM34 Internal SRAM)\n", (unsigned long)target_sram_addr);
-    printf("[INJECT_LOADER] Payload Size   : %u bytes (%u x 32-bit words)\n",
-           (unsigned)AM34_RAM_LOADER_SIZE_BYTES, (unsigned)AM34_RAM_LOADER_WORD_COUNT);
-    printf("[INJECT_LOADER] Binary CRC32   : 0x%08lX (%s)\n",
-           (unsigned long)crc, (crc == AM34_RAM_LOADER_CRC32) ? "MATCH" : "MISMATCH");
-    printf("[INJECT_LOADER] Binary Sum32   : 0x%08lX (%s)\n",
-           (unsigned long)sum, (sum == AM34_RAM_LOADER_SUM32) ? "MATCH" : "MISMATCH");
-
     if (crc != AM34_RAM_LOADER_CRC32) {
         printf("[INJECT_LOADER] Error: Local binary checksum corruption!\n");
         return DWIRE_ERR_INVALID_PARAM;
     }
 
+    /* Clone base 80-byte template and patch NVRAM start (a2) and end (a3 & cmp) for target geometry */
+    uint8_t patched_bin[AM34_RAM_LOADER_SIZE_BYTES];
+    for (size_t i = 0; i < AM34_RAM_LOADER_SIZE_BYTES; ++i) {
+        patched_bin[i] = am34_ram_loader_bin[i];
+    }
+
+    const uint32_t eff_size = (flash_size_bytes == 0x00200000UL ||
+                               flash_size_bytes == 0x00400000UL ||
+                               flash_size_bytes == 0x00800000UL ||
+                               flash_size_bytes == 0x01000000UL)
+                              ? flash_size_bytes
+                              : 0x00800000UL;
+    const uint32_t nvram_start = SPANSION_FLASH_UNCACHED_BASE + (eff_size - 0x00010000UL);
+    const uint32_t nvram_end   = SPANSION_FLASH_UNCACHED_BASE + eff_size;
+
+    /* Patch 0x000C: mov <nvram_start>, a2 (32-bit little-endian immediate at offset 0x000E) */
+    patched_bin[0x0E] = (uint8_t)(nvram_start & 0xFFU);
+    patched_bin[0x0F] = (uint8_t)((nvram_start >> 8) & 0xFFU);
+    patched_bin[0x10] = (uint8_t)((nvram_start >> 16) & 0xFFU);
+    patched_bin[0x11] = (uint8_t)((nvram_start >> 24) & 0xFFU);
+
+    /* Patch 0x0012: mov <nvram_end>, a3 (32-bit little-endian immediate at offset 0x0014) */
+    patched_bin[0x14] = (uint8_t)(nvram_end & 0xFFU);
+    patched_bin[0x15] = (uint8_t)((nvram_end >> 8) & 0xFFU);
+    patched_bin[0x16] = (uint8_t)((nvram_end >> 16) & 0xFFU);
+    patched_bin[0x17] = (uint8_t)((nvram_end >> 24) & 0xFFU);
+
+    /* Patch 0x0042: cmp <nvram_end>, a2 (32-bit little-endian immediate at offset 0x0044) */
+    patched_bin[0x44] = (uint8_t)(nvram_end & 0xFFU);
+    patched_bin[0x45] = (uint8_t)((nvram_end >> 8) & 0xFFU);
+    patched_bin[0x46] = (uint8_t)((nvram_end >> 16) & 0xFFU);
+    patched_bin[0x47] = (uint8_t)((nvram_end >> 24) & 0xFFU);
+
+    const uint32_t *words = (const uint32_t *)(const void *)patched_bin;
+    const uint32_t sum = ram_loader_calc_sum32(words, AM34_RAM_LOADER_WORD_COUNT);
+
+    printf("[INJECT_LOADER] Target Address : 0x%08lX (AM34 Internal SRAM)\n", (unsigned long)target_sram_addr);
+    printf("[INJECT_LOADER] Flash Geometry : %lu MB (NVRAM Window: 0x%08lX..0x%08lX)\n",
+           (unsigned long)(eff_size / (1024UL * 1024UL)),
+           (unsigned long)nvram_start,
+           (unsigned long)(nvram_end - 1UL));
+    printf("[INJECT_LOADER] Payload Size   : %u bytes (%u x 32-bit words, Sum32=0x%08lX)\n",
+           (unsigned)AM34_RAM_LOADER_SIZE_BYTES, (unsigned)AM34_RAM_LOADER_WORD_COUNT, (unsigned long)sum);
     printf("[INJECT_LOADER] Streaming payload via DWire32A PIO state machine...\n");
 
     for (uint32_t i = 0; i < AM34_RAM_LOADER_WORD_COUNT; ++i) {
@@ -293,6 +329,10 @@ static inline dwire_status_t ram_loader_inject(uint32_t target_sram_addr, bool v
     printf("[INJECT_LOADER] Successfully injected %u bytes into SRAM.\n",
            (unsigned)AM34_RAM_LOADER_SIZE_BYTES);
     return DWIRE_OK;
+}
+
+static inline dwire_status_t ram_loader_inject(uint32_t target_sram_addr, bool verify) {
+    return ram_loader_inject_for_flash_size(target_sram_addr, verify, 0x00800000UL);
 }
 
 /**

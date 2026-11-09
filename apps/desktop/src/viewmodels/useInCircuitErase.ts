@@ -3,6 +3,7 @@ import { InCircuitNvramEraseResult } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 
 export interface UseInCircuitEraseOptions {
+  selectedPort?: string;
   onLog?: (level: 'info' | 'warn' | 'error' | 'success' | 'rx', source: 'HOST' | 'PICO', message: string) => void;
   onSuccess?: () => void;
 }
@@ -20,7 +21,7 @@ export type InCircuitEraseState =
 /**
  * Single Responsibility: Manages in-circuit RAM loader injection and NVRAM sector erasure lifecycle.
  */
-export function useInCircuitErase({ onLog, onSuccess }: UseInCircuitEraseOptions = {}) {
+export function useInCircuitErase({ selectedPort, onLog, onSuccess }: UseInCircuitEraseOptions = {}) {
   const [state, setState] = useState<InCircuitEraseState>({ status: 'idle' });
 
   const isErasing = state.status === 'erasing';
@@ -31,7 +32,9 @@ export function useInCircuitErase({ onLog, onSuccess }: UseInCircuitEraseOptions
     setState({ status: 'erasing' });
     onLog?.('info', 'HOST', 'Disparando sequência cirúrgica: Injeção de RAM Loader + Apagamento de NVRAM In-Circuit...');
     try {
-      const result = await invokeCommand<InCircuitNvramEraseResult>('pico_inject_ram_loader');
+      const result = await invokeCommand<InCircuitNvramEraseResult>('pico_inject_ram_loader', {
+        port_name: selectedPort,
+      });
       setState({ status: 'success', result });
       result.log_lines.forEach((line, index) => {
         setTimeout(() => {
@@ -44,7 +47,7 @@ export function useInCircuitErase({ onLog, onSuccess }: UseInCircuitEraseOptions
       setState({ status: 'error', error: errMsg });
       onLog?.('error', 'HOST', `Falha no procedimento in-circuit: ${errMsg}`);
     }
-  }, [onLog, onSuccess]);
+  }, [selectedPort, onLog, onSuccess]);
 
   return {
     state,

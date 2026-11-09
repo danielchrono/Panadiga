@@ -21,11 +21,16 @@ export function usePicoBenchViewModel() {
   });
 
   const erase = useInCircuitErase({
+    selectedPort: device.selectedPort,
     onLog: console.addLog,
     onSuccess: useCallback(() => {
       device.setDeviceStatus(prev => (prev ? { ...prev, ram_loader_injected: true } : null));
     }, [device]),
   });
+
+  const handleSendCommand = useCallback(() => {
+    return console.sendCommand(device.selectedPort);
+  }, [console, device.selectedPort]);
 
   return {
     // Device & Connection Subsystem
@@ -58,7 +63,7 @@ export function usePicoBenchViewModel() {
     logContainerRef: console.logContainerRef,
     commandInput: console.commandInput,
     setCommandInput: console.setCommandInput,
-    sendCommand: console.sendCommand,
+    sendCommand: handleSendCommand,
     clearLogs: console.clearLogs,
   };
 }

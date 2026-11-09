@@ -11,10 +11,14 @@ export type SerialConsoleState =
   | { status: 'idle' }
   | { status: 'sending'; command: string };
 
+export interface UseSerialConsoleOptions {
+  selectedPort?: string;
+}
+
 /**
  * Single Responsibility: Manages interactive serial CDC console logs and command dispatching.
  */
-export function useSerialConsole() {
+export function useSerialConsole({ selectedPort }: UseSerialConsoleOptions = {}) {
   const [logs, setLogs] = useState<SerialLogEntry[]>(mockInitialSerialLogs);
   const [commandInput, setCommandInput] = useState<string>('');
   const [consoleState, setConsoleState] = useState<SerialConsoleState>({ status: 'idle' });
@@ -51,7 +55,7 @@ export function useSerialConsole() {
     return unsubscribe;
   }, [addLog]);
 
-  const sendCommand = useCallback(async () => {
+  const sendCommand = useCallback(async (overridePort?: string) => {
     if (!commandInput.trim()) return;
     const cmd = commandInput.trim().toUpperCase();
     setConsoleState({ status: 'sending', command: cmd });
@@ -73,6 +77,7 @@ export function useSerialConsole() {
     if (isTauriEnvironment() && !isDemoModeActive()) {
       try {
         const response = await invokeCommand<string>('pico_send_serial_command', {
+          port_name: overridePort || selectedPort,
           command: cmd,
         });
         const source = cmd === 'RESET' ? 'TARGET' : 'PICO';
@@ -103,7 +108,7 @@ export function useSerialConsole() {
       }
       setConsoleState({ status: 'idle' });
     }, 120);
-  }, [commandInput, addLog]);
+  }, [commandInput, selectedPort, addLog]);
 
   const clearLogs = useCallback(() => {
     setLogs([]);

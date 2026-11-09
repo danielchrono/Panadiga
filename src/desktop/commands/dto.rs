@@ -1,0 +1,237 @@
+//! Panasonic DMR-EH55 DIGA Suite - Desktop IPC Data Transfer Objects (DTOs)
+//!
+//! Single Responsibility: Defines strongly-typed serialization structures matching
+//! the React/TypeScript Frontend models (`apps/desktop/src/models/`) and pure
+//! candidate file path resolution helpers.
+
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+
+pub use super::super::pico::{
+    Am34RegisterState, FirstContactBackupResult, GdbBridgeStatus, GdbPacketTelemetryEvent,
+    InCircuitNvramEraseResult, PicoDeviceStatusDto, PicoStatusResponse,
+};
+pub use crate::crypto::{
+    CodebookReport, CryptanalysisReport as FrmEntropyReport, FrmTocDumpReport,
+};
+pub use crate::hdd::{ExtractedPartitionReport, HddAnalysisReport, MeihdfsAllocationReport};
+pub use crate::manuals::PdfSearchResult as ManualSearchResult;
+pub use crate::nvram::NvramCleanReport;
+
+/// Frontend-compatible binary file status entry for `get_system_overview`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BinaryFileStatusDto {
+    pub id: String,
+    pub name: String,
+    pub path: String,
+    pub exists: bool,
+    pub size_bytes: Option<u64>,
+    pub formatted_size: Option<String>,
+    pub expected_role: String,
+    pub status: String,
+}
+
+/// Frontend-compatible system overview DTO for `get_system_overview`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemOverviewDto {
+    pub product_model: String,
+    pub soc_processor: String,
+    pub core_architecture: String,
+    pub os_system: String,
+    pub flash_rom: String,
+    pub hdd_specs: String,
+    pub optical_drive: String,
+    pub debug_port: String,
+    pub error_code: String,
+    pub error_description: String,
+    pub firmware_version: String,
+    pub binaries: Vec<BinaryFileStatusDto>,
+}
+
+/// Frontend-compatible extracted partition item for `extract_partitions`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtractedPartitionItemDto {
+    pub id: usize,
+    pub name: String,
+    pub filename: String,
+    #[serde(rename = "offsetHex")]
+    pub offset_hex: String,
+    #[serde(rename = "sizeBytes")]
+    pub size_bytes: usize,
+    pub sha256: String,
+    pub md5: String,
+    pub entropy: f64,
+}
+
+/// Frontend-compatible partition extraction manifest for `extract_partitions`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PartitionExtractionManifestDto {
+    pub timestamp: String,
+    #[serde(rename = "sourceImage")]
+    pub source_image: String,
+    #[serde(rename = "outputDirectory")]
+    pub output_directory: String,
+    #[serde(rename = "manifestSha256Sums")]
+    pub manifest_sha256_sums: String,
+    #[serde(rename = "extractedPartitions")]
+    pub extracted_partitions: Vec<ExtractedPartitionItemDto>,
+}
+
+/// Frontend-compatible hex dump row for `read_hex_dump`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HexDumpRowDto {
+    pub offset: usize,
+    pub offset_hex: String,
+    pub bytes: Vec<u8>,
+    pub hex_part1: String,
+    pub hex_part2: String,
+    pub ascii: String,
+}
+
+/// Resolves the first existing file path from a candidate list, or returns `fallback`.
+pub fn resolve_candidate(candidates: &[&str], fallback: &str) -> String {
+    for &c in candidates {
+        if Path::new(c).exists() {
+            return c.to_string();
+        }
+    }
+    fallback.to_string()
+}
+
+/// Pure check for valid Panasonic DIGA Parallel NOR Flash geometries (2 MB, 4 MB, 8 MB, 16 MB).
+/// Explicitly excludes 100 MB+ HDD dumps and optical .FRM containers.
+pub const fn is_valid_nor_flash_size(size_bytes: u64) -> bool {
+    matches!(
+        size_bytes,
+        0x0020_0000 | 0x0040_0000 | 0x0080_0000 | 0x0100_0000
+    )
+}
+
+/// Pure signature detector identifying the Panasonic DIGA recorder model from a binary slice or geometry.
+/// Covers all Panasonic DIGA generations: E-Series (E55..E500H), ES-Series (ES10..ES35V),
+/// EH-Series (EH50..EH80V), EX-Series (EX75..EX99V), and EZ-Series (EZ25..EZ49V).
+pub fn detect_diga_model_from_slice(data: &[u8]) -> String {
+    let known_models = [
+        // Série DMR-EH (HDD + DVD Analog/Hybrid)
+        "DMR-EH80V",
+        "DMR-EH75V",
+        "DMR-EH68",
+        "DMR-EH67",
+        "DMR-EH65",
+        "DMR-EH60",
+        "DMR-EH59",
+        "DMR-EH58",
+        "DMR-EH57",
+        "DMR-EH56",
+        "DMR-EH55",
+        "DMR-EH54",
+        "DMR-EH50",
+        // Série DMR-ES (DVD-RAM / VHS Combo without HDD)
+        "DMR-ES35V",
+        "DMR-ES30V",
+        "DMR-ES25",
+        "DMR-ES20",
+        "DMR-ES15",
+        "DMR-ES10",
+        // Série DMR-EX (HDD + DVD + DVB-T Digital Tuner)
+        "DMR-EX99V",
+        "DMR-EX98V",
+        "DMR-EX95V",
+        "DMR-EX89",
+        "DMR-EX88",
+        "DMR-EX87",
+        "DMR-EX85",
+        "DMR-EX79",
+        "DMR-EX78",
+        "DMR-EX77",
+        "DMR-EX768",
+        "DMR-EX75",
+        // Série DMR-EZ (DVD + Digital Tuner / VHS Combo)
+        "DMR-EZ49V",
+        "DMR-EZ48V",
+        "DMR-EZ47V",
+        "DMR-EZ45V",
+        "DMR-EZ37V",
+        "DMR-EZ28",
+        "DMR-EZ27",
+        "DMR-EZ25",
+        // Série DMR-E / DMR-ExxH (1ª e 2ª Geração HDD / DVD-RAM)
+        "DMR-E500H",
+        "DMR-E100H",
+        "DMR-E95H",
+        "DMR-E85H",
+        "DMR-E80H",
+        "DMR-E75V",
+        "DMR-E65",
+        "DMR-E60",
+        "DMR-E55",
+        "DMR-E53",
+        "DMR-E50",
+    ];
+    for model in known_models {
+        if data
+            .windows(model.len())
+            .any(|w| w.eq_ignore_ascii_case(model.as_bytes()))
+        {
+            return model.to_string();
+        }
+    }
+    match data.len() {
+        0x0020_0000 => {
+            "Panasonic DIGA (2MB NOR Flash - Geração 2003/2004: DMR-E50/E55/E65 / DMR-E80H/E85H/E95H)".to_string()
+        }
+        0x0040_0000 => {
+            "Panasonic DIGA (4MB NOR Flash - Geração 2005: DMR-ES10/ES20/ES30V / DMR-EH50/EH60 / DMR-E100H/E500H)".to_string()
+        }
+        0x0080_0000 => {
+            "Panasonic DIGA (8MB NOR Flash - Geração 2006+: DMR-ES15/ES25/ES35V / DMR-EH55/EH56/EH65 / DMR-EZ25)".to_string()
+        }
+        0x0100_0000 => {
+            "Panasonic DIGA (16MB NOR Flash - Geração DVB-T/HDMI: DMR-EX75/EX85/EX77/EX87 / DMR-EZ27/EZ45V/EZ48V)".to_string()
+        }
+        _ => "Panasonic DIGA (Auto-Detected Target)".to_string(),
+    }
+}
+
+/// Automatically scans workspace directories for any valid NOR Flash dump (2MB, 4MB, 8MB, or 16MB)
+/// across any Panasonic DIGA model, never falling back to a 100MB HDD image.
+pub fn resolve_default_flash_path(input_path: Option<String>) -> String {
+    if let Some(custom) = input_path {
+        let trimmed = custom.trim();
+        if !trimmed.is_empty() {
+            return trimmed.to_string();
+        }
+    }
+
+    let search_dirs = ["firmware_and_images", "../../firmware_and_images", "."];
+    for dir in search_dirs {
+        if let Ok(entries) = std::fs::read_dir(dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    let ext_ok = path
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| matches!(e.to_ascii_lowercase().as_str(), "bin" | "rom" | "dump"))
+                        .unwrap_or(false);
+                    if ext_ok {
+                        if let Ok(meta) = entry.metadata() {
+                            if is_valid_nor_flash_size(meta.len()) {
+                                return path.to_string_lossy().to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    resolve_candidate(
+        &[
+            "firmware_and_images/panasonic_flash_dump.bin",
+            "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
+            "panasonic_dmr-eh55_flash_dump.bin",
+        ],
+        "firmware_and_images/panasonic_flash_dump.bin",
+    )
+}

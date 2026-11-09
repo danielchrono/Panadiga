@@ -5,8 +5,9 @@
  * Provides open-drain reset control, calibrated VDD sense via ADC0,
  * and low-jitter half-duplex synchronous bit streaming via RP2040 PIO.
  *
- * Target: Panasonic DMR-EH55 (MN2DS0016 / AM34)
- * Host:   Raspberry Pi Pico (RP2040)
+ * Target: Panasonic UniPhier / Matsushita AM34 / MN103S SoC Family (MN2DS0004 / MN2DS0009 / MN2DS0016 / MN2DS0018)
+ * Models: Panasonic DIGA Series (DMR-E / DMR-ExxH / DMR-ES / DMR-EH / DMR-EX / DMR-EZ)
+ * Host:   Raspberry Pi Pico (RP2040 / RP2350)
  *
  * @standard ISO/IEC 9899:2011 (C11)
  */
@@ -178,6 +179,19 @@ void dwire_hw_detach_pins_for_sniff(void);
  * @brief Re-attach SCLK and SDATA pins to the PIO state machine after sniffing.
  */
 void dwire_hw_attach_pins_after_sniff(void);
+
+/**
+ * @brief Place all 6 connector pins (EXTRG, SCLK, SDATA, nRESET) into High-Impedance (Hi-Z Input, no pulls).
+ *
+ * Allows the 1-piece 6-pin JST ZR-6 (B6B-ZR-3R4) plug to remain physically connected
+ * to P7501/CN55001 at all times without loading or interfering with normal recorder boot.
+ */
+void dwire_hw_isolate_bus_hiz(void);
+
+/**
+ * @brief Restore active PIO / OCD drive on the 6-pin connector from High-Impedance isolation.
+ */
+void dwire_hw_engage_bus_active(void);
 
 #ifdef __cplusplus
 }

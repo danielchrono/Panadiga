@@ -199,6 +199,10 @@ pub const MEIHDFS_TAG_VNODE_ENTRY: u8 = 0xE0;
 /// Raw byte on disk: 0x1E (0x1E ^ 0xFF = 0xE1).
 pub const MEIHDFS_TAG_VINODE_LINK: u8 = 0xE1;
 
+/// MEIHDFS Allocation Record Tag 0xFF: Unallocated / Free record slot.
+/// Raw byte on disk: 0x00 (0x00 ^ 0xFF = 0xFF).
+pub const MEIHDFS_TAG_FREE: u8 = 0xFF;
+
 /// Relative offset within each 128 KB Journal block where the transaction commit trailer begins (0x12C0C).
 pub const JOURNAL_TRANSACTION_TRAILER_OFFSET: usize = 0x12C0C;
 

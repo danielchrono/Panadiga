@@ -161,6 +161,39 @@ pub enum HddActions {
         #[arg(long)]
         journal: bool,
     },
+
+    /// Lists connected physical drives and identifies system OS drive lockouts
+    ListDrives,
+
+    /// Procedurally formats a non-system physical drive or disk image with MEIHDFS structures (mkfs.meihdfs)
+    FormatMeihdfs {
+        /// Target device path (e.g. \\.\PhysicalDrive1 or /dev/sdb)
+        #[arg(short, long, value_name = "TARGET_DRIVE")]
+        target: String,
+
+        /// Total drive capacity in Gigabytes (e.g. 160, 250, 500, 1000)
+        #[arg(short, long, default_value_t = 160, value_name = "SIZE_GB")]
+        size_gb: u64,
+
+        /// Explicit safety confirmation token (e.g. CONFIRM-PhysicalDrive1)
+        #[arg(long, value_name = "TOKEN")]
+        confirm: String,
+    },
+
+    /// Streams a raw image (.bin or transparently decompressed .bin.gz) directly to a non-system physical drive
+    WriteImage {
+        /// Target device path (e.g. \\.\PhysicalDrive1 or /dev/sdb)
+        #[arg(short, long, value_name = "TARGET_DRIVE")]
+        target: String,
+
+        /// Path to the source raw or gzipped disk image
+        #[arg(short, long, value_name = "IMAGE_PATH")]
+        image: PathBuf,
+
+        /// Explicit safety confirmation token (e.g. CONFIRM-PhysicalDrive1)
+        #[arg(long, value_name = "TOKEN")]
+        confirm: String,
+    },
 }
 
 // ============================================================================
@@ -353,6 +386,17 @@ pub enum PicoActions {
         /// TCP listener address and port for incoming GDB connections
         #[arg(short, long, default_value = "127.0.0.1:3333")]
         listen: String,
+    },
+
+    /// Automatically flashes the DWire32A firmware to a detected Raspberry Pi Pico (RP2040/RP2350)
+    Flash {
+        /// Optional serial port of a running Pico to trigger 1200-baud touch reset into BOOTSEL mode
+        #[arg(short, long, value_name = "PORT")]
+        port: Option<String>,
+
+        /// Path to custom .uf2 firmware file (defaults to scanning dist_bin/firmware or dwire32a_jtag_research)
+        #[arg(short, long, value_name = "UF2_FILE")]
+        file: Option<PathBuf>,
     },
 }
 

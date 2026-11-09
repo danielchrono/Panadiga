@@ -79,15 +79,36 @@ fn test_cli_args_parsing_matrix() {
         _ => panic!("Expected GdbConfig command"),
     }
 
-    // 3. pico list
+    // 3. pico list & pico flash
     let cli = Cli::try_parse_from(["panadiga", "pico", "list"]).unwrap();
     assert!(matches!(cli.command, Some(Commands::Pico(_))));
 
-    // 4. interactive flag
+    let cli_flash = Cli::try_parse_from(["panadiga", "pico", "flash", "--port", "COM3"]).unwrap();
+    assert!(matches!(cli_flash.command, Some(Commands::Pico(_))));
+
+    // 4. hdd list-drives & format-meihdfs
+    let cli_drives = Cli::try_parse_from(["panadiga", "hdd", "list-drives"]).unwrap();
+    assert!(matches!(cli_drives.command, Some(Commands::Hdd(_))));
+
+    let cli_format = Cli::try_parse_from([
+        "panadiga",
+        "hdd",
+        "format-meihdfs",
+        "--target",
+        r"\\.\PhysicalDrive1",
+        "--size-gb",
+        "250",
+        "--confirm",
+        "CONFIRM-PhysicalDrive1",
+    ])
+    .unwrap();
+    assert!(matches!(cli_format.command, Some(Commands::Hdd(_))));
+
+    // 5. interactive flag
     let cli = Cli::try_parse_from(["panadiga", "-i"]).unwrap();
     assert!(cli.interactive);
 
-    // 5. invalid command rejection
+    // 6. invalid command rejection
     let err = Cli::try_parse_from(["panadiga", "non-existent-subcommand"]);
     assert!(err.is_err());
 }

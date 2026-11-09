@@ -83,6 +83,64 @@ pub fn handle_hdd(args: HddArgs) -> Result<()> {
             let img_path = image.unwrap_or(default_img);
             decode_meihdfs_descriptors(&img_path, journal, json.as_deref())?;
         }
+        HddActions::ListDrives => {
+            let drives = crate::hdd::list_physical_drives()?;
+            log_println!("====================================================================");
+            log_println!("   PANADIGA STORAGE DISCOVERY & SYSTEM DRIVE LOCKOUT AUDIT");
+            log_println!("====================================================================");
+            if drives.is_empty() {
+                log_println!("No physical block storage drives detected.");
+            } else {
+                for d in &drives {
+                    let status = if d.safe_to_write {
+                        "[SAFE TO WRITE]"
+                    } else {
+                        "[LOCKED - SYSTEM DRIVE]"
+                    };
+                    log_println!(
+                        "Target: {:<20} | {:<23} | {}",
+                        d.device_path,
+                        status,
+                        d.display_name
+                    );
+                    if let Some(ref reason) = d.lockout_reason {
+                        log_println!("        -> {}", reason);
+                    }
+                }
+            }
+            log_println!("--------------------------------------------------------------------");
+        }
+        HddActions::FormatMeihdfs {
+            target,
+            size_gb,
+            confirm,
+        } => {
+            let total_sectors = size_gb * 1_000_000_000 / 512;
+            log_println!(
+                "Formatting target {} with procedural MEIHDFS ({} GB / {} sectors)...",
+                target,
+                size_gb,
+                total_sectors
+            );
+            let layout = crate::hdd::generate_meihdfs_layout(total_sectors, None)?;
+            let report = crate::hdd::write_meihdfs_procedural_to_drive(&target, &layout, &confirm)?;
+            log_println!("[OK] {}", report.message);
+        }
+        HddActions::WriteImage {
+            target,
+            image,
+            confirm,
+        } => {
+            log_println!("Opening disk image: {}", image.display());
+            let buf = crate::hdd::open_image_buffer(&image)?;
+            log_println!(
+                "Streaming {} bytes to target physical drive {}...",
+                buf.len(),
+                target
+            );
+            let report = crate::hdd::write_raw_image_to_drive(&target, &buf, &confirm)?;
+            log_println!("[OK] {}", report.message);
+        }
     }
     Ok(())
 }
@@ -195,6 +253,48 @@ pub fn handle_pico(args: PicoArgs) -> Result<()> {
         }
         PicoActions::GdbBridge { port, baud, listen } => {
             run_gdb_bridge(&port, baud, &listen)?;
+        }
+        PicoActions::Flash { port, file } => {
+            log_println!("====================================================================");
+            log_println!("   PANADIGA AUTOMATED PICO FIRMWARE FLASHER (DWire32A OCD)");
+            log_println!("====================================================================");
+            if let Some(ref p) = port {
+                log_println!("Initiating 1200-baud touch reset on port {}...", p);
+                let _ = crate::pico::trigger_1200_baud_bootsel(p);
+            }
+            let bootsel_drives = crate::pico::detect_bootsel_drives();
+            if bootsel_drives.is_empty() {
+                anyhow::bail!(
+                    "No Raspberry Pi BOOTSEL drives (RPI-RP2 / RP2350) detected! Hold BOOTSEL button while plugging USB."
+                );
+            }
+            let target_drive = &bootsel_drives[0];
+            log_println!("Found active BOOTSEL drive: {}", target_drive.display());
+
+            let uf2_data = if let Some(ref custom_path) = file {
+                std::fs::read(custom_path)?
+            } else {
+                let candidates = [
+                    PathBuf::from("dist_bin/firmware/panasonic_dwire32a_rp2040.uf2"),
+                    PathBuf::from("dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2"),
+                ];
+                let mut found = None;
+                for c in &candidates {
+                    if c.exists() {
+                        found = Some(std::fs::read(c)?);
+                        break;
+                    }
+                }
+                match found {
+                    Some(data) => data,
+                    None => anyhow::bail!(
+                        "UF2 firmware file not found in default paths. Please provide --file <PATH>"
+                    ),
+                }
+            };
+
+            let report = crate::pico::flash_uf2_to_drive(target_drive, &uf2_data)?;
+            log_println!("[SUCCESS] {}", report.message);
         }
     }
     Ok(())

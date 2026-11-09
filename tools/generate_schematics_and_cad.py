@@ -528,18 +528,16 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
 
 
 def generate_all_assets() -> None:
-    """Generates both Canonical English and Portuguese Fallback engineering assets."""
+    """Generates both Canonical English and Portuguese engineering assets without duplication."""
     target_dirs = [
         'docs/images',
-        'docs/images/pt-br',
-        'docs/pt-br/images',
         'docs/pt-BR/images',
         'docs/en-US/images',
     ]
     for d in target_dirs:
         os.makedirs(d, exist_ok=True)
 
-    # 1. Canonical English Assets (default in docs/images/ and docs/en-US/images/)
+    # 1. Canonical English Assets (in docs/images/ for root readmes and docs/en-US/images/)
     schem_en = 'docs/images/dwire32a_pico_probe_assembly_schematic.png'
     cad_en = 'docs/images/panasonic_dmr_eh55_pcb_p7501_orientation.png'
     generate_electrical_schematic(schem_en, lang='en')
@@ -555,19 +553,14 @@ def generate_all_assets() -> None:
         if os.path.isfile(src_path):
             shutil.copy2(src_path, os.path.join('docs/en-US/images', extra))
             shutil.copy2(src_path, os.path.join('docs/pt-BR/images', extra))
-            shutil.copy2(src_path, os.path.join('docs/pt-br/images', extra))
 
-    # 2. Portuguese Fallback Assets (in docs/images/pt-br/, docs/pt-BR/images/, and docs/pt-br/images/)
-    schem_pt = 'docs/images/pt-br/dwire32a_pico_probe_assembly_schematic.png'
-    cad_pt = 'docs/images/pt-br/panasonic_dmr_eh55_pcb_p7501_orientation.png'
+    # 2. Portuguese Technical Assets (in docs/pt-BR/images/)
+    schem_pt = 'docs/pt-BR/images/dwire32a_pico_probe_assembly_schematic.png'
+    cad_pt = 'docs/pt-BR/images/panasonic_dmr_eh55_pcb_p7501_orientation.png'
     generate_electrical_schematic(schem_pt, lang='pt')
     generate_mechanical_cad_drawing(cad_pt, lang='pt')
 
-    for pt_dir in ['docs/pt-br/images', 'docs/pt-BR/images']:
-        shutil.copy2(schem_pt, os.path.join(pt_dir, 'dwire32a_pico_probe_assembly_schematic.png'))
-        shutil.copy2(cad_pt, os.path.join(pt_dir, 'panasonic_dmr_eh55_pcb_p7501_orientation.png'))
-
-    print('[OK] Generated and mirrored CAD & schematic assets to docs/en-US/ and docs/pt-BR/')
+    print('[OK] Generated CAD & schematic assets cleanly in docs/en-US/ and docs/pt-BR/')
 
 
 if __name__ == '__main__':

@@ -8,8 +8,10 @@
 
 pub mod bridge;
 pub mod diagnostics;
+pub mod flasher;
 pub mod platforms;
 
 pub use bridge::run_gdb_bridge;
 pub use diagnostics::ping_pico;
+pub use flasher::*;
 pub use platforms::*;

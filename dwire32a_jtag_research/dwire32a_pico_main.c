@@ -249,24 +249,43 @@ static void process_serial_command(char *line) {
         printf("VDD: %.2fV (%s)\n", vdd, powered ? "OK" : "LOW");
     }
     else if (strcmp(cmd, "HANDSHAKE") == 0) {
-        printf("[HANDSHAKE] Executing Cold Break-In and querying AM34 OCD DCSR...\n");
+        printf("[HANDSHAKE] Executing Multi-Mode Cold Break-In and querying AM34 OCD DCSR...\n");
         const float vdd = dwire_hw_read_vdd();
         if (vdd < DWIRE_VDD_THRESHOLD_V) {
             printf("[HANDSHAKE] ABORT: Target VDD is %.2fV (< %.2fV threshold). Is the recorder powered on?\n",
                    vdd, DWIRE_VDD_THRESHOLD_V);
         } else {
-            dwire_hw_cold_break_in(DWIRE_BREAKIN_MODE_EXTRG_HIGH_PRE_ONLY);
-            const uint32_t dcsr = dwire_hw_read_dcsr();
-            const bool halted = (dcsr != DWIRE_BUS_RESP_OPEN_HIGH &&
-                                 dcsr != DWIRE_BUS_RESP_OPEN_LOW &&
-                                 ((dcsr & 0x00000001UL) != 0U));
+            static const dwire_breakin_mode_t priority_modes[4] = {
+                DWIRE_BREAKIN_MODE_EXTRG_HIGH_PRE_POST,
+                DWIRE_BREAKIN_MODE_EXTRG_HIGH_PRE_ONLY,
+                DWIRE_BREAKIN_MODE_EXTRG_LOW_PRE_POST,
+                DWIRE_BREAKIN_MODE_EXTRG_LOW_PRE_ONLY
+            };
+            uint32_t dcsr = DWIRE_BUS_RESP_OPEN_HIGH;
+            bool halted = false;
+            uint32_t matched_mode = 0U;
+
+            for (size_t i = 0U; i < 4U; ++i) {
+                const dwire_breakin_mode_t m = priority_modes[i];
+                dwire_hw_cold_break_in(m);
+                dcsr = dwire_hw_read_dcsr();
+                halted = (dcsr != DWIRE_BUS_RESP_OPEN_HIGH &&
+                          dcsr != DWIRE_BUS_RESP_OPEN_LOW &&
+                          ((dcsr & 0x00000001UL) != 0U));
+                if (halted) {
+                    matched_mode = (uint32_t)m;
+                    break;
+                }
+            }
+
             printf("DCSR: 0x%08" PRIX32 "\n", dcsr);
             if (dcsr == DWIRE_BUS_RESP_OPEN_HIGH) {
                 printf("[HANDSHAKE] FAILED: Bus floating High (0xFFFFFFFF). Check SCLK / SDATA / GND lines.\n");
             } else if (dcsr == DWIRE_BUS_RESP_OPEN_LOW) {
                 printf("[HANDSHAKE] FAILED: Bus shorted to Ground (0x00000000). Check for wiring short-circuit.\n");
             } else if (halted) {
-                printf("[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode.\n");
+                printf("[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode (Mode %" PRIu32 ").\n",
+                       matched_mode);
             } else {
                 printf("[HANDSHAKE] ACTIVE: Bus responded (DCSR=0x%08" PRIX32 ") but CPU halt bit not set.\n", dcsr);
             }

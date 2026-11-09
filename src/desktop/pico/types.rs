@@ -58,6 +58,41 @@ pub struct GdbPacketTelemetryEvent {
     pub checksum_valid: bool,
 }
 
+/// Complete Pico device status matching Frontend `PicoDeviceStatus` model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PicoDeviceStatusDto {
+    pub connected: bool,
+    pub port: String,
+    #[serde(rename = "baudRate")]
+    pub baud_rate: u32,
+    pub vdd_volts: f32,
+    pub target_powered: bool,
+    pub breakin_mode: u8,
+    pub core_state: String,
+    pub bus_freq_hz: u32,
+    pub firmware_version: String,
+    pub chip_id: String,
+    pub total_probes: u32,
+    pub hits_detected: u32,
+    pub open_bus_high: u32,
+    pub open_bus_low: u32,
+    pub ram_loader_injected: bool,
+    pub last_keepalive: String,
+}
+
+/// Result of in-circuit RAM loader injection and NVRAM sector erasure matching Frontend `InCircuitNvramEraseResult`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InCircuitNvramEraseResult {
+    pub success: bool,
+    pub elapsed_ms: u64,
+    pub voltage_before: f32,
+    pub voltage_after: f32,
+    pub ram_loader_addr: String,
+    pub bytes_erased: u32,
+    pub verification_sha256: String,
+    pub log_lines: Vec<String>,
+}
+
 /// Pure helper function to normalize port name string, extracting "COMx" or detecting mock mode.
 pub fn extract_port_name(input: &str) -> String {
     let trimmed = input.trim();

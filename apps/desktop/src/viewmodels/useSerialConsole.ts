@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SerialLogEntry } from '@/models';
+import { invokeCommand, isDemoModeActive, isTauriEnvironment } from '@/services/ipc';
 import { mockInitialSerialLogs } from '@/services/mockData';
 import { bleService } from '@/services/bleService';
 
@@ -50,7 +51,7 @@ export function useSerialConsole() {
     return unsubscribe;
   }, [addLog]);
 
-  const sendCommand = useCallback(() => {
+  const sendCommand = useCallback(async () => {
     if (!commandInput.trim()) return;
     const cmd = commandInput.trim().toUpperCase();
     setConsoleState({ status: 'sending', command: cmd });
@@ -59,13 +60,37 @@ export function useSerialConsole() {
 
     // If BLE link is active, transmit wirelessly over Nordic UART Service
     if (bleService.isConnected()) {
-      bleService.send(cmd).catch(err => {
+      try {
+        await bleService.send(cmd);
+      } catch (err) {
         addLog('error', 'HOST', `Falha ao transmitir via BLE: ${err}`);
-      });
+      } finally {
+        setConsoleState({ status: 'idle' });
+      }
+      return;
+    }
+
+    if (isTauriEnvironment() && !isDemoModeActive()) {
+      try {
+        const response = await invokeCommand<string>('pico_send_serial_command', {
+          command: cmd,
+        });
+        const source = cmd === 'RESET' ? 'TARGET' : 'PICO';
+        addLog('rx', source, response);
+      } catch (err) {
+        addLog(
+          'error',
+          'HOST',
+          `Erro CDC: ${err instanceof Error ? err.message : String(err)}`
+        );
+      } finally {
+        setConsoleState({ status: 'idle' });
+      }
+      return;
     }
 
     setTimeout(() => {
-      if (cmd === 'STATUS') {
+      if (cmd === 'STATUS' || cmd === 'VDD') {
         addLog('rx', 'PICO', 'VDD=3.28V | OCD=HALTED | PC=0x80000000 | MODE=2');
       } else if (cmd === 'RESET') {
         addLog('rx', 'TARGET', 'D_RESET pulsed low for 10ms. Target reset asserted.');
@@ -74,7 +99,7 @@ export function useSerialConsole() {
       } else if (cmd === 'GDB') {
         addLog('rx', 'PICO', 'GDB Remote Serial Protocol mode active.');
       } else {
-        addLog('rx', 'PICO', `ACK: ${cmd} (Instrução executada no PIO0)`);
+        addLog('rx', 'PICO', `ACK: ${cmd} (Instrução executada no PIO0 @ 0x00004000)`);
       }
       setConsoleState({ status: 'idle' });
     }, 120);

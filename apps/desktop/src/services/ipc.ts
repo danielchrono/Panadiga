@@ -143,15 +143,14 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
         elapsed_ms: 1420,
         voltage_before: 3.28,
         voltage_after: 3.27,
-        ram_loader_addr: '0x90000000',
+        ram_loader_addr: '0x00004000',
         bytes_erased: 65536,
         verification_sha256: '0a394c8e7710bcf1489e3a6a92ecda46e01768494c8fa72722ee20c5c363dc78',
         log_lines: [
-          'D_RESET assert (GP5 Low, 10ms)... OK',
-          'DWire32A Bus 32-clock wakeup sync burst applied... OK',
-          'AM34 core halted in OCD mode (PC=0x80000000).',
-          'Streaming ram_loader.bin (1,024 bytes) into I-RAM at 0x90000000... OK',
-          'Setting PC=0x90000000 and resuming execution...',
+          'Multi-Mode HANDSHAKE (Mode 2 -> 0 -> 3 -> 1): AM34 core halted (PC=0x80000000, DCSR=0x00000001).',
+          'Pre-Erase Live Backup: Saved nvram_live_backup.bin (0x807F0000) & sram_secrets.bin (0x00000000).',
+          'INJECT_LOADER CONFIRM: Streaming 80-byte JEDEC RAM loader into SRAM at 0x00004000... OK',
+          'Setting PC=0x00004000 and executing ERASE_NVRAM CONFIRM...',
           'Spansion Flash Command 0xAA->0x55->0x80 Sector Erase SA134..SA141 issued.',
           'Polling Spansion RY/BY# (DQ7 Data Polling)... Complete in 840ms.',
           'Verifying 65,536 bytes read back as 0xFF: 100% FACTORY VIRGIN STATE.',
@@ -159,6 +158,26 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
         ],
       };
       return eraseResult as unknown as T;
+    }
+
+    case 'pico_send_serial_command': {
+      const cmdStr = ((args?.command as string) || '').trim().toUpperCase();
+      if (cmdStr === 'STATUS' || cmdStr === 'VDD') {
+        return 'VDD=3.28V | OCD=HALTED | PC=0x80000000 | MODE=2' as unknown as T;
+      }
+      if (cmdStr === 'RESET') {
+        return 'D_RESET pulsed low for 10ms. Target reset asserted.' as unknown as T;
+      }
+      if (cmdStr === 'ADC') {
+        return 'ADC0 Raw: 4072 (3.281 V). Rail within tolerance (+-5%).' as unknown as T;
+      }
+      if (cmdStr === 'GDB') {
+        return 'GDB Remote Serial Protocol mode active.' as unknown as T;
+      }
+      if (cmdStr === 'HANDSHAKE') {
+        return 'DCSR: 0x00000001 | [HANDSHAKE] SUCCESS! AM34 core HALTED (Mode 2).' as unknown as T;
+      }
+      return `ACK: ${cmdStr} (Instrução executada no PIO0 @ 0x00004000)` as unknown as T;
     }
 
     case 'search_manuals': {

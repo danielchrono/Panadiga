@@ -97,7 +97,11 @@ pub fn inspect_firmware_headers(
     // 1. HDD Inspection
     if let Ok(resolved_hdd) = resolve_input_path(hdd_file) {
         log_println!("[*] HDD Image: {}", resolved_hdd.display());
-        let mut f = File::open(&resolved_hdd)?;
+
+        // Carrega via buffer unificado (suporta mmap bruto e descompactação GZIP transparente)
+        let hdd_buffer = crate::hdd::utils::open_image_buffer(&resolved_hdd)?;
+        // Usa &* para invocar a coerção Deref de ImageBuffer para &[u8] de forma transparente
+        let mut f = std::io::Cursor::new(&*hdd_buffer);
 
         // Partition 1 at 32MB (0x0200_0000)
         let mut hdr32 = vec![0u8; length];

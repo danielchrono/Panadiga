@@ -1,10 +1,10 @@
 //! Panasonic DMR-EH55 DIGA Suite - In-Circuit NVRAM Erase & Live Secret Dumper
 //!
 //! Single Responsibility: Orchestrates the 4-stage In-Circuit Flash Recovery pipeline:
-//! 1. Multi-mode Cold Break-In (`HANDSHAKE`: Mode 2 -> 0 -> 3 -> 1)
+//! 1. Multi-mode Cold Break-In (`HANDSHAKE`: Mode 2 -> 0 -> 3 -> 1) + Passive Address Aliasing Auto-Detect
 //! 2. Pre-Erase Live Secret & NVRAM Binary Backup (`nvram_live_backup.bin`, `sram_secrets.bin`, `ipl_bootcamp_header.bin`)
 //! 3. RAM Loader Injection (`INJECT_LOADER CONFIRM` at `0x00004000`)
-//! 4. Surgical Sector Erase (`ERASE_NVRAM CONFIRM` for `SA134..SA141`)
+//! 4. Surgical Sector Erase (`ERASE_NVRAM CONFIRM` for Top-Boot 64KB EEMUL NVRAM)
 
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -24,6 +24,24 @@ fn push_hex_word_le(token: &str, out: &mut Vec<u8>) {
         if let Ok(word) = u32::from_str_radix(clean_tok, 16) {
             out.extend_from_slice(&word.to_le_bytes());
         }
+    }
+}
+
+/// Pure parser extracting the auto-detected Top-Boot 64KB EEMUL NVRAM base address
+/// (`0x801F0000`, `0x803F0000`, `0x807F0000`, or `0x80FF0000`) from the Pico `HANDSHAKE`
+/// or `AUTODETECT` output string. Defaults to `"0x807F0000"` (8 MB).
+pub fn parse_autodetected_nvram_base(handshake_output: &str) -> &'static str {
+    if handshake_output.contains("0x801F0000") || handshake_output.contains("2 MB NOR Flash") {
+        "0x801F0000"
+    } else if handshake_output.contains("0x803F0000") || handshake_output.contains("4 MB NOR Flash")
+    {
+        "0x803F0000"
+    } else if handshake_output.contains("0x80FF0000")
+        || handshake_output.contains("16 MB NOR Flash")
+    {
+        "0x80FF0000"
+    } else {
+        "0x807F0000"
     }
 }
 
@@ -90,10 +108,10 @@ fn save_live_backup_files(nvram: &[u8], sram: &[u8], ipl: &[u8]) {
 }
 
 /// Executes full in-circuit sequence:
-/// 1. Multi-mode Handshake (Mode 2 -> Mode 0 -> Mode 3 -> Mode 1)
+/// 1. Multi-mode Handshake (Mode 2 -> Mode 0 -> Mode 3 -> Mode 1) + Auto-Detect Flash Size
 /// 2. Pre-Erase Live Secret & Full 64KB NVRAM Binary Dump (`nvram_live_backup.bin`, `sram_secrets.bin`, `ipl_bootcamp_header.bin`)
 /// 3. `INJECT_LOADER CONFIRM` into SRAM at `0x00004000` (`AM34_SRAM_LOADER_BASE`)
-/// 4. `ERASE_NVRAM CONFIRM` erasing SA134..SA141 (`0x807F0000..0x807FFFFF`)
+/// 4. `ERASE_NVRAM CONFIRM` erasing Top-Boot 64KB EEMUL NVRAM
 pub fn pico_execute_in_circuit_erase_full(
     port_name: String,
 ) -> Result<InCircuitNvramEraseResult, String> {
@@ -117,6 +135,7 @@ pub fn pico_execute_in_circuit_erase_full(
             verification_sha256: digest,
             log_lines: vec![
                 "Multi-Mode HANDSHAKE (Mode 2 -> 0 -> 3 -> 1): AM34 core halted (PC=0x80000000, DCSR=0x00000001).".to_string(),
+                "[AUTODETECT] Passive Address Aliasing Probe: 8 MB NOR Flash detected (EEMUL NVRAM @ 0x807F0000).".to_string(),
                 "First-Contact Binary Backup: Saved 64KB nvram_live_backup.bin (SA134..SA141 incl. SA138/SA139), 16KB sram_secrets.bin & 4KB ipl_bootcamp_header.bin.".to_string(),
                 "INJECT_LOADER CONFIRM: Streaming 80-byte JEDEC RAM loader into SRAM at 0x00004000... OK".to_string(),
                 "Setting PC=0x00004000 and executing ERASE_NVRAM CONFIRM...".to_string(),
@@ -129,17 +148,19 @@ pub fn pico_execute_in_circuit_erase_full(
     }
 
     let (mut port, hs_out) = open_and_handshake_dwire(&clean)?;
+    let nvram_base_hex = parse_autodetected_nvram_base(&hs_out);
     let mut log_lines = vec![format!("[HANDSHAKE] {}", hs_out)];
 
-    // Step 2: Pre-Erase Live Secret & Full 64KB Binary NVRAM Dump (SA134..SA141)
-    let nv_bytes = dump_dwire_region_bytes(&mut *port, "0x807F0000", 16384, 15000);
+    // Step 2: Pre-Erase Live Secret & Full 64KB Binary NVRAM Dump at auto-detected EEMUL base
+    let nv_bytes = dump_dwire_region_bytes(&mut *port, nvram_base_hex, 16384, 15000);
     let sr_bytes = dump_dwire_region_bytes(&mut *port, "0x00000000", 4096, 6000);
     let ipl_bytes = dump_dwire_region_bytes(&mut *port, "0x80000000", 1024, 4000);
     save_live_backup_files(&nv_bytes, &sr_bytes, &ipl_bytes);
 
     let nv_sha256 = sha256_hex(&nv_bytes);
     log_lines.push(format!(
-        "First-Contact Binary Backup: nvram_live_backup.bin ({} bytes, SHA256={}), sram_secrets.bin ({} bytes) & ipl_bootcamp_header.bin ({} bytes) salvos.",
+        "First-Contact Binary Backup ({}): nvram_live_backup.bin ({} bytes, SHA256={}), sram_secrets.bin ({} bytes) & ipl_bootcamp_header.bin ({} bytes) salvos.",
+        nvram_base_hex,
         nv_bytes.len(),
         &nv_sha256[..16],
         sr_bytes.len(),
@@ -185,8 +206,8 @@ pub fn pico_execute_in_circuit_erase(port_name: String) -> Result<String, String
 }
 
 /// Executes the non-destructive "What's Next" 1st-Contact Read-Only Backup:
-/// 1. `SNIFF 100` -> `HANDSHAKE`
-/// 2. Double-Read of 64KB NVRAM (`0x807F0000` - `SA134..SA141`) verifying identical SHA-256
+/// 1. `HANDSHAKE` + Passive Address Aliasing Auto-Detect (`2MB` / `4MB` / `8MB` / `16MB`)
+/// 2. Double-Read of 64KB NVRAM at auto-detected EEMUL base verifying identical SHA-256
 /// 3. Read of 16KB SRAM (`0x00000000`) & 4KB Bootloader IPL Header (`0x80000000`)
 /// 4. Auto-Detection of Panasonic DIGA Model (`DMR-EH55`, `DMR-ES15`, `DMR-EX75`, `DMR-EZ27`, etc.)
 pub fn pico_execute_first_contact_backup(
@@ -221,11 +242,12 @@ pub fn pico_execute_first_contact_backup(
     }
 
     let (mut port, hs_out) = open_and_handshake_dwire(&clean)?;
+    let nvram_base_hex = parse_autodetected_nvram_base(&hs_out);
     let mut log_lines = vec![hs_out];
 
-    // Double-Read 64KB NVRAM (SA134..SA141) to confirm zero bit-error on DWire32A cable
-    let nv_bytes_1 = dump_dwire_region_bytes(&mut *port, "0x807F0000", 16384, 15000);
-    let nv_bytes_2 = dump_dwire_region_bytes(&mut *port, "0x807F0000", 16384, 15000);
+    // Double-Read 64KB NVRAM at auto-detected EEMUL base to confirm zero bit-error on DWire32A cable
+    let nv_bytes_1 = dump_dwire_region_bytes(&mut *port, nvram_base_hex, 16384, 15000);
+    let nv_bytes_2 = dump_dwire_region_bytes(&mut *port, nvram_base_hex, 16384, 15000);
     let sha_1 = sha256_hex(&nv_bytes_1);
     let sha_2 = sha256_hex(&nv_bytes_2);
     let double_read_verified = !nv_bytes_1.is_empty() && sha_1 == sha_2;
@@ -241,8 +263,9 @@ pub fn pico_execute_first_contact_backup(
     if double_read_verified {
         save_live_backup_files(&nv_bytes_1, &sr_bytes, &ipl_bytes);
         log_lines.push(format!(
-            "[DOUBLE-READ VERIFIED] SHA-256 idêntico nas 2 leituras ({}). Modelo detectado: {}",
+            "[DOUBLE-READ VERIFIED] SHA-256 idêntico nas 2 leituras ({} @ {}). Modelo detectado: {}",
             &sha_1[..16],
+            nvram_base_hex,
             detected_model
         ));
     } else {
@@ -283,5 +306,25 @@ DUMP: OK";
         assert_eq!(&bytes[4..8], &[0xDD, 0xCC, 0xBB, 0xAA]);
         assert_eq!(&bytes[8..12], &[0xFF, 0xFF, 0xFF, 0xFF]);
         assert_eq!(&bytes[12..16], &[0x04, 0x03, 0x02, 0x01]);
+    }
+
+    #[test]
+    fn test_parse_autodetected_nvram_base() {
+        assert_eq!(
+            parse_autodetected_nvram_base("2 MB NOR Flash detected (EEMUL NVRAM @ 0x801F0000)"),
+            "0x801F0000"
+        );
+        assert_eq!(
+            parse_autodetected_nvram_base("4 MB NOR Flash detected (EEMUL NVRAM @ 0x803F0000)"),
+            "0x803F0000"
+        );
+        assert_eq!(
+            parse_autodetected_nvram_base("8 MB NOR Flash detected (EEMUL NVRAM @ 0x807F0000)"),
+            "0x807F0000"
+        );
+        assert_eq!(
+            parse_autodetected_nvram_base("16 MB NOR Flash detected (EEMUL NVRAM @ 0x80FF0000)"),
+            "0x80FF0000"
+        );
     }
 }

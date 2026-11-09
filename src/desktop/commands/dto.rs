@@ -88,6 +88,334 @@ pub struct HexDumpRowDto {
     pub ascii: String,
 }
 
+/// Strongly-typed profile entry in the internal Panasonic DIGA Model Database (SSOT).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DigaModelProfileDto {
+    pub model_id: String,
+    pub series: String,
+    pub flash_size_mb: u32,
+    pub flash_size_bytes: u64,
+    pub nvram_base_hex: String,
+    pub sector_geometry: String,
+    pub soc_name: String,
+}
+
+const fn model_spec(
+    model_id: &'static str,
+    series: &'static str,
+    flash_size_mb: u32,
+    nvram_base_hex: &'static str,
+    sector_geometry: &'static str,
+    soc_name: &'static str,
+) -> (
+    &'static str,
+    &'static str,
+    u32,
+    &'static str,
+    &'static str,
+    &'static str,
+) {
+    (
+        model_id,
+        series,
+        flash_size_mb,
+        nvram_base_hex,
+        sector_geometry,
+        soc_name,
+    )
+}
+
+/// Complete internal database of Panasonic DIGA recorders across all 4 NOR Flash geometries (2MB/4MB/8MB/16MB).
+pub fn get_diga_model_catalog_dto() -> Vec<DigaModelProfileDto> {
+    let specs = [
+        model_spec(
+            "AUTO",
+            "Auto-Detect (Passive Address Aliasing / Binary Signature)",
+            8,
+            "AUTO (0x801F0000 / 0x803F0000 / 0x807F0000 / 0x80FF0000)",
+            "Auto-Detected Top-Boot / Uniform",
+            "UniPhier AM34 / MN103S Auto",
+        ),
+        // 8 MB Top-Boot (2006+)
+        model_spec(
+            "DMR-EH55",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EH56",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EH65",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EH57",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EH58",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EH67",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EH68",
+            "Série EH (HDD+DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-ES15",
+            "Série ES (DVD/Combo)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-ES25",
+            "Série ES (DVD/Combo)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-ES35V",
+            "Série ES (DVD+VHS)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EZ25",
+            "Série EZ (DVB-T DVD)",
+            8,
+            "0x807F0000",
+            "Top-Boot 8x8KB (SA134..SA141)",
+            "MN2DS0016",
+        ),
+        // 4 MB Top-Boot (2005)
+        model_spec(
+            "DMR-ES10",
+            "Série ES (DVD-RAM)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0009",
+        ),
+        model_spec(
+            "DMR-ES20",
+            "Série ES (DVD-RAM)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0009",
+        ),
+        model_spec(
+            "DMR-ES30V",
+            "Série ES (DVD+VHS)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0009",
+        ),
+        model_spec(
+            "DMR-EH50",
+            "Série EH (HDD+DVD)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0009",
+        ),
+        model_spec(
+            "DMR-EH60",
+            "Série EH (HDD+DVD)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0009",
+        ),
+        model_spec(
+            "DMR-E100H",
+            "Série ExxH (HDD+DVD)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E500H",
+            "Série ExxH (HDD+DVD)",
+            4,
+            "0x803F0000",
+            "Top-Boot 8x8KB (SA63..SA70)",
+            "MN2DS0004",
+        ),
+        // 2 MB Top-Boot (2003/2004)
+        model_spec(
+            "DMR-E50",
+            "Série E (DVD-RAM)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E55",
+            "Série E (DVD-RAM)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E65",
+            "Série E (DVD-RAM)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E80H",
+            "Série ExxH (HDD+DVD)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E85H",
+            "Série ExxH (HDD+DVD)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        model_spec(
+            "DMR-E95H",
+            "Série ExxH (HDD+DVD)",
+            2,
+            "0x801F0000",
+            "Top-Boot 8x8KB (SA31..SA38)",
+            "MN2DS0004",
+        ),
+        // 16 MB Uniform (DVB-T / HDMI)
+        model_spec(
+            "DMR-EX75",
+            "Série EX (HDD+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EX85",
+            "Série EX (HDD+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EX77",
+            "Série EX (HDD+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EX87",
+            "Série EX (HDD+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EX95V",
+            "Série EX (HDD+VHS+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EZ27",
+            "Série EZ (DVD+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0018",
+        ),
+        model_spec(
+            "DMR-EZ45V",
+            "Série EZ (DVD+VHS+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0016",
+        ),
+        model_spec(
+            "DMR-EZ48V",
+            "Série EZ (DVD+VHS+DVB-T)",
+            16,
+            "0x80FF0000",
+            "Uniform 128KB (SA126..SA127)",
+            "MN2DS0018",
+        ),
+    ];
+
+    specs
+        .into_iter()
+        .map(
+            |(model_id, series, flash_size_mb, nvram_base_hex, sector_geometry, soc_name)| {
+                DigaModelProfileDto {
+                    model_id: model_id.to_string(),
+                    series: series.to_string(),
+                    flash_size_mb,
+                    flash_size_bytes: (flash_size_mb as u64) * 1024 * 1024,
+                    nvram_base_hex: nvram_base_hex.to_string(),
+                    sector_geometry: sector_geometry.to_string(),
+                    soc_name: soc_name.to_string(),
+                }
+            },
+        )
+        .collect()
+}
+
 /// Resolves the first existing file path from a candidate list, or returns `fallback`.
 pub fn resolve_candidate(candidates: &[&str], fallback: &str) -> String {
     for &c in candidates {

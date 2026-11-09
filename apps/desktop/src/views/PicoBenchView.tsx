@@ -23,6 +23,9 @@ export const PicoBenchView: React.FC = () => {
     availablePorts,
     selectedPort,
     setSelectedPort,
+    modelCatalog,
+    selectedModel,
+    selectTargetModel,
     logs,
     isErasing,
     eraseResult,
@@ -61,13 +64,16 @@ export const PicoBenchView: React.FC = () => {
         </div>
       )}
 
-      {/* Top Bar: Port Selector, Connect/Disconnect & In-Circuit Action */}
+      {/* Top Bar: Port Selector, Model Selector, Connect/Disconnect & In-Circuit Action */}
       <PicoBenchTopBar
         deviceStatus={deviceStatus}
         availablePorts={availablePorts}
         selectedPort={selectedPort}
+        modelCatalog={modelCatalog}
+        selectedModel={selectedModel}
         isErasing={isErasing}
         onSelectPort={setSelectedPort}
+        onSelectModel={selectTargetModel}
         onToggleConnection={toggleConnection}
         onInjectAndErase={injectRamLoaderAndErase}
       />

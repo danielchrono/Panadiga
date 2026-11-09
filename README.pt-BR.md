@@ -1,3 +1,8 @@
+```bash
+␋
+```
+
+
 <p align="center">
   <a href="README.md">English</a> | <strong>Português (Brasil)</strong>
 </p>
@@ -332,7 +337,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 ```text
        ORIENTAÇÃO MECÂNICA CANÔNICA DO CONECTOR P7501 [B6B-ZR-3R4] (ESQUEMÁTICO PANASONIC)
        Parede Traseira voltada para o interior da placa (acima) | Janela de trava voltada para a borda frontal (abaixo)
-     
+   
        Cabo Flat 10 Vias (FP50003)                                         Cabo Flat 8 Vias (FP50004)
        [À Esquerda]                                                                      [À Direita]
             ┌────────────────────────────────────────────────────────────────────────┐
@@ -387,7 +392,7 @@ Na placa digital `VEP79138` (e placas da família `VEP79xxx` nos gravadores da s
 Clock Cycle:       1     2     3     4     5     6     7     8
                  _____       _____       _____       _____
 SCLK   _________/     \_____/     \_____/     \_____/     \_____  (Master 1.0 MHz)
-     
+   
 SDATA  ===< CMD[7] >< CMD[6] >< CMD[5] >...========[ Hi-Z Turnaround ]===> DATA[7] >
                  ^           ^
                  |           |-- Dado amostrado na borda de SUBIDA do SCLK
@@ -405,18 +410,18 @@ Restrições de Temporização:
 ## 6. Mapa de Memória Físico da Arquitetura Matsushita AM34 (`MN2DS0016`)
 
 ```text
-+-------------------+-------------------+--------------------+-------------------------------------------+
-| Faixa Física      | Faixa Espelhada   | Tipo de Barramento | Descrição Funcional                       |
-+-------------------+-------------------+--------------------+-------------------------------------------+
-| 0x00000000..0FFF  | 0x40000000..0FFF  | I-RAM/SRAM Interna | 4 KB Scratchpad e Vetores de Exceção      |
-| 0x00400000..07FF  | 0x40400000..07FF  | D-RAM Interna      | 64 KB Memória Rápida de Dados do Sistema  |
-| 0x04000000..07FF  | 0x44000000..07FF  | Controlador DDR    | 64 MB Memória Principal do Sistema (DDR)  |
-| 0x08000000..0FFF  | 0x48000000..0FFF  | Framebuffer MPEG   | 32 MB Memória de Vídeo Dedicada / OSD     |
-| 0x10000000..10FF  | 0x50000000..10FF  | Mestre IDE / PATA  | Registradores ATA/ATAPI-5 (HDD e Drive DVD)|
-| 0x18000000..187F  | 0x58000000..187F  | CS0 Externo (NOR)  | Flash Spansion S29JL064H (8 MB - IPL)     |
-| 0x187F0000..187F  | 0x587F0000..187F  | CS0 Externo (NV)   | 64 KB Setor de NVRAM/EEMUL (Alvo do U99)  |
-| 0x1F000000..1FFF  | 0x5F000000..1FFF  | MMIO Interno SoC   | Registradores de Periféricos, Timers e OCD|
-+-------------------+-------------------+--------------------+-------------------------------------------+
++-------------------+-------------------+--------------------+---------------------------------------------+
+| Faixa Física      | Faixa Espelhada   | Tipo de Barramento | Descrição Funcional                         |
++-------------------+-------------------+--------------------+---------------------------------------------+
+| 0x00000000..0FFF  | 0x40000000..0FFF  | I-RAM/SRAM Interna | 4 KB Scratchpad e Vetores de Exceção        |
+| 0x00400000..07FF  | 0x40400000..07FF  | D-RAM Interna      | 64 KB Memória Rápida de Dados do Sistema    |
+| 0x04000000..07FF  | 0x44000000..07FF  | Controlador DDR    | 64 MB Memória Principal do Sistema (DDR)    |
+| 0x08000000..0FFF  | 0x48000000..0FFF  | Framebuffer MPEG   | 32 MB Memória de Vídeo Dedicada / OSD       |
+| 0x10000000..10FF  | 0x50000000..10FF  | Mestre IDE / PATA  | Registradores ATA/ATAPI-5 (HDD e Drive DVD) |
+| 0x18000000..187F  | 0x58000000..187F  | CS0 Externo (NOR)  | Flash Spansion S29JL064H (8 MB - IPL)       |
+| 0x187F0000..187F  | 0x587F0000..187F  | CS0 Externo (NV)   | 64 KB Setor de NVRAM/EEMUL (Alvo do U99)    |
+| 0x1F000000..1FFF  | 0x5F000000..1FFF  | MMIO Interno SoC   | Registradores de Periféricos, Timers e OCD  |
++-------------------+-------------------+--------------------+---------------------------------------------+
 ```
 
 ### 6.1 Regra de Ouro JEDEC para o RAM Loader Injetado
@@ -634,10 +639,10 @@ O ecossistema Panadiga impõe uma rigorosa pipeline anti-regressão composta por
 
 ```bash
 # No Windows PowerShell:
-.alidate_all.ps1
+.validate_all.ps1
 
 # No Windows CMD:
-.alidate_all.cmd
+.validate_all.cmd
 
 # No Linux / macOS / WSL:
 ./run.sh --validate

@@ -193,6 +193,18 @@ void dwire_hw_isolate_bus_hiz(void);
  */
 void dwire_hw_engage_bus_active(void);
 
+/**
+ * @brief Auto-detect target NOR Flash geometry (2 MB, 4 MB, 8 MB, or 16 MB) via
+ *        100% passive read-only Address Aliasing on the AM34 aperture (0x80000000).
+ *
+ * Compares the Bootloader vector fingerprint at 0x80000000 against +2 MB (0x80200000),
+ * +4 MB (0x80400000), and +8 MB (0x80800000) to detect the highest decoded address line
+ * without issuing any write cycles to the Flash array.
+ *
+ * @return Detected NOR Flash size in bytes (0x00200000, 0x00400000, 0x00800000, or 0x01000000).
+ */
+uint32_t dwire_hw_autodetect_flash_size(void);
+
 #ifdef __cplusplus
 }
 #endif

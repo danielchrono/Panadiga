@@ -103,4 +103,14 @@ export interface GdbPacketTelemetryEvent {
   checksum_valid: boolean;
 }
 
+export interface DigaModelProfile {
+  model_id: string;
+  series: string;
+  flash_size_mb: number;
+  flash_size_bytes: number;
+  nvram_base_hex: string;
+  sector_geometry: string;
+  soc_name: string;
+}
+
 

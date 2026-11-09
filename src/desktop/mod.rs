@@ -28,6 +28,7 @@ pub fn run_desktop_app() {
             search_manuals,
             search_manuals_command,
             read_hex_dump,
+            get_diga_model_catalog,
             list_pico_serial_ports,
             pico_get_status,
             pico_set_breakin_mode,

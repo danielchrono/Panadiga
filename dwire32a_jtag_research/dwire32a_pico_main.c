@@ -93,7 +93,8 @@ static void ui_print_help(void) {
     printf("  ERASE_NVRAM CONFIRM   - Execute RAM loader to erase SA134..SA141 (U99 fix)\n");
     printf("  ISOLATE | HIZ     - Tri-State (Hi-Z) all 6 pins so unified plug can stay connected\n");
     printf("  ENGAGE            - Re-engage active PIO drive on the 6-pin connector\n");
-    printf("  FLASH_SIZE [2|4|8|16] - Configure target NOR Flash size in MB (Default: 8MB)\n");
+    printf("  AUTODETECT        - Passive read-only address aliasing probe (2MB / 4MB / 8MB / 16MB)\n");
+    printf("  FLASH_SIZE [2|4|8|16] - Configure target NOR Flash size in MB (Default: Auto / 8MB)\n");
     printf("  GDB               - Enter GDB Remote Serial Protocol (RSP) server mode\n");
     printf("  LED [0..3]        - Test onboard LED mode (0:Heartbeat, 1:Active, 2:GDB, 3:Fault)\n");
     printf("  HELP              - Display this command reference\n");
@@ -287,6 +288,12 @@ static void process_serial_command(char *line) {
             } else if (dcsr == DWIRE_BUS_RESP_OPEN_LOW) {
                 printf("[HANDSHAKE] FAILED: Bus shorted to Ground (0x00000000). Check for wiring short-circuit.\n");
             } else if (halted) {
+                const uint32_t detected_bytes = dwire_hw_autodetect_flash_size();
+                (void)gdb_rsp_set_flash_size(detected_bytes);
+                const uint32_t detected_mb = detected_bytes / (1024UL * 1024UL);
+                const uint32_t nvram_base  = 0x80000000UL + (detected_bytes - 0x00010000UL);
+                printf("[AUTODETECT] Passive Address Aliasing Probe: %" PRIu32 " MB NOR Flash detected (EEMUL NVRAM @ 0x%08" PRIX32 ").\n",
+                       detected_mb, nvram_base);
                 printf("[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode (Mode %" PRIu32 ").\n",
                        matched_mode);
             } else {
@@ -459,6 +466,14 @@ static void process_serial_command(char *line) {
     else if (strcmp(cmd, "ENGAGE") == 0) {
         dwire_hw_engage_bus_active();
         printf("ENGAGE: OK (Active PIO OCD bus drive restored on 6-pin connector)\n");
+    }
+    else if (strcmp(cmd, "AUTODETECT") == 0) {
+        const uint32_t detected_bytes = dwire_hw_autodetect_flash_size();
+        (void)gdb_rsp_set_flash_size(detected_bytes);
+        const uint32_t detected_mb = detected_bytes / (1024UL * 1024UL);
+        const uint32_t nvram_base  = 0x80000000UL + (detected_bytes - 0x00010000UL);
+        printf("AUTODETECT: OK (%" PRIu32 " MB NOR Flash | EEMUL NVRAM: 0x%08" PRIX32 "..0x%08" PRIX32 ")\n",
+               detected_mb, nvram_base, 0x80000000UL + detected_bytes - 1UL);
     }
     else if (strcmp(cmd, "FLASH_SIZE") == 0) {
         uint32_t mb = 8U;

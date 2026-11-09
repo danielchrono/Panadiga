@@ -50,6 +50,7 @@ pub fn read_serial_response_complete(
                     || out.contains("SNIFF: OK")
                     || out.contains("ISOLATE: OK")
                     || out.contains("ENGAGE: OK")
+                    || out.contains("AUTODETECT: OK")
                     || out.contains("FLASH_SIZE: OK")
                     || out.contains("FLASH_SIZE: ERROR")
                     || out.contains("[HANDSHAKE] SUCCESS")
@@ -246,7 +247,10 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
             "PING" => "PONG (RP2040/RP2350 DWire32A Ready)".to_string(),
             "STATUS" | "VDD" => "VDD=3.28V | OCD=HALTED | PC=0x80000000 | MODE=2".to_string(),
             "HANDSHAKE" => {
-                "DCSR: 0x00000001\n[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode (Mode 2).".to_string()
+                "DCSR: 0x00000001\n[AUTODETECT] Passive Address Aliasing Probe: 8 MB NOR Flash detected (EEMUL NVRAM @ 0x807F0000).\n[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode (Mode 2).".to_string()
+            }
+            "AUTODETECT" => {
+                "AUTODETECT: OK (8 MB NOR Flash | EEMUL NVRAM: 0x807F0000..0x807FFFFF)".to_string()
             }
             "RESET" => "D_RESET pulsed low for 10ms. Target reset asserted.".to_string(),
             "ADC" => "ADC0 Raw: 4072 (3.281 V). Rail within tolerance (+-5%).".to_string(),

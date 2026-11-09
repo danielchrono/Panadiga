@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { PicoDeviceStatus, ColdBreakinMode } from '@/models';
+import { PicoDeviceStatus, ColdBreakinMode, DigaModelProfile } from '@/models';
 import { invokeCommand, listenEvent } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
 import { logger } from '@/utils/logger';
@@ -22,6 +22,52 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   ]);
   const [selectedPort, setSelectedPort] = useState<string>(
     'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]'
+  );
+  const [modelCatalog, setModelCatalog] = useState<DigaModelProfile[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('AUTO');
+
+  const refreshModelCatalog = useCallback(async () => {
+    try {
+      const catalog = await invokeCommand<DigaModelProfile[]>('get_diga_model_catalog');
+      if (catalog && catalog.length > 0) {
+        setModelCatalog(catalog);
+      }
+    } catch (err) {
+      logger.warn('PicoDevice', 'Failed loading DIGA model catalog', err);
+    }
+  }, []);
+
+  const selectTargetModel = useCallback(
+    async (modelId: string) => {
+      setSelectedModel(modelId);
+      const profile = modelCatalog.find(m => m.model_id === modelId);
+      if (modelId === 'AUTO') {
+        try {
+          const resp = await invokeCommand<string>('pico_send_serial_command', {
+            port_name: selectedPort,
+            command: 'AUTODETECT',
+          });
+          onLog?.('info', 'PICO', `Modo AUTO ativado (Address Aliasing Probe): ${resp}`);
+        } catch (err) {
+          logger.warn('PicoDevice', 'AUTODETECT command failed', err);
+        }
+      } else if (profile) {
+        try {
+          const resp = await invokeCommand<string>('pico_send_serial_command', {
+            port_name: selectedPort,
+            command: `FLASH_SIZE ${profile.flash_size_mb}`,
+          });
+          onLog?.(
+            'info',
+            'HOST',
+            `Perfil ${profile.model_id} selecionado (${profile.flash_size_mb}MB | EEMUL ${profile.nvram_base_hex}): ${resp}`
+          );
+        } catch (err) {
+          logger.warn('PicoDevice', 'FLASH_SIZE command failed', err);
+        }
+      }
+    },
+    [modelCatalog, selectedPort, onLog]
   );
 
   const refreshPorts = useCallback(async () => {
@@ -126,6 +172,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   // Reactive Push-Based Event Stream Subscription
   useEffect(() => {
     refreshPorts();
+    refreshModelCatalog();
     pollDeviceStatus();
 
     let unlisten: (() => void) | undefined;
@@ -160,7 +207,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       active = false;
       unlisten?.();
     };
-  }, [refreshPorts, pollDeviceStatus, onLog]);
+  }, [refreshPorts, refreshModelCatalog, pollDeviceStatus, onLog]);
 
   // Derived Instantaneous Safety State
   const isVoltageSafe = deviceStatus
@@ -175,6 +222,9 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     availablePorts,
     selectedPort,
     setSelectedPort,
+    modelCatalog,
+    selectedModel,
+    selectTargetModel,
     refreshPorts,
     pollDeviceStatus,
     changeBreakinMode,

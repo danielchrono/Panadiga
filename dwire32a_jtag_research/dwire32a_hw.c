@@ -226,3 +226,47 @@ void dwire_hw_engage_bus_active(void) {
 
     dwire_hw_attach_pins_after_sniff();
 }
+
+static bool dwire_fingerprint_matches(uint32_t base_a, uint32_t base_b) {
+    for (uint32_t i = 0U; i < 4U; ++i) {
+        const uint32_t wa = dwire_hw_read_mem32(base_a + (i * 4U));
+        const uint32_t wb = dwire_hw_read_mem32(base_b + (i * 4U));
+        if (wa != wb) {
+            return false;
+        }
+    }
+    return true;
+}
+
+uint32_t dwire_hw_autodetect_flash_size(void) {
+    const uint32_t w0 = dwire_hw_read_mem32(0x80000000UL);
+    const uint32_t w1 = dwire_hw_read_mem32(0x80000004UL);
+
+    /* If bus is open or unpowered, default safely to 8 MB (0x00800000) */
+    if ((w0 == DWIRE_BUS_RESP_OPEN_HIGH && w1 == DWIRE_BUS_RESP_OPEN_HIGH) ||
+        (w0 == DWIRE_BUS_RESP_OPEN_LOW  && w1 == DWIRE_BUS_RESP_OPEN_LOW)) {
+        return 0x00800000UL;
+    }
+
+    /* 1. Check 2 MB aliasing (A21 unconnected -> 0x80200000 mirrors 0x80000000) */
+    if (dwire_fingerprint_matches(0x80000000UL, 0x80200000UL)) {
+        return 0x00200000UL;
+    }
+
+    /* 2. Check 4 MB aliasing (A22 unconnected -> 0x80400000 mirrors 0x80000000) */
+    if (dwire_fingerprint_matches(0x80000000UL, 0x80400000UL)) {
+        return 0x00400000UL;
+    }
+
+    /* 3. Check 8 MB aliasing or unmapped upper 8 MB half (0x80800000) */
+    const uint32_t u0 = dwire_hw_read_mem32(0x80800000UL);
+    const uint32_t u1 = dwire_hw_read_mem32(0x80800004UL);
+    if (dwire_fingerprint_matches(0x80000000UL, 0x80800000UL) ||
+        (u0 == DWIRE_BUS_RESP_OPEN_HIGH && u1 == DWIRE_BUS_RESP_OPEN_HIGH) ||
+        (u0 == DWIRE_BUS_RESP_OPEN_LOW  && u1 == DWIRE_BUS_RESP_OPEN_LOW)) {
+        return 0x00800000UL;
+    }
+
+    /* 4. Valid distinct data in upper 8 MB aperture -> 16 MB NOR Flash (DMR-EX / DMR-EZ) */
+    return 0x01000000UL;
+}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PicoDeviceStatus } from '@/models';
+import { PicoDeviceStatus, DigaModelProfile } from '@/models';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Radio, RefreshCw, Sparkles, Bluetooth } from 'lucide-react';
 
@@ -7,8 +7,11 @@ export interface PicoBenchTopBarProps {
   deviceStatus: PicoDeviceStatus | null;
   availablePorts: string[];
   selectedPort: string;
+  modelCatalog?: DigaModelProfile[];
+  selectedModel?: string;
   isErasing: boolean;
   onSelectPort: (port: string) => void;
+  onSelectModel?: (modelId: string) => void;
   onToggleConnection: () => void;
   onInjectAndErase: () => void;
 }
@@ -20,8 +23,11 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   deviceStatus,
   availablePorts,
   selectedPort,
+  modelCatalog = [],
+  selectedModel = 'AUTO',
   isErasing,
   onSelectPort,
+  onSelectModel,
   onToggleConnection,
   onInjectAndErase,
 }) => {
@@ -60,9 +66,27 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
         </div>
       </div>
 
-      {/* Port Picker & In-Circuit Action */}
+      {/* Port Picker, Model Selector & In-Circuit Action */}
       <div className="flex flex-wrap items-center gap-3 shrink-0">
+        {modelCatalog.length > 0 && onSelectModel && (
+          <select
+            aria-label="Selecionar modelo Panasonic DIGA"
+            value={selectedModel}
+            onChange={e => onSelectModel(e.target.value)}
+            className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-cyan-300 focus:outline-none focus:border-cyan-500 font-mono"
+          >
+            {modelCatalog.map(m => (
+              <option key={m.model_id} value={m.model_id}>
+                {m.model_id === 'AUTO'
+                  ? 'AUTO (Detectar pelo Pico 2MB/4MB/8MB/16MB)'
+                  : `${m.model_id} (${m.flash_size_mb}MB - ${m.nvram_base_hex})`}
+              </option>
+            ))}
+          </select>
+        )}
+
         <select
+          aria-label="Selecionar porta serial do Pico"
           value={selectedPort}
           onChange={e => onSelectPort(e.target.value)}
           className="px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"

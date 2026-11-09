@@ -7,9 +7,16 @@
 use std::process::Command;
 
 use super::dto::{
-    Am34RegisterState, FirstContactBackupResult, GdbBridgeStatus, GdbPacketTelemetryEvent,
-    InCircuitNvramEraseResult, PicoDeviceStatusDto, PicoStatusResponse,
+    get_diga_model_catalog_dto, Am34RegisterState, DigaModelProfileDto, FirstContactBackupResult,
+    GdbBridgeStatus, GdbPacketTelemetryEvent, InCircuitNvramEraseResult, PicoDeviceStatusDto,
+    PicoStatusResponse,
 };
+
+/// Returns the internal Panasonic DIGA Model Database (2MB/4MB/8MB/16MB NOR Flash profiles).
+#[tauri::command]
+pub fn get_diga_model_catalog() -> Result<Vec<DigaModelProfileDto>, String> {
+    Ok(get_diga_model_catalog_dto())
+}
 
 /// Enumerates connected serial ports and provides RP2040 simulation options.
 #[tauri::command]

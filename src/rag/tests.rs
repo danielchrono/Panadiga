@@ -138,7 +138,7 @@ fn test_fact_critic_canonical_hex_matching() {
 
     // Generated text uses leading zeros (0x007F0000)
     let gen_text = "NVRAM is located at 0x007F0000.";
-    let report = critic.audit(gen_text, &[src_chunk.clone()]);
+    let report = critic.audit(gen_text, std::slice::from_ref(&src_chunk));
     assert!(report.is_faithful);
     assert!(report.ungrounded_entities.is_empty());
 

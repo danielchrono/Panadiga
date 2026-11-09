@@ -328,7 +328,7 @@ pub fn decode_meihdfs_descriptors(
         "================================================================================"
     );
     log_println!(
-        " PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER             "
+        " PANASONIC MEIHDFS ALLOCATION DESCRIPTORS & EXTENT FORENSIC DECODER              "
     );
     log_println!(
         "================================================================================"
@@ -478,14 +478,14 @@ pub mod pure_meihdfs_tests {
         // Create one ExtentHeader record at index 0 (ID: 0x0001)
         descriptor_table[0] = 0x5D ^ 0xFF;
         descriptor_table[2] = 0x01 ^ 0xFF;
-        descriptor_table[3] = 0x00 ^ 0xFF;
+        descriptor_table[3] = 0xFF; // 0x00 inverted
 
         // Create one ExtentPointer record at index 1 (ID: 0x0001, 8 sectors, LBA 100)
         descriptor_table[16] = 0x55 ^ 0xFF;
         descriptor_table[18] = 0x01 ^ 0xFF;
-        descriptor_table[19] = 0x00 ^ 0xFF;
+        descriptor_table[19] = 0xFF; // 0x00 inverted
         descriptor_table[20] = 0x08 ^ 0xFF; // 8 sectors low
-        descriptor_table[21] = 0x00 ^ 0xFF;
+        descriptor_table[21] = 0xFF; // 0x00 inverted
 
         let report = decode_meihdfs_slice(&descriptor_table, false, "in-memory-test")
             .expect("pure decode should succeed");

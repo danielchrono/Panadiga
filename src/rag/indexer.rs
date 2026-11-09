@@ -143,7 +143,7 @@ impl BM25Index {
         let mut scores = vec![0.0; self.corpus_size];
         for term in query_tokens {
             if let Some(&idf_val) = self.idf.get(term) {
-                for idx in 0..self.corpus_size {
+                for (idx, score) in scores.iter_mut().enumerate().take(self.corpus_size) {
                     let tf = *self.term_freqs[idx].get(term).unwrap_or(&0) as f64;
                     if tf == 0.0 {
                         continue;
@@ -151,7 +151,7 @@ impl BM25Index {
                     let d_len = self.doc_lens[idx] as f64;
                     let denom = tf + self.k1 * (1.0 - self.b + self.b * (d_len / self.avg_doc_len));
                     let term_score = idf_val * ((tf * (self.k1 + 1.0)) / denom);
-                    scores[idx] += term_score;
+                    *score += term_score;
                 }
             }
         }
@@ -286,6 +286,7 @@ impl Default for HierarchicalIndexer {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn flush_chunk(
     chunks: &mut Vec<Chunk>,
     guard: &QueryGuard,

@@ -202,7 +202,9 @@ pub fn write_raw_image_to_drive(
     image_bytes: &[u8],
     confirmation_token: &str,
 ) -> Result<DriveWriteReport> {
-    if image_bytes.len() < LBA_SECTOR_SIZE_BYTES || image_bytes.len() % LBA_SECTOR_SIZE_BYTES != 0 {
+    if image_bytes.len() < LBA_SECTOR_SIZE_BYTES
+        || !image_bytes.len().is_multiple_of(LBA_SECTOR_SIZE_BYTES)
+    {
         bail!(
             "Raw image length must be a multiple of 512 bytes (got {} bytes)",
             image_bytes.len()
@@ -245,7 +247,7 @@ pub fn restore_meihdfs_from_mirrors(
         .context("Failed to read Mirror MBR at LBA 57344")?;
 
     // Verify "SH" signature at bytes 6..7
-    if &mirror_mbr[0..8] != &PANASONIC_HDD_MBR_SIGNATURE {
+    if mirror_mbr[0..8] != PANASONIC_HDD_MBR_SIGNATURE {
         bail!(
             "Mirror MBR at LBA 57344 is invalid! Expected Panasonic 'SH' signature, got 0x{}",
             hex::encode(&mirror_mbr[0..8])

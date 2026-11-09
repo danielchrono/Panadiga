@@ -242,7 +242,7 @@ mod pure_entropy_tests {
     fn test_pure_frm_analysis_in_memory() {
         let mut mock_data = vec![0x55u8; 128];
         // Inject repeated block to trigger frequency counter
-        for chunk in mock_data.chunks_exact_mut(8).take(10) {
+        for chunk in mock_data.as_chunks_mut::<8>().0.iter_mut().take(10) {
             chunk.copy_from_slice(&[0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88]);
         }
 

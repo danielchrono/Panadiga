@@ -37,7 +37,7 @@ pub struct PicoFlashReport {
 
 /// Validates that a buffer conforms to the UF2 specification.
 pub fn validate_uf2_buffer(data: &[u8]) -> Result<(usize, String)> {
-    if data.len() < UF2_BLOCK_SIZE || data.len() % UF2_BLOCK_SIZE != 0 {
+    if data.len() < UF2_BLOCK_SIZE || !data.len().is_multiple_of(UF2_BLOCK_SIZE) {
         bail!(
             "Invalid UF2 payload length: {} bytes (must be a positive multiple of 512 bytes)",
             data.len()

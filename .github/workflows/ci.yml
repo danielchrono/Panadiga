@@ -41,7 +41,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: "pip"
 
       - name: Install Desktop UI Dependencies & Playwright
         working-directory: apps/desktop
@@ -252,8 +251,6 @@ jobs:
           npm run build
 
       - name: Initialize & Build Android APK
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
         run: |
           export ANDROID_NDK_ROOT=$NDK_HOME
           sed -i 's/crate-type = \["rlib"\]/crate-type = \["staticlib", "cdylib", "rlib"\]/g' Cargo.toml
@@ -269,3 +266,4 @@ jobs:
             src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: ignore
           retention-days: 30
+          

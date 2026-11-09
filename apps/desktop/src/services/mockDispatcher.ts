@@ -289,37 +289,38 @@ export async function handleMockCommand<T>(
     }
 
     case 'get_gdb_telemetry_command': {
+      const baseTime = Date.now();
       return [
         {
-          timestamp_ms: Date.now() - 500,
+          timestamp_ms: baseTime - 500,
           direction: 'INBOUND',
           command_type: 'qSupported',
           raw_packet: '$qSupported:multiprocess+;swbreak+#df',
           checksum_valid: true,
         },
         {
-          timestamp_ms: Date.now() - 400,
+          timestamp_ms: baseTime - 400,
           direction: 'OUTBOUND',
           command_type: 'RspPayload',
           raw_packet: '$PacketSize=1000;qXfer:features:read+#d7',
           checksum_valid: true,
         },
         {
-          timestamp_ms: Date.now() - 300,
+          timestamp_ms: baseTime - 300,
           direction: 'INBOUND',
           command_type: 'HaltReason',
           raw_packet: '$?#3f',
           checksum_valid: true,
         },
         {
-          timestamp_ms: Date.now() - 200,
+          timestamp_ms: baseTime - 200,
           direction: 'OUTBOUND',
           command_type: 'RspPayload',
           raw_packet: '$S05#b8',
           checksum_valid: true,
         },
         {
-          timestamp_ms: Date.now() - 100,
+          timestamp_ms: baseTime - 100,
           direction: 'INBOUND',
           command_type: 'ReadRegs',
           raw_packet: '$g#67',
@@ -381,5 +382,5 @@ export function subscribeMockEventStream<T>(
     }, 1500);
     return () => clearInterval(interval);
   }
-  return () => {};
+  return () => { };
 }

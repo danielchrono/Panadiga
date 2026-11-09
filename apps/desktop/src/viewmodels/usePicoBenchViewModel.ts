@@ -37,6 +37,8 @@ export function usePicoBenchViewModel() {
     changeBreakinMode: device.changeBreakinMode,
     toggleConnection: device.toggleConnection,
     refreshStatus: device.pollDeviceStatus,
+    isVoltageSafe: device.isVoltageSafe,
+    isHardwareReady: device.isHardwareReady,
 
     // GDB Remote RSP Server Subsystem
     gdbStatus: gdb.gdbStatus,

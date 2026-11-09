@@ -315,3 +315,33 @@ async function handleMockCommand<T>(cmd: string, args?: Record<string, unknown>)
       return {} as unknown as T;
   }
 }
+
+/**
+ * Reactive Event Stream Listener for Tauri & Web Environments.
+ * Replaces imperative periodic polling with push-based asynchronous streams.
+ */
+export async function listenEvent<T>(
+  eventName: string,
+  handler: (payload: T) => void
+): Promise<() => void> {
+  if (isTauriEnvironment() && !demoModeActive) {
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      return await listen<T>(eventName, event => {
+        handler(event.payload);
+      });
+    } catch (err) {
+      logger.warn('IPC', `Failed registering Tauri event listener for ${eventName}`, err);
+    }
+  }
+
+  // Reactive Stream Simulator in Demo/Mock Environment
+  if (eventName === 'pico_telemetry') {
+    const interval = setInterval(() => {
+      handler({ ...mockPicoDeviceStatus } as unknown as T);
+    }, 1500);
+    return () => clearInterval(interval);
+  }
+
+  return () => {};
+}

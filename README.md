@@ -39,63 +39,74 @@ This repository establishes the **definitive forensic reverse engineering, physi
 ## 2. End-to-End System Architecture
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'fontFamily':'ui-monospace, SFMono-Regular, Menlo, monospace','fontSize':'13px','background':'#161b22','primaryColor':'#21262d','primaryTextColor':'#e6edf3','primaryBorderColor':'#484f58','lineColor':'#8b949e','secondaryColor':'#21262d','tertiaryColor':'#21262d','edgeLabelBackground':'#161b22','titleColor':'#e6edf3'},'flowchart':{'nodeSpacing':70,'rankSpacing':120,'curve':'basis','padding':24}}}%%
-flowchart TB
-    USER(["Forensic Engineer<br/>Operator"])
+%%{init: {'theme':'base','themeCSS':'.edgeLabel span, .edgeLabel div, .edgeLabel p { white-space: nowrap !important; }','themeVariables':{'fontFamily':'ui-monospace, SFMono-Regular, Menlo, monospace','fontSize':'18px','background':'#161b22','primaryColor':'#21262d','primaryTextColor':'#e6edf3','primaryBorderColor':'#484f58','lineColor':'#8b949e','secondaryColor':'#21262d','tertiaryColor':'#21262d','edgeLabelBackground':'#161b22','titleColor':'#e6edf3'},'flowchart':{'htmlLabels':true,'useMaxWidth':false,'wrappingWidth':4000,'nodeSpacing':70,'rankSpacing':110,'curve':'basis','padding':30}}}%%
+flowchart TD
+    USER(["Forensic Engineer · Operator"])
 
-    GUI["Desktop · Android GUI<br/>Tauri 2.0 · React 19 · TS"]
+    subgraph SOFTWARE_SUITE["1 · Panadiga Software"]
+        direction TB
+        GUI["Desktop · Android GUI · Tauri 2.0 · React 19 · TypeScript"]
+        CLI["panadiga Core · Rust 1.85+"]
+        GUI <--> |"IPC"| CLI
 
-    BLE(["BLE NUS<br/>wireless"])
-    USB(["USB-C OTG<br/>wired"])
+        DW_HAL["DWire32A HAL<br/>115200 · PIO"]
+        GDB_SRV["GDB RSP<br/>:3333"]
+        MEIHDFS["MEIHDFS Parser<br/>Storage Forensics"]
+        CRYPTO["Cryptanalysis<br/>ECB · KPA"]
+        NVRAM["NVRAM Sanitizer<br/>64 / 128 KB"]
+        RAG["RAG Zero-Error<br/>6 shields"]
 
-    PICO{{"Raspberry Pi Pico<br/>RP2040 · RP2350<br/>C11 + PIO DWire32A"}}
+        CLI <--> DW_HAL
+        CLI <--> GDB_SRV
+        CLI <--> MEIHDFS
+        CLI <--> CRYPTO
+        CLI <--> NVRAM
+        CLI <--> RAG
+    end
 
-    CLI["panadiga Core<br/>Rust 1.85+"]
+    subgraph LAB_BENCH["2 · Bench & Probe"]
+        BLE(["BLE NUS · wireless"])
+        USB(["USB-C OTG · wired"])
+        PICO{{"Raspberry Pi Pico · RP2040 · RP2350 · C11 + PIO"}}
+        BLE <--> PICO
+        USB <--> PICO
+    end
 
-    P7501{{"P7501 · JST ZR-6<br/>VDD·nRESET·SDATA<br/>GND·SCLK·EXTRG"}}
-
-    DW_HAL["DWire32A HAL<br/>115200 · PIO"]
-    GDB_SRV["GDB RSP :3333"]
-    MEIHDFS["MEIHDFS Parser"]
-    CRYPTO["Cryptanalysis<br/>ECB · KPA"]
-    NVRAM["NVRAM Sanitizer<br/>64 / 128 KB"]
-    RAG["RAG Zero-Error<br/>6 shields"]
-
-    AM34{{"MN2DS0016 · AM34<br/>108 / 162 MHz"}}
-    FLASH[("NOR Flash 2–16 MB<br/>IPL · EEMUL")]
-    HDD[("PATA · SATA HDD<br/>LBA 0 'SH'")]
+    subgraph TARGET_HARDWARE["3 · Panasonic DIGA"]
+        direction LR
+        P7501{{"P7501 · JST ZR-6 · VDD·nRESET·SDATA·GND·SCLK·EXTRG"}}
+        AM34{{"MN2DS0016 · AM34 · 108 / 162 MHz"}}
+        FLASH[("NOR Flash 2–16 MB · IPL · EEMUL")]
+        HDD[("PATA · SATA HDD · LBA 0 'SH'")]
+        P7501 <--> AM34
+        AM34 <--> FLASH
+        AM34 <--> HDD
+    end
 
     USER --> |"operates"| GUI
-
     GUI <--> |"uses"| BLE
     GUI <--> |"uses"| USB
     BLE <--> |"radio"| PICO
     USB <--> |"cable"| PICO
-
-    GUI <--> |"Tauri IPC"| CLI
-    CLI <--> DW_HAL
-    CLI <--> GDB_SRV
-    CLI <--> MEIHDFS
-    CLI <--> CRYPTO
-    CLI <--> NVRAM
-    CLI <--> RAG
-
-    PICO <--> |"DWire32A 1.0 MHz"| P7501
-    P7501 <--> AM34
-    AM34 <--> FLASH
-    AM34 <--> HDD
+    PICO <--> |"DWire32A"| P7501
 
     classDef lab       fill:#21262d,stroke:#58a6ff,color:#e6edf3,stroke-width:2px
     classDef transport fill:#21262d,stroke:#d29922,color:#e6edf3,stroke-width:2px
     classDef probe     fill:#21262d,stroke:#f0883e,color:#e6edf3,stroke-width:2px
     classDef sw        fill:#21262d,stroke:#3fb950,color:#e6edf3,stroke-width:2px
+    classDef swc       fill:#21262d,stroke:#3fb950,color:#e6edf3,stroke-width:2px,font-size:14px
     classDef tgt       fill:#21262d,stroke:#f85149,color:#e6edf3,stroke-width:2px
 
     class USER lab
-    class GUI,CLI,DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG sw
+    class GUI,CLI sw
+    class DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG swc
     class BLE,USB transport
     class PICO probe
     class P7501,AM34,FLASH,HDD tgt
+
+    style SOFTWARE_SUITE fill:transparent,stroke-width:0px
+    style LAB_BENCH fill:transparent,stroke-width:0px
+    style TARGET_HARDWARE fill:transparent,stroke-width:0px
 ```
 
 ---

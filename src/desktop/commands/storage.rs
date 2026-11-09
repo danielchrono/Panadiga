@@ -6,9 +6,9 @@
 use std::path::Path;
 
 use super::dto::{
-    resolve_candidate, resolve_default_flash_path, ExtractedPartitionItemDto,
-    ExtractedPartitionReport, HddAnalysisReport, MeihdfsAllocationReport, NvramCleanReport,
-    PartitionExtractionManifestDto,
+    ExtractedPartitionItemDto, ExtractedPartitionReport, HddAnalysisReport,
+    MeihdfsAllocationReport, NvramCleanReport, PartitionExtractionManifestDto, resolve_candidate,
+    resolve_default_flash_path,
 };
 
 /// Surgically cleans and audits the Spansion S29JL064H flash dump NVRAM emulation partitions.

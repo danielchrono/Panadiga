@@ -145,9 +145,15 @@ pub fn analyze_frm_container(
         "\n[+] ANÁLISE DE FREQUÊNCIA DE BLOCOS DE 64-BITS (8 BYTES) - TOP {}:",
         top_n
     );
-    log_println!("    +----+-------------------------+------------+---------------+-----------------------------------------------+");
-    log_println!("    | #  | Bloco Cifrado (Hex)     | Ocorrencias| Total Bytes   | Interpretacao Criptografica                   |");
-    log_println!("    +----+-------------------------+------------+---------------+-----------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+------------+---------------+-----------------------------------------------+"
+    );
+    log_println!(
+        "    | #  | Bloco Cifrado (Hex)     | Ocorrencias| Total Bytes   | Interpretacao Criptografica                   |"
+    );
+    log_println!(
+        "    +----+-------------------------+------------+---------------+-----------------------------------------------+"
+    );
 
     for (idx, b) in report.top_blocks.iter().enumerate() {
         log_println!(
@@ -159,7 +165,9 @@ pub fn analyze_frm_container(
             b.interpretation
         );
     }
-    log_println!("    +----+-------------------------+------------+---------------+-----------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+------------+---------------+-----------------------------------------------+"
+    );
 
     log_println!(
         "\n[+] ESTRUTURA DA TABELA DE CONTEUDOS (TOC) - REGISTROS DE {} BYTES (0x30):",

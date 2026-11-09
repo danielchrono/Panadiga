@@ -6,7 +6,7 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use md5::{Digest as _, Md5};
 use sha2::Sha256;
 
@@ -132,7 +132,10 @@ pub fn clean_flash_nvram_slice(
     }
 
     if cleaned_bytes[..bootloader_size] != flash_bytes[..bootloader_size] {
-        bail!("[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x{:08X}) was modified during clean! Aborting.", bootloader_size);
+        bail!(
+            "[CRITICAL ERROR] Bootloader/OS memory region (0x00000000 - 0x{:08X}) was modified during clean! Aborting.",
+            bootloader_size
+        );
     }
 
     let (clean_md5, clean_sha256) = calculate_hashes(&cleaned_bytes);
@@ -399,9 +402,11 @@ mod pure_fp_tests {
         assert_eq!(output.cleaned_bytes.len(), size);
         assert_eq!(output.backup_nvram_bytes.len(), SPANSION_NVRAM_SIZE_BYTES);
         // Verify NVRAM area is completely 0xFF
-        assert!(output.cleaned_bytes[nvram_offset..]
-            .iter()
-            .all(|&b| b == FLASH_ERASED_BYTE));
+        assert!(
+            output.cleaned_bytes[nvram_offset..]
+                .iter()
+                .all(|&b| b == FLASH_ERASED_BYTE)
+        );
         // Verify OS/Bootloader area is 100% identical
         assert_eq!(
             &output.cleaned_bytes[..nvram_offset],

@@ -1,6 +1,6 @@
 use clap::Parser;
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use panadiga::cli::{Cli, Commands};
 use panadiga::constants::PANASONIC_HDD_PARTITION_MAGIC;
 use panadiga::headers::{hex_dump, inspect_firmware_headers};

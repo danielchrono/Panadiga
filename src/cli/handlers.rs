@@ -9,8 +9,8 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 use crate::constants::{
-    format_memory_map_table, get_am34_memory_map_json, DEFAULT_FRM_CONTAINER_PATH,
-    DEFAULT_HDD_IMAGE_PATH,
+    DEFAULT_FRM_CONTAINER_PATH, DEFAULT_HDD_IMAGE_PATH, format_memory_map_table,
+    get_am34_memory_map_json,
 };
 use crate::crypto::{analyze_frm_container, dump_toc, print_codebook};
 use crate::hdd::{decode_meihdfs_descriptors, extract_hdd_partitions, inspect_hdd_image};
@@ -135,7 +135,9 @@ pub fn handle_hdd(args: HddArgs) -> Result<()> {
                 let frm_buf = crate::hdd::open_image_buffer(frm_file)?;
                 // Module 3 begins at offset 0x000F1818 in PANA_DVD.FRM
                 if frm_buf.len() > crate::constants::PANA_FRM_MOD3_START_OFFSET {
-                    log_println!("  [+] Stage-2 Payload detected. Injected into Partition 1 (LBA 65536 / 0x02000000).");
+                    log_println!(
+                        "  [+] Stage-2 Payload detected. Injected into Partition 1 (LBA 65536 / 0x02000000)."
+                    );
                 }
             } else {
                 log_println!(

@@ -7,7 +7,7 @@ use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-use super::dto::{resolve_candidate, BinaryFileStatusDto, HexDumpRowDto, SystemOverviewDto};
+use super::dto::{BinaryFileStatusDto, HexDumpRowDto, SystemOverviewDto, resolve_candidate};
 
 /// Returns the complete workspace and hardware overview for `useDashboardViewModel`.
 #[tauri::command]

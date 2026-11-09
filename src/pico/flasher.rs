@@ -5,7 +5,7 @@
 //! 2. Automatic 1200-baud touch reset to transition running Pico CDC devices into BOOTSEL mode.
 //! 3. Binary UF2 validation, integrity hashing, and drag-and-drop file streaming.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::thread;

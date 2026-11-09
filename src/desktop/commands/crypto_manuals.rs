@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use super::dto::{
-    resolve_candidate, CodebookReport, FrmEntropyReport, FrmTocDumpReport, ManualSearchResult,
+    CodebookReport, FrmEntropyReport, FrmTocDumpReport, ManualSearchResult, resolve_candidate,
 };
 
 /// Performs Shannon entropy calculation, cipher frequency analysis, and ECB leak detection.

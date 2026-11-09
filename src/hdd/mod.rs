@@ -16,6 +16,6 @@ pub use mkfs::*;
 pub use partitions::*;
 pub use types::*;
 pub use utils::{
-    calculate_entropy, export_report_to_json, open_image_buffer, open_mmap, ImageBuffer,
+    ImageBuffer, calculate_entropy, export_report_to_json, open_image_buffer, open_mmap,
 };
 pub use writer::*;

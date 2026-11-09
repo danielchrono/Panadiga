@@ -9,7 +9,7 @@ use crate::{
     constants::*,
     nvram::{calculate_hashes, resolve_input_path},
 };
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use byteorder::{ByteOrder as _, LittleEndian};
 use std::path::Path;
 

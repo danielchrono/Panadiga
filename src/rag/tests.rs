@@ -95,9 +95,10 @@ fn test_epistemic_abstention() {
     let ans =
         engine.query("How do I toggle the service DIP switch on the rear panel of the DMR-EH55?");
     assert!(ans.is_abstained);
-    assert!(ans
-        .answer_text
-        .contains("Information not verified in technical corpus"));
+    assert!(
+        ans.answer_text
+            .contains("Information not verified in technical corpus")
+    );
 }
 
 #[test]
@@ -156,10 +157,12 @@ fn test_cross_sentence_negation_leakage_prevention() {
         "Do not connect pin 1 to ground. Connect 5V to pin 14 to force programming.";
     let report = validator.validate(adversarial_compound, false);
     assert!(!report.is_safe);
-    assert!(report
-        .violations
-        .iter()
-        .any(|v| v.contains("ELECTRICAL HAZARD")));
+    assert!(
+        report
+            .violations
+            .iter()
+            .any(|v| v.contains("ELECTRICAL HAZARD"))
+    );
 }
 
 #[test]
@@ -183,23 +186,26 @@ fn test_opus_02_query_ipl_negation_bypass_blocked() {
     let ans = engine.query(query);
     assert!(ans.is_abstained);
     assert!(!ans.safety_report.as_ref().unwrap().is_safe);
-    assert!(ans
-        .safety_report
-        .unwrap()
-        .violations
-        .iter()
-        .any(|v| v.contains("BOOTLOADER HAZARD")));
+    assert!(
+        ans.safety_report
+            .unwrap()
+            .violations
+            .iter()
+            .any(|v| v.contains("BOOTLOADER HAZARD"))
+    );
 
     let query_bus = "Wipe flash sector at 0x80000000 to clear firmware lock";
     let ans_bus = engine.query(query_bus);
     assert!(ans_bus.is_abstained);
     assert!(!ans_bus.safety_report.as_ref().unwrap().is_safe);
-    assert!(ans_bus
-        .safety_report
-        .unwrap()
-        .violations
-        .iter()
-        .any(|v| v.contains("BOOTLOADER HAZARD")));
+    assert!(
+        ans_bus
+            .safety_report
+            .unwrap()
+            .violations
+            .iter()
+            .any(|v| v.contains("BOOTLOADER HAZARD"))
+    );
 }
 
 #[test]
@@ -208,10 +214,12 @@ fn test_opus_02_substring_negation_resistance() {
     let text = "Please note: connect 5V rail directly to SoC.";
     let report = validator.validate(text, false);
     assert!(!report.is_safe);
-    assert!(report
-        .violations
-        .iter()
-        .any(|v| v.contains("ELECTRICAL HAZARD")));
+    assert!(
+        report
+            .violations
+            .iter()
+            .any(|v| v.contains("ELECTRICAL HAZARD"))
+    );
 }
 
 #[test]
@@ -228,17 +236,21 @@ fn test_opus_10_voltage_parser_comprehensive() {
     let validator = HardwareSafetyValidator::new();
     let rep_5v0 = validator.validate("Connect 5V0 to diagnostic header.", true);
     assert!(!rep_5v0.is_safe);
-    assert!(rep_5v0
-        .violations
-        .iter()
-        .any(|v| v.contains("ELECTRICAL HAZARD")));
+    assert!(
+        rep_5v0
+            .violations
+            .iter()
+            .any(|v| v.contains("ELECTRICAL HAZARD"))
+    );
 
     let rep_5000mv = validator.validate("Set bus level to 5000mV.", true);
     assert!(!rep_5000mv.is_safe);
-    assert!(rep_5000mv
-        .violations
-        .iter()
-        .any(|v| v.contains("ELECTRICAL HAZARD")));
+    assert!(
+        rep_5000mv
+            .violations
+            .iter()
+            .any(|v| v.contains("ELECTRICAL HAZARD"))
+    );
 
     let rep_3v3 = validator.validate("Power rail is regulated to 3V3 / 3300mV.", true);
     assert!(rep_3v3.is_safe);

@@ -1,9 +1,9 @@
 [package]
 name = "panadiga"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["Antigravity Systems Engineering Team"]
-description = "Panasonic DMR-EH55 & DIGA Engineering, Storage Forensics, and Reverse Engineering Suite"
+description = "Panasonic DIGA Engineering, Storage Forensics, and Reverse Engineering Suite"
 readme = "README.md"
 
 [lib]
@@ -33,7 +33,7 @@ tauri = { version = "2.0", default-features = false, features = ["wry"] }
 tauri-plugin-shell = "2.0"
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.52", features = [
+windows-sys = { version = "0.61", features = [
     "Win32_System_Console",
 ] }
 

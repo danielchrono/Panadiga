@@ -16,7 +16,7 @@ use super::rsp_protocol::{
     compute_mock_rsp_response_pure, decode_am34_registers_hex, verify_and_classify_rsp_packet,
 };
 use super::types::{
-    extract_port_name, Am34RegisterState, GdbBridgeStatus, GdbPacketTelemetryEvent,
+    Am34RegisterState, GdbBridgeStatus, GdbPacketTelemetryEvent, extract_port_name,
 };
 
 struct GdbBridgeController {

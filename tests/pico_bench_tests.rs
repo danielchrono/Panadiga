@@ -1,7 +1,7 @@
 use panadiga::pico::{
-    classify_usb_device, list_pico_devices, HostControllerPlatform, PicoArchitecture,
-    ARDUINO_NANO_RP2040_CONNECT_PID, ARDUINO_VID, PICO_BOOTSEL_PID, PICO_RP2040_CDC_PID,
-    PICO_RP2350_CDC_PID, RASPBERRY_PI_VID, SEEED_VID, SEEED_XIAO_RP2040_PID, SEEED_XIAO_RP2350_PID,
+    ARDUINO_NANO_RP2040_CONNECT_PID, ARDUINO_VID, HostControllerPlatform, PICO_BOOTSEL_PID,
+    PICO_RP2040_CDC_PID, PICO_RP2350_CDC_PID, PicoArchitecture, RASPBERRY_PI_VID, SEEED_VID,
+    SEEED_XIAO_RP2040_PID, SEEED_XIAO_RP2350_PID, classify_usb_device, list_pico_devices,
 };
 
 #[test]

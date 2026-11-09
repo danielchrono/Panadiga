@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use clap::Parser;
-use panadiga::cli::{dispatch, Cli, Commands};
+use panadiga::cli::{Cli, Commands, dispatch};
 use panadiga::tui::run_interactive_pipeline;
 
 fn main() -> Result<()> {

@@ -9,7 +9,7 @@
 //! - Dynamically sized Partition 3 (User Video Area) calculated for ANY drive size (80GB to 2TB+)
 
 use crate::constants::*;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use byteorder::{ByteOrder, LittleEndian};
 
 /// Holds the procedurally generated MEIHDFS structures in memory.

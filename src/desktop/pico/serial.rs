@@ -9,7 +9,7 @@ use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
 use super::gdb_bridge::is_gdb_bridge_active;
-use super::types::{extract_port_name, PicoDeviceStatusDto, PicoStatusResponse};
+use super::types::{PicoDeviceStatusDto, PicoStatusResponse, extract_port_name};
 
 /// Verifies that the serial port is not currently owned by the active GDB RSP bridge thread.
 pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {

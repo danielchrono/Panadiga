@@ -11,9 +11,9 @@ use anyhow::Result;
 use sha2::{Digest, Sha256};
 
 use crate::constants::{
-    format_memory_map_table, DEFAULT_BAUD_RATE, DEFAULT_FRM_CONTAINER_PATH,
-    DEFAULT_GDB_LISTEN_SOCKET, DEFAULT_HDD_EXTRACT_DIR, DEFAULT_HDD_IMAGE_PATH,
-    DEFAULT_MANUALS_DIR, DEFAULT_SERIAL_PORT, DEFAULT_TOOLS_DIR,
+    DEFAULT_BAUD_RATE, DEFAULT_FRM_CONTAINER_PATH, DEFAULT_GDB_LISTEN_SOCKET,
+    DEFAULT_HDD_EXTRACT_DIR, DEFAULT_HDD_IMAGE_PATH, DEFAULT_MANUALS_DIR, DEFAULT_SERIAL_PORT,
+    DEFAULT_TOOLS_DIR, format_memory_map_table,
 };
 use crate::crypto::{analyze_frm_container, dump_toc, print_codebook};
 use crate::ghidra::export_all_ghidra_scripts;
@@ -107,7 +107,9 @@ fn handle_pico_option() -> Result<()> {
     log_println!("\x1b[1;36m>> Scanning for USB serial devices & Pico controllers...\x1b[0m");
     let devices = list_pico_devices()?;
     if devices.is_empty() {
-        log_println!("\x1b[1;33m[!] No USB serial devices detected. Connect Raspberry Pi Pico via USB.\x1b[0m");
+        log_println!(
+            "\x1b[1;33m[!] No USB serial devices detected. Connect Raspberry Pi Pico via USB.\x1b[0m"
+        );
     } else {
         for dev in &devices {
             log_println!(

@@ -98,7 +98,9 @@ impl ZeroErrorRagEngine {
                 retrieved_chunks_count: 0,
                 execution_time_ms: elapsed,
                 is_abstained: true,
-                abstention_reason: Some("Physical hardware invariant violation detected in query.".to_string()),
+                abstention_reason: Some(
+                    "Physical hardware invariant violation detected in query.".to_string(),
+                ),
             };
         }
 

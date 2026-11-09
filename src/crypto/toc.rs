@@ -178,22 +178,52 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     }
 
     log_println!("\n[+] DESCONSTRUÇÃO DO PAYLOAD EM 3 MÓDULOS DE FIRMWARE:");
-    log_println!("    O contêiner inicia seu payload em 0x00A0 e alinha os módulos por blocos virgens (0xFF * 8):");
+    log_println!(
+        "    O contêiner inicia seu payload em 0x00A0 e alinha os módulos por blocos virgens (0xFF * 8):"
+    );
     log_println!("    Assinatura de Flash Virgem: '03 50 65 C8 7B B8 E0 90'");
-    log_println!("    +----------+-----------------------+-------------+----------------------------------------------+");
-    log_println!("    | Módulo   | Faixa de Offsets      | Tamanho     | Destino & Correlação com o Disco Rígido      |");
-    log_println!("    +----------+-----------------------+-------------+----------------------------------------------+");
-    log_println!("    | Módulo 1 | 0x000000A0..0x000B1800| 727.136 B   | Sub-sistema/OSD -> Partição 2 do HD (704 KB) |");
-    log_println!("    |          | (útil até 0x0AE480)   | (713.696 B) | Padding virgem: 362 blocos (2.896 B)         |");
-    log_println!("    |          |                       |             | Estrutura de cabeçalho: 1.280 blocos         |");
-    log_println!("    +----------+-----------------------+-------------+----------------------------------------------+");
-    log_println!("    | Módulo 2 | 0x000B1800..0x000F1818| 262.168 B   | Drive Óptico (DSP/Servo MN102)               |");
-    log_println!("    |          | (útil até 0x0EAC98)   | (234.648 B) | Contém 196 blocos nulos (0x00 * 8)           |");
-    log_println!("    |          |                       |             | Padding virgem: 3.436 blocos (27.488 B)      |");
-    log_println!("    +----------+-----------------------+-------------+----------------------------------------------+");
-    log_println!("    | Módulo 3 | 0x000F1818..0x0072ECE0| 6.542.536 B | Main CPU OS (AM34) -> Partição 1 HD (5.89 MB)|");
-    log_println!("    |          | (até o fim do arquivo)| (~6.24 MB)  | Contém o Kernel DIGA e Codecs do Sistema     |");
-    log_println!("    +----------+-----------------------+-------------+----------------------------------------------+");
+    log_println!(
+        "    +----------+-----------------------+-------------+----------------------------------------------+"
+    );
+    log_println!(
+        "    | Módulo   | Faixa de Offsets      | Tamanho     | Destino & Correlação com o Disco Rígido      |"
+    );
+    log_println!(
+        "    +----------+-----------------------+-------------+----------------------------------------------+"
+    );
+    log_println!(
+        "    | Módulo 1 | 0x000000A0..0x000B1800| 727.136 B   | Sub-sistema/OSD -> Partição 2 do HD (704 KB) |"
+    );
+    log_println!(
+        "    |          | (útil até 0x0AE480)   | (713.696 B) | Padding virgem: 362 blocos (2.896 B)         |"
+    );
+    log_println!(
+        "    |          |                       |             | Estrutura de cabeçalho: 1.280 blocos         |"
+    );
+    log_println!(
+        "    +----------+-----------------------+-------------+----------------------------------------------+"
+    );
+    log_println!(
+        "    | Módulo 2 | 0x000B1800..0x000F1818| 262.168 B   | Drive Óptico (DSP/Servo MN102)               |"
+    );
+    log_println!(
+        "    |          | (útil até 0x0EAC98)   | (234.648 B) | Contém 196 blocos nulos (0x00 * 8)           |"
+    );
+    log_println!(
+        "    |          |                       |             | Padding virgem: 3.436 blocos (27.488 B)      |"
+    );
+    log_println!(
+        "    +----------+-----------------------+-------------+----------------------------------------------+"
+    );
+    log_println!(
+        "    | Módulo 3 | 0x000F1818..0x0072ECE0| 6.542.536 B | Main CPU OS (AM34) -> Partição 1 HD (5.89 MB)|"
+    );
+    log_println!(
+        "    |          | (até o fim do arquivo)| (~6.24 MB)  | Contém o Kernel DIGA e Codecs do Sistema     |"
+    );
+    log_println!(
+        "    +----------+-----------------------+-------------+----------------------------------------------+"
+    );
 
     let modules = vec![
         FrmModuleInfo {
@@ -229,9 +259,15 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     ];
 
     log_println!("\n[+] CONEXÃO CRIPTOGRÁFICA DEFINITIVA COM O DISCO RÍGIDO (HDD):");
-    log_println!("  1. A Partição 2 do HD (704 KB) termina com exatamente 1.280 blocos (10.240 B) de Flash Virgem");
-    log_println!("     (0x035065C87BB8E090 em 0x040AD7D0..0x040AFFD0), idênticos aos blocos de padding do .FRM!");
-    log_println!("  2. Os blocos nulos (E5D1F34A518B2690) aparecem no cabeçalho das Partições 1 e 2 do HD e em");
+    log_println!(
+        "  1. A Partição 2 do HD (704 KB) termina com exatamente 1.280 blocos (10.240 B) de Flash Virgem"
+    );
+    log_println!(
+        "     (0x035065C87BB8E090 em 0x040AD7D0..0x040AFFD0), idênticos aos blocos de padding do .FRM!"
+    );
+    log_println!(
+        "  2. Os blocos nulos (E5D1F34A518B2690) aparecem no cabeçalho das Partições 1 e 2 do HD e em"
+    );
     log_println!(
         "     todas as tabelas zero-fill do Módulo 2 do .FRM, provando a mesmíssima chave e cifra."
     );

@@ -307,9 +307,15 @@ pub fn print_codebook(
     );
 
     log_println!("\n[+] DICIONÁRIO DE TEXTO-PLANO CONHECIDO (KNOWN-PLAINTEXT PAIRS):");
-    log_println!("    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+");
-    log_println!("    | #  | Bloco Cifrado (Hex)     | Texto-Plano Conhecido   | Ocorr. FRM | Ocorr. HDD | Interpretação Forense & Arquitetura        |");
-    log_println!("    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+"
+    );
+    log_println!(
+        "    | #  | Bloco Cifrado (Hex)     | Texto-Plano Conhecido   | Ocorr. FRM | Ocorr. HDD | Interpretação Forense & Arquitetura        |"
+    );
+    log_println!(
+        "    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+"
+    );
 
     for entry in &report.dictionary {
         if entry.rank <= 6 {
@@ -327,16 +333,24 @@ pub fn print_codebook(
             );
         }
     }
-    log_println!("    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+-------------------------+------------+------------+--------------------------------------------+"
+    );
 
     // Top frequent ciphertext blocks
     log_println!("\n[+] BLOCOS CIFRADOS DE ALTA FREQUÊNCIA NO MÓDULO 2 (DRIVE SERVO DSP):");
     log_println!(
         "    Estes blocos vazam devido a tabelas de firmware e instruções repetidas no MN102:"
     );
-    log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
-    log_println!("    | #  | Bloco Cifrado (Hex)     | Ocorr. FRM | 1º Offset  | Localização & Comportamento Criptográfico                    |");
-    log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+------------+------------+--------------------------------------------------------------+"
+    );
+    log_println!(
+        "    | #  | Bloco Cifrado (Hex)     | Ocorr. FRM | 1º Offset  | Localização & Comportamento Criptográfico                    |"
+    );
+    log_println!(
+        "    +----+-------------------------+------------+------------+--------------------------------------------------------------+"
+    );
 
     for (idx, entry) in report.dictionary.iter().filter(|e| e.rank > 6).enumerate() {
         log_println!(
@@ -352,11 +366,17 @@ pub fn print_codebook(
             entry.interpretation
         );
     }
-    log_println!("    +----+-------------------------+------------+------------+--------------------------------------------------------------+");
+    log_println!(
+        "    +----+-------------------------+------------+------------+--------------------------------------------------------------+"
+    );
 
     log_println!("\n[+] SÍNTESE FORENSE E PROVAS MATEMÁTICAS:");
-    log_println!("  1. [CONFIRMADO] Vazamento Estrutural ECB: O arquivo óptico PANA_DVD.FRM e o HD IDE utilizam");
-    log_println!("     cifragem de bloco de 64 bits (8 bytes) sem encadeamento de feedback (CBC) nas fronteiras.");
+    log_println!(
+        "  1. [CONFIRMADO] Vazamento Estrutural ECB: O arquivo óptico PANA_DVD.FRM e o HD IDE utilizam"
+    );
+    log_println!(
+        "     cifragem de bloco de 64 bits (8 bytes) sem encadeamento de feedback (CBC) nas fronteiras."
+    );
     if report.cross_medium_key_identity_proven {
         log_println!("  2. [CONFIRMADO] IDENTIDADE DE CHAVE ENTRE CD E HD:");
         log_println!(
@@ -365,7 +385,9 @@ pub fn print_codebook(
         log_println!(
             "     - O bloco de Flash virgem '03 50 65 C8 7B B8 E0 90' ocorre no .FRM e no HD."
         );
-        log_println!("     -> Conclusão: O firmware do HD NÃO é texto-plano, mas compartilha a MESMA chave do contêiner óptico!");
+        log_println!(
+            "     -> Conclusão: O firmware do HD NÃO é texto-plano, mas compartilha a MESMA chave do contêiner óptico!"
+        );
     }
 
     if let Some(jpath) = json_path {

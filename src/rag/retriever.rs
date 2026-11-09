@@ -3,7 +3,7 @@
 use std::collections::{HashMap, HashSet};
 
 use super::config::{DEFAULT_TOP_K, RRF_K};
-use super::indexer::{technical_tokenize, HierarchicalIndexer};
+use super::indexer::{HierarchicalIndexer, technical_tokenize};
 use super::models::{Query, RetrievalResult};
 
 pub struct HybridRetriever<'a> {

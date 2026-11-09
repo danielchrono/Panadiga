@@ -12,7 +12,7 @@ use std::io::Write;
 use std::time::{Duration, Instant};
 
 use super::serial::{ensure_serial_port_unlocked, read_serial_response_complete};
-use super::types::{extract_port_name, FirstContactBackupResult, InCircuitNvramEraseResult};
+use super::types::{FirstContactBackupResult, InCircuitNvramEraseResult, extract_port_name};
 use crate::desktop::commands::dto::detect_diga_model_from_slice;
 
 fn push_hex_word_le(token: &str, out: &mut Vec<u8>) {

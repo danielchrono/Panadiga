@@ -8,7 +8,7 @@
 
 use super::mkfs::MeihdfsImage;
 use crate::constants::*;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 
@@ -302,20 +302,22 @@ mod tests {
     fn test_system_drive_lockout_blocks_physicaldrive0() {
         let res = verify_safety_lockout(r"\\.\PhysicalDrive0", "CONFIRM-PhysicalDrive0");
         assert!(res.is_err());
-        assert!(res
-            .unwrap_err()
-            .to_string()
-            .contains("SAFETY INVARIANT VIOLATION"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("SAFETY INVARIANT VIOLATION")
+        );
     }
 
     #[test]
     fn test_system_drive_lockout_blocks_sda() {
         let res = verify_safety_lockout("/dev/sda", "CONFIRM-/dev/sda");
         assert!(res.is_err());
-        assert!(res
-            .unwrap_err()
-            .to_string()
-            .contains("SAFETY INVARIANT VIOLATION"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("SAFETY INVARIANT VIOLATION")
+        );
     }
 
     #[test]
@@ -335,9 +337,10 @@ mod tests {
     fn test_restore_mirrors_blocks_system_drive() {
         let res = restore_meihdfs_from_mirrors(r"\\.\PhysicalDrive0", "CONFIRM-PhysicalDrive0");
         assert!(res.is_err());
-        assert!(res
-            .unwrap_err()
-            .to_string()
-            .contains("SAFETY INVARIANT VIOLATION"));
+        assert!(
+            res.unwrap_err()
+                .to_string()
+                .contains("SAFETY INVARIANT VIOLATION")
+        );
     }
 }

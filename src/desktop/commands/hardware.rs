@@ -7,9 +7,9 @@
 use std::process::Command;
 
 use super::dto::{
-    get_diga_model_catalog_dto, Am34RegisterState, DigaModelProfileDto, FirstContactBackupResult,
-    GdbBridgeStatus, GdbPacketTelemetryEvent, InCircuitNvramEraseResult, PicoDeviceStatusDto,
-    PicoStatusResponse,
+    Am34RegisterState, DigaModelProfileDto, FirstContactBackupResult, GdbBridgeStatus,
+    GdbPacketTelemetryEvent, InCircuitNvramEraseResult, PicoDeviceStatusDto, PicoStatusResponse,
+    get_diga_model_catalog_dto,
 };
 
 /// Returns the internal Panasonic DIGA Model Database (2MB/4MB/8MB/16MB NOR Flash profiles).

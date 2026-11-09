@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   # ==========================================================================
-  # Multi-Platform Binary Compilation & Packaging
+  # 1. Multi-Platform Binary Compilation & Packaging (Windows, Linux, macOS)
   # ==========================================================================
   build-release:
     name: Build (${{ matrix.platform.name }})
@@ -51,6 +51,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
@@ -69,31 +71,22 @@ jobs:
         with:
           key: ${{ matrix.platform.target }}
 
-      # Linux system dependencies for Tauri and WebKit
       - name: Install Linux GUI Dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
 
-      - name: Install Node Dependencies
+      - name: Install Node Dependencies & Build Frontend
         run: |
           cd apps/desktop
           npm ci
-
-      - name: Validate TypeScript & Vitest
-        run: |
-          cd apps/desktop
           npm run typecheck
           npm test
+          npm run build
 
       - name: Run Rust Workspace Tests
         run: cargo test --workspace
-
-      - name: Build Desktop Frontend (Vite)
-        run: |
-          cd apps/desktop
-          npm run build
 
       - name: Compile Unified Panadiga Binary
         run: cargo build --release --target ${{ matrix.platform.target }} -p panadiga
@@ -122,7 +115,7 @@ jobs:
           staging="staging_release"
           mkdir -p "$staging"
           cp "${{ matrix.platform.bin }}" "$staging/panadiga"
-          cp -r tools "$staging/tools"
+          if [ -d "tools" ]; then cp -r tools "$staging/tools"; fi
           cp README.md "$staging/README.md"
           cp LICENSE "$staging/LICENSE"
           chmod +x "$staging/panadiga"
@@ -130,7 +123,6 @@ jobs:
           tar -czvf "${{ matrix.platform.archive_name }}" -C "$staging" .
           shasum -a 256 "${{ matrix.platform.archive_name }}" > "${{ matrix.platform.archive_name }}.sha256"
 
-          # Linux Package Generation: Debian / Ubuntu (.deb)
           if [ "${{ runner.os }}" = "Linux" ]; then
             echo "[*] Building Debian package (.deb)..."
             deb_dir="panadiga_deb_pkg"
@@ -139,13 +131,13 @@ jobs:
             mkdir -p "$deb_dir/usr/share/panadiga"
             cp "${{ matrix.platform.bin }}" "$deb_dir/usr/bin/panadiga"
             chmod 755 "$deb_dir/usr/bin/panadiga"
-            cp -r tools "$deb_dir/usr/share/panadiga/tools"
+            if [ -d "tools" ]; then cp -r tools "$deb_dir/usr/share/panadiga/tools"; fi
             printf "Package: panadiga\nVersion: 0.1.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: OrgChrono Engineering <support@orgchrono.com>\nDepends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1\nDescription: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite\n" > "$deb_dir/DEBIAN/control"
             dpkg-deb --build "$deb_dir" "panadiga-linux-amd64.deb"
             shasum -a 256 "panadiga-linux-amd64.deb" > "panadiga-linux-amd64.deb.sha256"
           fi
 
-      - name: Upload Release Archive
+      - name: Upload Release Archive Artifact
         uses: actions/upload-artifact@v4
         with:
           name: panadiga-${{ matrix.platform.name }}
@@ -170,7 +162,78 @@ jobs:
           prerelease: false
 
   # ==========================================================================
-  # Android APK Release Compilation & Publishing
+  # 2. Raspberry Pi Pico Firmware Dual Target (RP2040 & RP2350)
+  # ==========================================================================
+  pico-firmware:
+    name: Pico Firmware Dual Target (RP2040 & RP2350)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install ARM Embedded Toolchain & Ninja
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
+
+      - name: Clone Raspberry Pi Pico SDK
+        run: |
+          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
+          cd ${{ runner.temp }}/pico-sdk
+          git submodule update --init --depth 1
+
+      - name: Build Firmware for RP2040 (Raspberry Pi Pico / Pico W)
+        env:
+          PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+          CXXFLAGS: "-include cstdint"
+        run: |
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
+          export CXXFLAGS="-include cstdint"
+          cd dwire32a_jtag_research
+          cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build build_pico --config Release
+          cp build_pico/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2040.uf2
+          sha256sum panasonic_dwire32a_rp2040.uf2 > panasonic_dwire32a_rp2040.uf2.sha256
+
+      - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
+        env:
+          PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
+          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+          CXXFLAGS: "-include cstdint"
+        run: |
+          export CMAKE_POLICY_VERSION_MINIMUM=3.5
+          export CXXFLAGS="-include cstdint"
+          cd dwire32a_jtag_research
+          cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build build_pico2 --config Release
+          cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
+          sha256sum panasonic_dwire32a_rp2350.uf2 > panasonic_dwire32a_rp2350.uf2.sha256
+
+      - name: Upload Firmware Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: panasonic_dwire32a_firmware_binaries
+          path: |
+            dwire32a_jtag_research/*.uf2
+            dwire32a_jtag_research/*.uf2.sha256
+          retention-days: 30
+
+      - name: Publish Firmware to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2
+            dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2.sha256
+            dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
+            dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2.sha256
+          generate_release_notes: true
+
+  # ==========================================================================
+  # 3. Android Mobile APK Build & Release (AArch64)
   # ==========================================================================
   release-android-apk:
     name: Build & Release Android APK (AArch64)
@@ -178,6 +241,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -236,3 +301,4 @@ jobs:
             release-apk/panadiga-android-arm64.apk
             release-apk/panadiga-android-arm64.apk.sha256
           generate_release_notes: true
+          

@@ -9,6 +9,8 @@ import {
   NvramAuditDialog,
 } from '@/components/nvram';
 import { useTranslation } from '@/i18n/useTranslation';
+import { AlertCircle, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 /**
  * Declarative MVVM View: Spansion NOR Flash S29JL064H & NVRAM U99 Sanitizer.
@@ -21,10 +23,12 @@ export const NvramView: React.FC = () => {
     sectorMap,
     selectedSector,
     setSelectedSector,
+    loading,
     cleaning,
     cleanSuccess,
     filterType,
     setFilterType,
+    error,
     executeSurgicalClean,
     refresh,
   } = useNvramViewModel();
@@ -38,8 +42,28 @@ export const NvramView: React.FC = () => {
         <NvramTopBanner onOpenAudit={() => setShowBackupModal(true)} />
       )}
 
-      {/* Top Bar: Action Panel & Spansion Model Header */}
+      {/* Error Banner */}
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between shadow-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>Falha ao carregar dump de flash NOR: {error}</span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={refresh}
+            className="text-rose-300 hover:text-white hover:bg-rose-900/40 gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Tentar Novamente</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Top Bar: Action Panel & Flash Model Header */}
       <NvramActionsCard
+        report={report}
         cleaning={cleaning}
         cleanSuccess={cleanSuccess}
         onExecuteClean={executeSurgicalClean}
@@ -53,7 +77,7 @@ export const NvramView: React.FC = () => {
         cleanSuccess={cleanSuccess}
       />
 
-      {/* Interactive 71-Sector Physical Grid & Selected Sector Inspector */}
+      {/* Interactive Sector Physical Grid & Selected Sector Inspector */}
       <NvramSectorMap
         sectorMap={sectorMap}
         selectedSector={selectedSector}
@@ -63,7 +87,7 @@ export const NvramView: React.FC = () => {
         onSelectFilter={setFilterType}
       />
 
-      {/* 8 Microsectors Detailed Audit Table */}
+      {/* Microsectors Detailed Audit Table */}
       {report && (
         <NvramMicrosectorsTable report={report} cleanSuccess={cleanSuccess} />
       )}

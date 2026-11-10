@@ -313,7 +313,6 @@ impl HardwareSafetyValidator {
         // ----------------------------------------------------------------------
         let pc_disk_utils = [
             "diskpart",
-            "mkfs",
             "fdisk",
             "format c:",
             "format d:",
@@ -337,6 +336,28 @@ impl HardwareSafetyValidator {
                     ));
                 }
             }
+        }
+
+        // Generic PC mkfs check: permit our procedural "mkfs.meihdfs" synthesizer,
+        // but block destructive OS disk formatters (e.g., mkfs.ext4, mkfs.fat, mkfs /dev/sda).
+        let mut mkfs_idx = 0;
+        while let Some(pos) = lower_text[mkfs_idx..].find("mkfs") {
+            let actual_pos = mkfs_idx + pos;
+            let remainder = &lower_text[actual_pos..];
+            if !remainder.starts_with("mkfs.meihdfs") && !remainder.starts_with("mkfs_meihdfs") {
+                let context_window =
+                    sentence_context_window(&lower_text, actual_pos, actual_pos + 4, 80);
+                let has_warning = NEGATION_REGEX.is_match(context_window);
+                if is_query || !has_warning {
+                    violations.push(
+                        "CRITICAL STORAGE HAZARD: PC utility 'mkfs' destroys MEIHDFS 'SH' signature and firmware partitions.".to_string(),
+                    );
+                    critical_alerts
+                        .push("Destructive disk formatting utility detected: mkfs".to_string());
+                    break;
+                }
+            }
+            mkfs_idx = actual_pos + 4;
         }
 
         SafetyReport {

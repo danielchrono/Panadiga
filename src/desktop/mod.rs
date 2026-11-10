@@ -46,6 +46,13 @@ pub fn run_desktop_app() {
             get_gdb_telemetry_command,
             launch_external_tool_command,
             query_rag_engine,
+            pico_detect_bootsel_drives,
+            pico_trigger_bootsel_reboot,
+            pico_flash_firmware,
+            list_physical_drives,
+            format_hdd_meihdfs,
+            write_hdd_image,
+            restore_hdd_mirrors,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -21,6 +21,15 @@ pub const SPANSION_NVRAM_BASE_OFFSET: usize = 0x007F_0000;
 /// Total size of the NVRAM parameter storage area (top 64 Kilobytes).
 pub const SPANSION_NVRAM_SIZE_BYTES: usize = 64 * 1024; // 65,536 bytes
 
+/// Total size of the NVRAM parameter storage area for 16 MB NOR Flash models (top 128 Kilobytes).
+pub const FLASH_16MB_NVRAM_SIZE_BYTES: usize = 128 * 1024; // 131,072 bytes
+
+/// Total count of 8 KB micro-sectors in the 16 MB NOR Flash top NVRAM region (16 microsectors).
+pub const FLASH_16MB_MICROSECTOR_COUNT: usize = 16;
+
+/// Base memory offset where the 128 KB NVRAM begins in a 16 MB NOR Flash image.
+pub const FLASH_16MB_NVRAM_BASE_OFFSET: usize = 0x00FE_0000;
+
 /// End memory offset of the NVRAM area (must equal `SPANSION_FLASH_SIZE_BYTES`).
 pub const SPANSION_NVRAM_END_OFFSET: usize = SPANSION_NVRAM_BASE_OFFSET + SPANSION_NVRAM_SIZE_BYTES;
 

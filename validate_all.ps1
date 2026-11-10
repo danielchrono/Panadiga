@@ -11,6 +11,12 @@ $ErrorActionPreference = "Stop"
 $ScriptRoot = if ($PSScriptRoot) { (Get-Item $PSScriptRoot).FullName } else { (Get-Item .).FullName }
 Set-Location $ScriptRoot
 
+# Ensure Rust / Cargo and user tools are on PATH
+$cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+if ((Test-Path $cargoBin) -and ($env:PATH -notlike "*$cargoBin*")) {
+    $env:PATH = "$cargoBin;$env:PATH"
+}
+
 function Write-Step($title) {
     Write-Host ""
     Write-Host "======================================================================" -ForegroundColor Cyan
@@ -105,14 +111,35 @@ try {
     # -------------------------------------------------------------------------
     # 8. Pico Firmware C11 & RSP Server Host Test Gate (OPUS-04)
     # -------------------------------------------------------------------------
-    Write-Step "8/9. Compiling & Executing C11 Pico Firmware Host Tests (GCC -Werror)"
+    Write-Step "8/9. Compiling & Executing C11 Pico Firmware Host Tests"
     Set-Location $ScriptRoot
     $cTestExe = "$ScriptRoot/test_gdb_rsp_host.exe"
-    gcc -std=c11 -Wall -Wextra -Werror -DPICO_HOST_TEST=1 -I dwire32a_jtag_research dwire32a_jtag_research/gdb_rsp.c dwire32a_jtag_research/tests/test_gdb_rsp_host.c -o $cTestExe
-    Assert-LastExitCode "GCC C11 Host Test Compilation"
+
+    if (Get-Command gcc -ErrorAction SilentlyContinue) {
+        gcc -std=c11 -Wall -Wextra -Werror -DPICO_HOST_TEST=1 -I dwire32a_jtag_research dwire32a_jtag_research/gdb_rsp.c dwire32a_jtag_research/tests/test_gdb_rsp_host.c -o $cTestExe
+        Assert-LastExitCode "GCC C11 Host Test Compilation"
+    } elseif (Get-Command clang -ErrorAction SilentlyContinue) {
+        clang -std=c11 -Wall -Wextra -Werror -DPICO_HOST_TEST=1 -I dwire32a_jtag_research dwire32a_jtag_research/gdb_rsp.c dwire32a_jtag_research/tests/test_gdb_rsp_host.c -o $cTestExe
+        Assert-LastExitCode "Clang C11 Host Test Compilation"
+    } else {
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        $vcvars = if (Test-Path $vswhere) {
+            & $vswhere -latest -products * -find **\vcvars64.bat | Select-Object -First 1
+        } else { $null }
+
+        if ($vcvars -and (Test-Path $vcvars)) {
+            $cmd = "`"$vcvars`" && cd /d `"$ScriptRoot`" && cl /nologo /std:c11 /W4 /WX /DPICO_HOST_TEST=1 /D_CRT_SECURE_NO_WARNINGS /Idwire32a_jtag_research dwire32a_jtag_research\gdb_rsp.c dwire32a_jtag_research\tests\test_gdb_rsp_host.c /Fe`"$cTestExe`""
+            cmd /c $cmd
+            Assert-LastExitCode "MSVC C11 Host Test Compilation"
+            Remove-Item -Force "$ScriptRoot\*.obj" -ErrorAction SilentlyContinue
+        } else {
+            throw "No C11 compiler (GCC, Clang, or MSVC) found to run C11 Pico firmware host tests."
+        }
+    }
     & $cTestExe
     Assert-LastExitCode "C11 Host Test Suite Execution"
-    Remove-Item -Force $cTestExe
+    Remove-Item -Force $cTestExe -ErrorAction SilentlyContinue
+    Remove-Item -Force "$ScriptRoot\*.obj" -ErrorAction SilentlyContinue
     Write-Success "All C11 Pico firmware host tests compiled and passed (7/7 assertions verified)!"
 
     # -------------------------------------------------------------------------

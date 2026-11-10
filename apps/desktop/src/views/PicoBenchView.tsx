@@ -15,6 +15,7 @@ import { CheckCircle2, Send } from 'lucide-react';
 /**
  * MVVM View: Panasonic DWire32A Hardware Bench Controller.
  * Cleanly composes presentation components and coordinates with usePicoBenchViewModel.
+ * Equalized dual columns with CSS Grid items-stretch and matching heights.
  */
 export const PicoBenchView: React.FC = () => {
   const { t } = useTranslation();
@@ -56,7 +57,7 @@ export const PicoBenchView: React.FC = () => {
                 INJEÇÃO DE RAM LOADER & APAGAMENTO IN-CIRCUIT CONCLUÍDOS!
               </h4>
               <p className="text-[11px] text-slate-300 mt-0.5 font-sans">
-                Executado em {eraseResult.elapsed_ms}ms via DWire32A OCD. NVRAM limpa para 0xFF (65.536 bytes). DMR-EH55 pronto para boot.
+                Executado em {eraseResult.elapsed_ms}ms via DWire32A OCD. NVRAM limpa para 0xFF (65.536 bytes). Alvo pronto para boot.
               </p>
             </div>
           </div>
@@ -64,7 +65,7 @@ export const PicoBenchView: React.FC = () => {
         </div>
       )}
 
-      {/* Top Bar: Port Selector, Model Selector, Connect/Disconnect & In-Circuit Action */}
+      {/* Top Bar: Port Selector, Model Selector, Connect/Disconnect, Flash UF2 & In-Circuit Action */}
       <PicoBenchTopBar
         deviceStatus={deviceStatus}
         availablePorts={availablePorts}
@@ -91,25 +92,27 @@ export const PicoBenchView: React.FC = () => {
         onLaunchTool={launchExternalTool}
       />
 
-      {/* Main Grid: Timing Modes & Live Serial Terminal */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Grid: Timing Modes & Live Serial Terminal (Balanced Columns) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Column: Timing Profile Selector & Pinout Guide */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 flex flex-col space-y-6 h-[740px]">
           <ColdBreakinSelector
             currentMode={deviceStatus?.breakin_mode ?? 2}
             onSelectMode={changeBreakinMode}
           />
-          <DwirePinoutCard />
+          <div className="flex-1 min-h-0">
+            <DwirePinoutCard />
+          </div>
         </div>
 
         {/* Right Column: Live Terminal & CDC Command Bar */}
-        <div className="lg:col-span-7 flex flex-col h-[650px] space-y-3">
-          <div className="flex-1 min-h-0">
+        <div className="lg:col-span-7 flex flex-col space-y-3 h-[740px]">
+          <div className="flex-1 min-h-0 flex flex-col">
             <TerminalView logs={logs} onClear={clearLogs} />
           </div>
 
           {/* Interactive Command Input */}
-          <div className="flex items-center gap-2 p-2 rounded-xl bg-bench-900 border border-slate-800">
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-bench-900 border border-slate-800 shrink-0">
             <span className="text-slate-500 text-xs font-mono pl-2">{'>'}</span>
             <input
               type="text"

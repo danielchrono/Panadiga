@@ -19,6 +19,7 @@ set CARGO_INCREMENTAL=1
 :: Dispatch Android build if requested
 if "%1"=="--android" goto :build_android
 if "%1"=="-a" goto :build_android
+if "%1"=="--all" set "BUILD_ALL=1"
 
 :: [1/4] Build React Interface (UI)
 echo [1/4] Compilando Frontend Desktop (React / TypeScript / Vite)...
@@ -109,6 +110,7 @@ echo    - Firmware Pico:     dist\firmware\ (.UF2 RP2040 e RP2350)
 echo    - Pacote Release:    dist\releases\panadiga-windows-x86_64.zip
 echo    - Inicializador:     dist\run.cmd e dist\run.sh
 echo ====================================================================
+if defined BUILD_ALL goto :build_android
 if not defined CI if "%1"=="" pause
 exit /b 0
 

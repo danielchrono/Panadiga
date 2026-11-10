@@ -366,6 +366,55 @@ export async function handleMockCommand<T>(
       } as unknown as T;
     }
 
+    case 'list_physical_drives':
+      return [
+        {
+          device_path: '\\\\.\\PhysicalDrive0',
+          display_name: 'Physical Drive 0 (Host Windows NVMe, 512.0 GB)',
+          size_bytes: 512110190592,
+          size_gb: 512.0,
+          is_system_drive: true,
+          safe_to_write: false,
+          lockout_reason: 'LOCKED: Windows Host Operating System Boot Drive (PhysicalDrive0)',
+        },
+        {
+          device_path: '\\\\.\\PhysicalDrive1',
+          display_name: 'Physical Drive 1 (PATA/IDE Panasonic DIGA Target, 80.0 GB)',
+          size_bytes: 80026361856,
+          size_gb: 80.0,
+          is_system_drive: false,
+          safe_to_write: true,
+          lockout_reason: null,
+        },
+      ] as unknown as T;
+
+    case 'format_hdd_meihdfs':
+    case 'write_hdd_image':
+    case 'restore_hdd_mirrors':
+      return {
+        device_path: (args?.devicePath as string) || '\\\\.\\PhysicalDrive1',
+        operation: cmd,
+        bytes_written: 104857600,
+        sectors_written: 204800,
+        success: true,
+        message: 'Operação física de gravação MEIHDFS executada com sucesso.',
+      } as unknown as T;
+
+    case 'pico_detect_bootsel_drives':
+      return ['D:\\ (RPI-RP2)'] as unknown as T;
+
+    case 'pico_trigger_bootsel_reboot':
+      return 'Dispositivo reiniciado em modo BOOTSEL' as unknown as T;
+
+    case 'pico_flash_firmware':
+      return {
+        success: true,
+        target_board: 'Raspberry Pi Pico (RP2040)',
+        mount_path: 'D:\\',
+        bytes_written: 119296,
+        message: 'Firmware panasonic_dwire32a.uf2 gravado com sucesso no drive BOOTSEL.',
+      } as unknown as T;
+
     default:
       logger.warn('MockIPC', `Unhandled command: ${cmd}`);
       return {} as unknown as T;

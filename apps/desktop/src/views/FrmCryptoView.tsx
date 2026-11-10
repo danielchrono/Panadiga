@@ -9,7 +9,8 @@ import {
   FrmCodebookTab,
   FrmCorrelationTab,
 } from '@/components/crypto';
-import { BarChart2, Layers, KeyRound, FileCheck2 } from 'lucide-react';
+import { BarChart2, Layers, KeyRound, FileCheck2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const FrmCryptoView: React.FC = () => {
   const { t } = useTranslation();
@@ -21,14 +22,40 @@ export const FrmCryptoView: React.FC = () => {
     activeTab,
     setActiveTab,
     loading,
+    error,
     codebookFilter,
     setCodebookFilter,
+    refresh,
   } = useFrmCryptoViewModel();
 
-  if (loading || !cryptReport) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-slate-500 font-mono text-xs">
-        {t('crypto.loading')}
+      <div className="flex flex-col items-center justify-center h-96 gap-3 text-slate-500 font-mono text-xs">
+        <RefreshCw className="w-6 h-6 animate-spin text-purple-400" />
+        <span>{t('crypto.loading')}</span>
+      </div>
+    );
+  }
+
+  if (!cryptReport) {
+    return (
+      <div className="max-w-2xl mx-auto my-16 p-6 rounded-2xl bg-bench-900 border border-slate-800 text-center space-y-4 font-mono">
+        <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-slate-100">
+            Contêiner Criptográfico PANA_DVD.FRM Não Encontrado
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            {error ||
+              'Não foi possível carregar ou analisar o contêiner PANA_DVD.FRM. Verifique se o arquivo está na pasta firmware_and_images/.'}
+          </p>
+        </div>
+        <Button variant="emerald" onClick={refresh} className="gap-2 mx-auto">
+          <RefreshCw className="w-4 h-4" />
+          <span>Tentar Novamente</span>
+        </Button>
       </div>
     );
   }
@@ -98,11 +125,17 @@ export const FrmCryptoView: React.FC = () => {
         <FrmEntropyTab topBlocks={cryptReport.top_blocks} />
       )}
 
-      {activeTab === 'toc' && tocReport && (
-        <FrmTocTab tocReport={tocReport} />
+      {activeTab === 'toc' && (
+        tocReport ? (
+          <FrmTocTab tocReport={tocReport} />
+        ) : (
+          <div className="p-8 text-center text-slate-500 font-mono text-xs rounded-xl bg-bench-900 border border-slate-800">
+            {t('crypto.tabs.toc')} - {t('common.loading', 'Carregando TOC...')}
+          </div>
+        )
       )}
 
-      {activeTab === 'codebook' && codebookReport && (
+      {activeTab === 'codebook' && (
         <FrmCodebookTab
           filteredCodebook={filteredCodebook}
           codebookFilter={codebookFilter}
@@ -111,7 +144,7 @@ export const FrmCryptoView: React.FC = () => {
       )}
 
       {activeTab === 'correlation' && (
-        <FrmCorrelationTab correlations={cryptReport.hdd_correlations} />
+        <FrmCorrelationTab correlations={cryptReport.hdd_correlations || []} />
       )}
     </div>
   );

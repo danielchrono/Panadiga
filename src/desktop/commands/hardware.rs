@@ -97,6 +97,35 @@ pub fn pico_send_serial_command(
     super::super::pico::pico_send_raw_serial_command(port, command)
 }
 
+/// Discovers any currently mounted Raspberry Pi BOOTSEL drives (RPI-RP2 / RP2350).
+#[tauri::command]
+pub fn pico_detect_bootsel_drives() -> Result<Vec<String>, String> {
+    let drives = crate::pico::flasher::detect_bootsel_drives();
+    Ok(drives
+        .into_iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect())
+}
+
+/// Triggers 1200-baud touch reset on a running Pico to put it into BOOTSEL mode.
+#[tauri::command]
+pub fn pico_trigger_bootsel_reboot(port_name: String) -> Result<String, String> {
+    crate::pico::flasher::trigger_1200_baud_bootsel(&port_name).map_err(|e| e.to_string())?;
+    Ok(format!(
+        "Port {} triggered 1200-baud reset into BOOTSEL mode",
+        port_name
+    ))
+}
+
+/// Flashes the embedded DWire32A firmware (RP2040 or RP2350) onto a detected BOOTSEL drive.
+#[tauri::command]
+pub fn pico_flash_firmware(
+    target_family: Option<String>,
+) -> Result<crate::pico::flasher::PicoFlashReport, String> {
+    crate::pico::flasher::flash_embedded_firmware(target_family.as_deref())
+        .map_err(|e| e.to_string())
+}
+
 /// Starts the GDB TCP-to-Serial bridge server.
 #[tauri::command]
 pub fn start_gdb_bridge_command(

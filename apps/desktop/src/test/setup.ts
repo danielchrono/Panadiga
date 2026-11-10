@@ -1,9 +1,15 @@
 import { vi } from "vitest";
+import { mockNvramCleanReport } from "../services/mocks/mockNvram";
+import { handleMockCommand } from "../services/mockDispatcher";
 
 // Mock Tauri core IPC
 vi.mock("@tauri-apps/api/core", () => ({
+  isTauri: vi.fn(() => true),
   invoke: vi.fn().mockImplementation((cmd: string, args?: unknown) => {
     switch (cmd) {
+      case "clean_nvram":
+      case "analyze_flash_dump":
+        return Promise.resolve(mockNvramCleanReport);
       case "list_pico_serial_ports":
         return Promise.resolve([
           {
@@ -42,8 +48,9 @@ vi.mock("@tauri-apps/api/core", () => ({
             psw: 0x00000040,
           },
         });
+      case "pico_send_serial_command":
       case "pico_send_command":
-        return Promise.resolve("[DW32A] OK");
+        return Promise.resolve("VDD=3.28V | OCD=HALTED | PC=0x80000000 | MODE=2");
       case "pico_start_gdb_server":
         return Promise.resolve({
           port: 3333,
@@ -57,7 +64,7 @@ vi.mock("@tauri-apps/api/core", () => ({
           connected_clients: 0,
         });
       default:
-        return Promise.resolve(null);
+        return handleMockCommand(cmd, args as Record<string, unknown>);
     }
   }),
 }));

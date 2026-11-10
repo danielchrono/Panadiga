@@ -23,6 +23,12 @@ pub const RP2040_FAMILY_ID: u32 = 0xE484_9208;
 pub const RP2350_ARM_S_FAMILY_ID: u32 = 0xE484_920A;
 pub const RP2350_RISCV_FAMILY_ID: u32 = 0xE484_920B;
 
+/// Pre-compiled DWire32A firmware binary containers embedded into the application executable.
+pub const EMBEDDED_RP2040_UF2: &[u8] =
+    include_bytes!("firmware_bins/panasonic_dwire32a_rp2040.uf2");
+pub const EMBEDDED_RP2350_UF2: &[u8] =
+    include_bytes!("firmware_bins/panasonic_dwire32a_rp2350.uf2");
+
 /// Result summary of an automated Pico flashing operation.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PicoFlashReport {
@@ -186,6 +192,36 @@ pub fn flash_uf2_to_drive(drive_path: &Path, uf2_bytes: &[u8]) -> Result<PicoFla
             drive_path.display()
         ),
     })
+}
+
+/// Automatically flashes the embedded DWire32A firmware to any connected BOOTSEL drive.
+/// Inspects INFO_UF2.TXT to auto-detect whether the target chip is RP2040 or RP2350.
+pub fn flash_embedded_firmware(target_override: Option<&str>) -> Result<PicoFlashReport> {
+    let drives = detect_bootsel_drives();
+    if drives.is_empty() {
+        bail!(
+            "No Raspberry Pi BOOTSEL drives (RPI-RP2 / RP2350) detected! Hold BOOTSEL button while plugging USB."
+        );
+    }
+    let target_drive = &drives[0];
+
+    // Auto-detect RP2040 vs RP2350 from INFO_UF2.TXT
+    let info_txt_path = target_drive.join("INFO_UF2.TXT");
+    let info_content = fs::read_to_string(&info_txt_path).unwrap_or_default();
+
+    let is_rp2350 = if let Some(over) = target_override {
+        over.to_lowercase().contains("2350")
+    } else {
+        info_content.contains("RP2350") || info_content.contains("Pico 2")
+    };
+
+    let uf2_payload = if is_rp2350 {
+        EMBEDDED_RP2350_UF2
+    } else {
+        EMBEDDED_RP2040_UF2
+    };
+
+    flash_uf2_to_drive(target_drive, uf2_payload)
 }
 
 #[cfg(test)]

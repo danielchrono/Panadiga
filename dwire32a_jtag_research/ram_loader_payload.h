@@ -276,7 +276,8 @@ static inline dwire_status_t ram_loader_inject_for_flash_size(
                                flash_size_bytes == 0x01000000UL)
                               ? flash_size_bytes
                               : 0x00800000UL;
-    const uint32_t nvram_start = SPANSION_FLASH_UNCACHED_BASE + (eff_size - 0x00010000UL);
+    const uint32_t nvram_size  = (eff_size == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+    const uint32_t nvram_start = SPANSION_FLASH_UNCACHED_BASE + (eff_size - nvram_size);
     const uint32_t nvram_end   = SPANSION_FLASH_UNCACHED_BASE + eff_size;
 
     /* Patch 0x000C: mov <nvram_start>, a2 (32-bit little-endian immediate at offset 0x000E) */
@@ -343,19 +344,33 @@ static inline dwire_status_t ram_loader_inject(uint32_t target_sram_addr, bool v
  *
  * @return DWIRE_OK on successful erasure, or error code on failure.
  */
-static inline dwire_status_t ram_loader_execute_erase(void) {
+static inline dwire_status_t ram_loader_execute_erase_for_flash_size(uint32_t flash_size_bytes) {
     if (!dwire_hw_is_target_powered()) {
         printf("[ERASE_NVRAM] Error: Target DMR-EH55 board is unpowered!\n");
         return DWIRE_ERR_TARGET_UNPOWERED;
     }
 
     printf("\n[ERASE_NVRAM] ====================================================\n");
-    printf("[ERASE_NVRAM] Launching JEDEC Sector Erase on Spansion S29JL064H\n");
-    printf("[ERASE_NVRAM] Target Memory Range: 0x%08lX to 0x%08lX (64 KB)\n",
-           (unsigned long)(SPANSION_FLASH_UNCACHED_BASE + SPANSION_NVRAM_BASE_OFFSET),
-           (unsigned long)(SPANSION_FLASH_UNCACHED_BASE + SPANSION_NVRAM_END_OFFSET - 1U));
-    printf("[ERASE_NVRAM] Micro-sectors      : SA134 to SA141 (8 x 8 KB)\n");
-    printf("[ERASE_NVRAM] Note               : Parameter block 0x007E0000 preserved\n");
+    const uint32_t eff_size = (flash_size_bytes == 0x00200000UL ||
+                               flash_size_bytes == 0x00400000UL ||
+                               flash_size_bytes == 0x00800000UL ||
+                               flash_size_bytes == 0x01000000UL)
+                              ? flash_size_bytes
+                              : 0x00800000UL;
+    const uint32_t nvram_size = (eff_size == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+    const uint32_t nvram_start = SPANSION_FLASH_UNCACHED_BASE + (eff_size - nvram_size);
+    const uint32_t nvram_end   = SPANSION_FLASH_UNCACHED_BASE + eff_size;
+    const uint32_t sector_count = nvram_size / SPANSION_MICROSECTOR_SIZE_BYTES;
+    const uint32_t base_sector = (eff_size == 0x01000000UL) ? 254U :
+                                 (eff_size == 0x00400000UL) ? 70U :
+                                 (eff_size == 0x00200000UL) ? 38U : 134U;
+
+    printf("[ERASE_NVRAM] Launching JEDEC Sector Erase on Spansion Flash (%lu MB)\n", (unsigned long)(eff_size / (1024UL * 1024UL)));
+    printf("[ERASE_NVRAM] Target Memory Range: 0x%08lX to 0x%08lX (%lu KB)\n",
+           (unsigned long)nvram_start,
+           (unsigned long)(nvram_end - 1U), (unsigned long)(nvram_size / 1024UL));
+    printf("[ERASE_NVRAM] Micro-sectors      : SA%u to SA%u (%u x 8 KB)\n", (unsigned)base_sector, (unsigned)(base_sector + sector_count - 1U), (unsigned)sector_count);
+    printf("[ERASE_NVRAM] Note               : Parameter block preserved\n");
     printf("[ERASE_NVRAM] ====================================================\n");
 
     /* Step 1: Set AM34 Program Counter to SRAM entry point */
@@ -367,9 +382,9 @@ static inline dwire_status_t ram_loader_execute_erase(void) {
     dwire_hw_resume_cpu();
 
     /* Step 3: Monitor sector-by-sector erasure */
-    for (uint32_t s = 0; s < SPANSION_NVRAM_SECTOR_COUNT; ++s) {
-        const uint32_t sector_num  = 134U + s;
-        const uint32_t sector_addr = SPANSION_NVRAM_BASE_OFFSET + (s * SPANSION_MICROSECTOR_SIZE_BYTES);
+    for (uint32_t s = 0; s < sector_count; ++s) {
+        const uint32_t sector_num  = base_sector + s;
+        const uint32_t sector_addr = (eff_size - nvram_size) + (s * SPANSION_MICROSECTOR_SIZE_BYTES);
 
         printf("[ERASE_NVRAM] Erasing SA%u (Offset 0x%06lX, 8 KB)... ",
                (unsigned)sector_num, (unsigned long)sector_addr);
@@ -397,11 +412,15 @@ static inline dwire_status_t ram_loader_execute_erase(void) {
     }
 
     /* Step 5: Force Flash array back to Read Mode (0x00F0) */
-    dwire_hw_write_mem32(SPANSION_FLASH_UNCACHED_BASE + SPANSION_NVRAM_BASE_OFFSET, 0x00F000F0);
+    dwire_hw_write_mem32(nvram_start, 0x00F000F0);
     printf("[ERASE_NVRAM] Spansion array restored to normal Read Mode.\n");
     printf("[ERASE_NVRAM] NVRAM sanitization complete: U99 condition resolved.\n");
 
     return DWIRE_OK;
+}
+
+static inline dwire_status_t ram_loader_execute_erase(void) {
+    return ram_loader_execute_erase_for_flash_size(0x00800000UL);
 }
 
 #ifdef __cplusplus

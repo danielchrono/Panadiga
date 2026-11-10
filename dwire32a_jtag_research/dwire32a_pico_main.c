@@ -47,6 +47,29 @@ typedef struct dwire_scan_stats {
     uint32_t open_bus_low;
 } dwire_scan_stats_t;
 
+/**
+ * @brief Flash geometry metadata resolved via passive address aliasing.
+ */
+typedef struct {
+    uint32_t bytes;
+    uint32_t mb;
+    uint32_t nvram_size;
+    uint32_t nvram_base;
+} flash_geometry_info_t;
+
+/**
+ * @brief Discovers Flash geometry and synchronizes GDB memory window limits.
+ */
+static inline flash_geometry_info_t dwire_probe_flash_geometry(void) {
+    flash_geometry_info_t info;
+    info.bytes = dwire_hw_autodetect_flash_size();
+    (void)gdb_rsp_set_flash_size(info.bytes);
+    info.mb = info.bytes / (1024UL * 1024UL);
+    info.nvram_size = (info.bytes == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+    info.nvram_base = 0x80000000UL + (info.bytes - info.nvram_size);
+    return info;
+}
+
 /* =========================================================================
  * User Interface & Diagnostic Reporting
  * ========================================================================= */
@@ -288,12 +311,9 @@ static void process_serial_command(char *line) {
             } else if (dcsr == DWIRE_BUS_RESP_OPEN_LOW) {
                 printf("[HANDSHAKE] FAILED: Bus shorted to Ground (0x00000000). Check for wiring short-circuit.\n");
             } else if (halted) {
-                const uint32_t detected_bytes = dwire_hw_autodetect_flash_size();
-                (void)gdb_rsp_set_flash_size(detected_bytes);
-                const uint32_t detected_mb = detected_bytes / (1024UL * 1024UL);
-                const uint32_t nvram_base  = 0x80000000UL + (detected_bytes - 0x00010000UL);
+                const flash_geometry_info_t geo = dwire_probe_flash_geometry();
                 printf("[AUTODETECT] Passive Address Aliasing Probe: %" PRIu32 " MB NOR Flash detected (EEMUL NVRAM @ 0x%08" PRIX32 ").\n",
-                       detected_mb, nvram_base);
+                       geo.mb, geo.nvram_base);
                 printf("[HANDSHAKE] SUCCESS! Matsushita AM34 core is HALTED in On-Chip Debug mode (Mode %" PRIu32 ").\n",
                        matched_mode);
             } else {
@@ -446,9 +466,14 @@ static void process_serial_command(char *line) {
             return;
         }
         printf("[ERASE_NVRAM] Initiating Spansion flash NVRAM sector erasure...\n");
-        const dwire_status_t status = ram_loader_execute_erase();
+        const dwire_status_t status = ram_loader_execute_erase_for_flash_size(gdb_rsp_get_flash_size());
         if (status == DWIRE_OK) {
-            printf("ERASE_NVRAM: OK (8 micro-sectors 0x007F0000..0x007FFFFF erased, U99 cleared)\n");
+            const uint32_t eff_size = gdb_rsp_get_flash_size();
+            const uint32_t nvram_size = (eff_size == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+            const uint32_t nvram_base = eff_size - nvram_size;
+            const uint32_t micro_count = nvram_size / 0x2000UL;
+            printf("ERASE_NVRAM: OK (%" PRIu32 " micro-sectors 0x%08" PRIX32 "..0x%08" PRIX32 " erased, U99 cleared)\n",
+                   micro_count, nvram_base, eff_size - 1UL);
         } else {
             printf("ERASE_NVRAM: ERROR (Code %d)\n", (int)status);
         }
@@ -468,12 +493,9 @@ static void process_serial_command(char *line) {
         printf("ENGAGE: OK (Active PIO OCD bus drive restored on 6-pin connector)\n");
     }
     else if (strcmp(cmd, "AUTODETECT") == 0) {
-        const uint32_t detected_bytes = dwire_hw_autodetect_flash_size();
-        (void)gdb_rsp_set_flash_size(detected_bytes);
-        const uint32_t detected_mb = detected_bytes / (1024UL * 1024UL);
-        const uint32_t nvram_base  = 0x80000000UL + (detected_bytes - 0x00010000UL);
+        const flash_geometry_info_t geo = dwire_probe_flash_geometry();
         printf("AUTODETECT: OK (%" PRIu32 " MB NOR Flash | EEMUL NVRAM: 0x%08" PRIX32 "..0x%08" PRIX32 ")\n",
-               detected_mb, nvram_base, 0x80000000UL + detected_bytes - 1UL);
+               geo.mb, geo.nvram_base, 0x80000000UL + geo.bytes - 1UL);
     }
     else if (strcmp(cmd, "FLASH_SIZE") == 0) {
         uint32_t mb = 8U;
@@ -482,9 +504,10 @@ static void process_serial_command(char *line) {
         }
         const uint32_t bytes = mb * 1024UL * 1024UL;
         if (gdb_rsp_set_flash_size(bytes)) {
-            const uint32_t nvram_base = 0x80000000UL + (bytes - 0x00010000UL);
-            printf("FLASH_SIZE: OK (%" PRIu32 " MB configured; Top-Boot 64KB EEMUL NVRAM @ 0x%08" PRIX32 ")\n",
-                   mb, nvram_base);
+            const uint32_t nvram_size = (bytes == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+            const uint32_t nvram_base = 0x80000000UL + (bytes - nvram_size);
+            printf("FLASH_SIZE: OK (%" PRIu32 " MB configured; Top-Boot %" PRIu32 "KB EEMUL NVRAM @ 0x%08" PRIX32 ")\n",
+                   mb, nvram_size / 1024UL, nvram_base);
         } else {
             printf("FLASH_SIZE: ERROR (Invalid size %" PRIu32 " MB; valid options: 2, 4, 8, 16)\n", mb);
         }

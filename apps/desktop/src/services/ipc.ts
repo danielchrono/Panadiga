@@ -1,17 +1,18 @@
 /**
  * IPC Communication & Reactive Event Stream Transport for Panasonic DIGA Suite
  * Single Responsibility: Wraps @tauri-apps/api/core and @tauri-apps/api/event
- * with automatic delegation to `mockDispatcher.ts` when running in Demo Mode.
+ * with automatic fallback to `mockDispatcher.ts` ONLY when outside Tauri (e.g. tests).
  */
 
+import { isTauri } from '@tauri-apps/api/core';
 import { logger } from '@/utils/logger';
 import { handleMockCommand, subscribeMockEventStream } from './mockDispatcher';
 
 export const isTauriEnvironment = (): boolean => {
-  return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+  return isTauri();
 };
 
-let demoModeActive = !isTauriEnvironment();
+let demoModeActive = false;
 
 export const isDemoModeActive = (): boolean => demoModeActive;
 
@@ -20,18 +21,19 @@ export const setDemoMode = (active: boolean): void => {
 };
 
 /**
- * Universal invoke wrapper with full TypeScript safety
+ * Universal invoke wrapper with full TypeScript safety.
+ * Strictly prioritizes real native Tauri IPC pipeline.
  */
 export async function invokeCommand<T>(
   cmd: string,
   args?: Record<string, unknown>
 ): Promise<T> {
-  if (demoModeActive || !isTauriEnvironment()) {
-    return handleMockCommand<T>(cmd, args);
+  if (isTauri() && !demoModeActive) {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return await invoke<T>(cmd, args);
   }
 
-  const { invoke } = await import('@tauri-apps/api/core');
-  return await invoke<T>(cmd, args);
+  return handleMockCommand<T>(cmd, args);
 }
 
 /**
@@ -42,7 +44,7 @@ export async function listenEvent<T>(
   eventName: string,
   handler: (payload: T) => void
 ): Promise<() => void> {
-  if (isTauriEnvironment() && !demoModeActive) {
+  if (isTauri() && !demoModeActive) {
     try {
       const { listen } = await import('@tauri-apps/api/event');
       return await listen<T>(eventName, event => {

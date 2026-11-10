@@ -7,7 +7,10 @@ use std::fs::{self, File};
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-use super::dto::{BinaryFileStatusDto, HexDumpRowDto, SystemOverviewDto, resolve_candidate};
+use super::dto::{
+    BinaryFileStatusDto, HexDumpRowDto, SystemOverviewDto, detect_diga_model_from_slice,
+    resolve_candidate,
+};
 
 /// Returns the complete workspace and hardware overview for `useDashboardViewModel`.
 #[tauri::command]
@@ -34,16 +37,60 @@ pub fn get_system_overview() -> Result<SystemOverviewDto, String> {
         }
     };
 
+    let flash_candidates = [
+        "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
+        "panasonic_dmr-eh55_flash_dump.bin",
+        "firmware_and_images/dmr-ez485v/panasonic_dmr_ez485v_flash_dump_4mb.bin",
+    ];
+    let resolved_flash = resolve_candidate(
+        &flash_candidates,
+        "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
+    );
+
+    let (product_model, soc_processor, flash_rom) = if let Ok(data) = fs::read(&resolved_flash) {
+        let model = detect_diga_model_from_slice(&data);
+        let (soc, rom) = match data.len() {
+            0x0020_0000 => (
+                "Matsushita UniPhier MN2DS0002/0004".to_string(),
+                "2 MB NOR Flash (Top-Boot 64KB EEMUL NVRAM @ 0x801F0000)".to_string(),
+            ),
+            0x0040_0000 => (
+                "Matsushita UniPhier MN2DS0009/0015".to_string(),
+                "4 MB NOR Flash (Top-Boot 64KB EEMUL NVRAM @ 0x803F0000)".to_string(),
+            ),
+            0x0080_0000 => (
+                "Matsushita UniPhier MN2DS0016".to_string(),
+                "Spansion S29JL064H (8 MB NOR, Top-Boot 8x8KB SA134..SA141 @ 0x807F0000)"
+                    .to_string(),
+            ),
+            0x0100_0000 => (
+                "Matsushita UniPhier MN2DS0022".to_string(),
+                "16 MB NOR Flash (Top-Boot 64KB EEMUL NVRAM @ 0x80FF0000)".to_string(),
+            ),
+            _ => (
+                "Matsushita UniPhier AM34 / MN103S Core".to_string(),
+                "Panasonic DIGA NOR Flash (Top-Boot EEMUL NVRAM)".to_string(),
+            ),
+        };
+        (model, soc, rom)
+    } else {
+        (
+            "Panasonic DIGA (Auto-Detected Target)".to_string(),
+            "Matsushita UniPhier AM34 / MN103S Core".to_string(),
+            "Spansion NOR Flash (Top-Boot 8x8KB EEMUL NVRAM)".to_string(),
+        )
+    };
+
     let binaries = vec![
         check_file(
             "flash_dump",
-            "Spansion S29JL064H NOR Flash Dump (8 MB)",
-            "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
-            "Bootloader IPL + 64 KB EEMUL NVRAM (SA134..SA141)",
+            "Panasonic DIGA NOR Flash Dump",
+            &resolved_flash,
+            "Bootloader IPL + 64 KB EEMUL NVRAM",
         ),
         check_file(
             "hdd_image",
-            "Panasonic DMR-EH55 HDD Raw Dump (100 MB)",
+            "Panasonic DIGA HDD Raw Dump",
             crate::constants::DEFAULT_HDD_IMAGE_PATH,
             "LBA 0 Superblock (SH) + Mirror LBA 57344 + Partitions 1 & 2",
         ),
@@ -56,17 +103,16 @@ pub fn get_system_overview() -> Result<SystemOverviewDto, String> {
     ];
 
     Ok(SystemOverviewDto {
-        product_model: "Panasonic DIGA DMR-EH55 (VEP79138)".to_string(),
-        soc_processor: "Matsushita UniPhier MN2DS0016".to_string(),
+        product_model,
+        soc_processor,
         core_architecture: "32-bit AM34 / MN10300 RISC".to_string(),
         os_system: "Panasonic Real-Time OS + MEIHDFS v1.0".to_string(),
-        flash_rom: "Spansion S29JL064H (8 MB NOR, Top-Boot 8x8KB SA134..SA141)".to_string(),
+        flash_rom,
         hdd_specs: "PATA/IDE MEIHDFS (LBA 0 Master + LBA 57344 Mirror)".to_string(),
         optical_drive: "DVD-RAM / DVD-RW / DVD-R Multi-Drive".to_string(),
         debug_port: "P7501 (JST B6B-ZR-3R4) DWire32A @ 1.0 MHz (Pin 4 = GND)".to_string(),
         error_code: "U99".to_string(),
-        error_description: "Falha de Handshake EEMUL NVRAM (SA134..SA141) / Bootloader Trap"
-            .to_string(),
+        error_description: "Falha de Handshake EEMUL NVRAM / Bootloader Trap".to_string(),
         firmware_version: "v1.18 EU / Global".to_string(),
         binaries,
     })

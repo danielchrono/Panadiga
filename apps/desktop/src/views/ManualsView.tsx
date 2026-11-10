@@ -63,10 +63,10 @@ export const ManualsView: React.FC = () => {
         selectTerm={selectTerm}
       />
 
-      {/* Main Grid: Search Results & Document Metadata */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Grid: Search Results & Document Metadata (Balanced Columns) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left: Search Results & Snippets */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 flex flex-col">
           <ManualsResultsList
             searchResults={searchResults}
             loading={loading}
@@ -74,7 +74,7 @@ export const ManualsView: React.FC = () => {
         </div>
 
         {/* Right: Document Catalog & Selected Doc Details */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 flex flex-col">
           <ManualsDocCatalog
             documents={documents}
             selectedDoc={selectedDoc}

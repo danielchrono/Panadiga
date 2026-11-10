@@ -7,3 +7,4 @@ export * from './HddMeihdfsTable';
 export * from './HddJournalTable';
 export * from './HddDensityMap';
 export * from './HddExtractManifestCard';
+export * from './HddWriterCard';

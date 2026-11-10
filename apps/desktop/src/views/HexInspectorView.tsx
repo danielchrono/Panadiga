@@ -109,17 +109,17 @@ export const HexInspectorView: React.FC = () => {
         />
       </div>
 
-      {/* Main Hex Workspace: Left Bookmarks / Right Hex Table */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* Main Hex Workspace: Left Bookmarks / Right Hex Table (Balanced Heights) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left: Bookmarks List */}
-        <div className="lg:col-span-4 space-y-3">
-          <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+        <div className="lg:col-span-4 flex flex-col h-[680px]">
+          <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-3 flex flex-col h-full">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2 shrink-0">
               <Compass className="w-4 h-4 text-cyan-400" />
               <span>Marcadores Arquiteturais Críticos</span>
             </h3>
 
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
               {bookmarks.length === 0 ? (
                 <div className="p-6 text-center text-xs text-slate-500 font-mono">
                   Nenhum marcador registrado
@@ -157,10 +157,10 @@ export const HexInspectorView: React.FC = () => {
         </div>
 
         {/* Right: The High-Precision Hex Dump Grid */}
-        <div className="lg:col-span-8 space-y-3">
-          <div className="rounded-xl bg-bench-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col">
+        <div className="lg:col-span-8 flex flex-col h-[680px]">
+          <div className="rounded-xl bg-bench-900 border border-slate-800 shadow-xl overflow-hidden flex flex-col h-full">
             {/* Hex Header Bar */}
-            <div className="px-4 py-2.5 bg-bench-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+            <div className="px-4 py-2.5 bg-bench-950 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 shrink-0">
               <div className="flex items-center gap-6">
                 <span className="w-24 font-bold text-slate-500">OFFSET</span>
                 <span className="w-52 font-bold tracking-wider text-slate-400">
@@ -191,7 +191,7 @@ export const HexInspectorView: React.FC = () => {
             </div>
 
             {/* Rows */}
-            <div className="p-4 bg-slate-950 overflow-x-auto space-y-1 text-xs select-text">
+            <div className="p-4 bg-slate-950 overflow-x-auto overflow-y-auto space-y-1 text-xs select-text flex-1 min-h-0">
               {loading ? (
                 <div className="py-12 text-center text-slate-500">
                   Carregando bytes na memória...

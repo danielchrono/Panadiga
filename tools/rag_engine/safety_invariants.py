@@ -282,6 +282,12 @@ class HardwareSafetyValidator:
         # 4. Storage Invariant: MEIHDFS Hard Drive Structure Protection
         # ----------------------------------------------------------------------
         for util in self.PC_DISK_UTILS:
+            if util == "mkfs":
+                # Allow our procedural "mkfs.meihdfs" or "mkfs_meihdfs" synthesizer
+                import re
+                has_generic_mkfs = bool(re.search(r"\bmkfs\b(?!\.(?:meihdfs)|_(?:meihdfs))", lower_text))
+                if not has_generic_mkfs:
+                    continue
             if util in lower_text:
                 if not bool(self.NEGATION_REGEX.search(lower_text)):
                     violations.append(

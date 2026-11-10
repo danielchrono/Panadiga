@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { SerialLogEntry } from '@/models';
 import { invokeCommand, isDemoModeActive, isTauriEnvironment } from '@/services/ipc';
-import { mockInitialSerialLogs } from '@/services/mockData';
 import { bleService } from '@/services/bleService';
 
 /**
@@ -13,13 +12,14 @@ export type SerialConsoleState =
 
 export interface UseSerialConsoleOptions {
   selectedPort?: string;
+  initialLogs?: SerialLogEntry[];
 }
 
 /**
  * Single Responsibility: Manages interactive serial CDC console logs and command dispatching.
  */
-export function useSerialConsole({ selectedPort }: UseSerialConsoleOptions = {}) {
-  const [logs, setLogs] = useState<SerialLogEntry[]>(mockInitialSerialLogs);
+export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialConsoleOptions = {}) {
+  const [logs, setLogs] = useState<SerialLogEntry[]>(initialLogs);
   const [commandInput, setCommandInput] = useState<string>('');
   const [consoleState, setConsoleState] = useState<SerialConsoleState>({ status: 'idle' });
   const logContainerRef = useRef<HTMLDivElement>(null);

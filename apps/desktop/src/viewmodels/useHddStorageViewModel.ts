@@ -7,7 +7,7 @@ import {
 import { invokeCommand } from '@/services/ipc';
 import { logger } from '@/utils/logger';
 
-export type HddTab = 'overview' | 'mbr' | 'meihdfs' | 'journal' | 'density' | 'extract';
+export type HddTab = 'overview' | 'mbr' | 'meihdfs' | 'journal' | 'density' | 'extract' | 'writer';
 
 export function useHddStorageViewModel() {
   const [hddReport, setHddReport] = useState<HddAnalysisReport | null>(null);

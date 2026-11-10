@@ -10,6 +10,7 @@ import {
   HddJournalTable,
   HddDensityMap,
   HddExtractManifestCard,
+  HddWriterCard,
 } from '@/components/hdd';
 import {
   Layers,
@@ -18,6 +19,7 @@ import {
   BookOpen,
   BarChart3,
   FolderArchive,
+  HardDrive,
 } from 'lucide-react';
 
 /**
@@ -160,6 +162,20 @@ export const HddStorageView: React.FC = () => {
             <span>Manifesto de Partições</span>
           </button>
         )}
+
+        <button
+          onClick={() => setActiveTab('writer')}
+          role="tab"
+          aria-selected={activeTab === 'writer'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400 ${
+            activeTab === 'writer'
+              ? 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <HardDrive className="w-3.5 h-3.5" />
+          <span>Gravação Física & mkfs</span>
+        </button>
       </div>
 
       {/* Tab 1: Overview */}
@@ -200,6 +216,11 @@ export const HddStorageView: React.FC = () => {
           copiedSha={copiedSha}
           onCopySha={copyToClipboard}
         />
+      )}
+
+      {/* Tab 7: Physical Drive Writer & mkfs.meihdfs */}
+      {activeTab === 'writer' && (
+        <HddWriterCard />
       )}
     </div>
   );

@@ -156,3 +156,54 @@ pub fn extract_partitions(
         extracted_partitions: items,
     })
 }
+
+/// Discovers connected physical storage drives and evaluates system safety locks.
+#[tauri::command]
+pub fn list_physical_drives() -> Result<Vec<crate::hdd::PhysicalDriveInfo>, String> {
+    crate::hdd::list_physical_drives().map_err(|e| e.to_string())
+}
+
+/// Formats a physical disk with procedural MEIHDFS filesystem structures (mkfs.meihdfs).
+#[tauri::command]
+pub fn format_hdd_meihdfs(
+    device_path: String,
+    total_sectors: u64,
+    confirmation_token: String,
+) -> Result<crate::hdd::DriveWriteReport, String> {
+    let layout = crate::hdd::mkfs::generate_meihdfs_layout(total_sectors, None)
+        .map_err(|e| e.to_string())?;
+    crate::hdd::write_meihdfs_procedural_to_drive(&device_path, &layout, &confirmation_token)
+        .map_err(|e| e.to_string())
+}
+
+/// Safely writes an existing raw image file to a verified physical drive.
+#[tauri::command]
+pub fn write_hdd_image(
+    device_path: String,
+    image_path: Option<String>,
+    confirmation_token: String,
+) -> Result<crate::hdd::DriveWriteReport, String> {
+    let img_path = image_path.unwrap_or_else(|| {
+        resolve_candidate(
+            &[
+                crate::constants::DEFAULT_HDD_IMAGE_PATH,
+                "../../firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin",
+            ],
+            crate::constants::DEFAULT_HDD_IMAGE_PATH,
+        )
+    });
+    let bytes = std::fs::read(&img_path)
+        .map_err(|e| format!("Failed reading image file {}: {}", img_path, e))?;
+    crate::hdd::write_raw_image_to_drive(&device_path, &bytes, &confirmation_token)
+        .map_err(|e| e.to_string())
+}
+
+/// Atomically restores primary MEIHDFS structures from dual redundancy mirrors.
+#[tauri::command]
+pub fn restore_hdd_mirrors(
+    device_path: String,
+    confirmation_token: String,
+) -> Result<crate::hdd::DriveWriteReport, String> {
+    crate::hdd::restore_meihdfs_from_mirrors(&device_path, &confirmation_token)
+        .map_err(|e| e.to_string())
+}

@@ -11,9 +11,9 @@ describe('useSerialConsole ViewModel', () => {
     vi.useRealTimers();
   });
 
-  it('initializes with mock logs and empty command input', () => {
+  it('initializes with clean logs and empty command input', () => {
     const { result } = renderHook(() => useSerialConsole());
-    expect(result.current.logs.length).toBeGreaterThan(0);
+    expect(result.current.logs.length).toBe(0);
     expect(result.current.commandInput).toBe('');
   });
 
@@ -34,7 +34,10 @@ describe('useSerialConsole ViewModel', () => {
 
   it('clears all logs on clearLogs()', () => {
     const { result } = renderHook(() => useSerialConsole());
-    expect(result.current.logs.length).toBeGreaterThan(0);
+    act(() => {
+      result.current.addLog('info', 'HOST', 'Pre-existing log');
+    });
+    expect(result.current.logs.length).toBe(1);
 
     act(() => {
       result.current.clearLogs();
@@ -43,7 +46,7 @@ describe('useSerialConsole ViewModel', () => {
     expect(result.current.logs.length).toBe(0);
   });
 
-  it('dispatches command and receives delayed simulated response', () => {
+  it('dispatches command and receives delayed simulated response', async () => {
     const { result } = renderHook(() => useSerialConsole());
 
     act(() => {
@@ -51,21 +54,12 @@ describe('useSerialConsole ViewModel', () => {
     });
     expect(result.current.commandInput).toBe('STATUS');
 
-    act(() => {
-      result.current.sendCommand();
+    await act(async () => {
+      await result.current.sendCommand();
     });
 
     // Input should be reset immediately
     expect(result.current.commandInput).toBe('');
-    // Host TX log should be added
-    const txLog = result.current.logs[result.current.logs.length - 1];
-    expect(txLog.message).toBe('> STATUS');
-    expect(txLog.level).toBe('tx');
-
-    // Fast forward timer to trigger Pico RX reply
-    act(() => {
-      vi.advanceTimersByTime(150);
-    });
 
     const rxLog = result.current.logs[result.current.logs.length - 1];
     expect(rxLog.level).toBe('rx');

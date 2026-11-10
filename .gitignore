@@ -40,6 +40,7 @@ AUDIT_DOSSIER_*.md
 # ------------------------------------------------------------------------------
 # 4. Raspberry Pi Pico Firmware & CMake Build Artifacts (RP2040 / RP2350)
 # ------------------------------------------------------------------------------
+pico-sdk/
 dwire32a_jtag_research/build*/
 dwire32a_jtag_research/*.uf2
 dwire32a_jtag_research/*.elf

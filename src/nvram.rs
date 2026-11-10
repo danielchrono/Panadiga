@@ -85,14 +85,26 @@ pub fn clean_flash_nvram_slice(
         );
     }
 
-    let nvram_base_offset = flash_len - SPANSION_NVRAM_SIZE_BYTES;
+    let is_16mb = flash_len == 16 * 1024 * 1024;
+    let nvram_size = if is_16mb {
+        FLASH_16MB_NVRAM_SIZE_BYTES
+    } else {
+        SPANSION_NVRAM_SIZE_BYTES
+    };
+    let microsector_count = if is_16mb {
+        FLASH_16MB_MICROSECTOR_COUNT
+    } else {
+        SPANSION_MICROSECTOR_COUNT
+    };
+
+    let nvram_base_offset = flash_len - nvram_size;
     let nvram_end_offset = flash_len;
     let bootloader_size = nvram_base_offset;
     let base_sector_idx = match flash_len {
         8388608 => 134, // S29JL064H Top-Boot SA134..SA141
         4194304 => 70,  // S29JL032H Top-Boot SA70..SA77
         2097152 => 38,  // S29AL016J Top-Boot SA38..SA45
-        _ => 262,
+        _ => 254,       // S29GL128 / S29JL128 Top-Boot SA254..SA269 (16 sectors)
     };
 
     let (orig_md5, orig_sha256) = calculate_hashes(flash_bytes);
@@ -105,8 +117,8 @@ pub fn clean_flash_nvram_slice(
         .count();
     let non_zero = nvram_slice.iter().filter(|&&b| b != 0x00).count();
 
-    let mut microsectors = Vec::with_capacity(SPANSION_MICROSECTOR_COUNT);
-    for idx in 0..SPANSION_MICROSECTOR_COUNT {
+    let mut microsectors = Vec::with_capacity(microsector_count);
+    for idx in 0..microsector_count {
         let sec_offset = idx * SPANSION_MICROSECTOR_SIZE;
         let sec_slice = &nvram_slice[sec_offset..sec_offset + SPANSION_MICROSECTOR_SIZE];
         let used = sec_slice

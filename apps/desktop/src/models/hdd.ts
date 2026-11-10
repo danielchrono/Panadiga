@@ -149,3 +149,23 @@ export interface PartitionExtractionManifest {
   manifestSha256Sums: string;
   extractedPartitions: ExtractedPartitionItem[];
 }
+
+
+export interface PhysicalDriveInfo {
+  device_path: string;
+  display_name: string;
+  size_bytes: number;
+  size_gb: number;
+  is_system_drive: boolean;
+  safe_to_write: boolean;
+  lockout_reason?: string | null;
+}
+
+export interface DriveWriteReport {
+  device_path: string;
+  operation: string;
+  bytes_written: number;
+  sectors_written: number;
+  success: boolean;
+  message: string;
+}

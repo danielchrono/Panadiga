@@ -11,32 +11,34 @@ import { Zap, AlertTriangle } from 'lucide-react';
  */
 export const DwirePinoutCard: React.FC = () => {
   return (
-    <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span>Conexões Físicas (Pico → CN55001)</span>
-        </h3>
-        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded">
-          P7501 [B6B-ZR-3R4]
-        </span>
-      </div>
-
-      {/* Critical Safety Alert Box */}
-      <div className="p-3 bg-amber-950/30 border border-amber-800/60 rounded-lg text-xs space-y-1.5">
-        <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-          <span>DISCLAIMER CRÍTICO: IDENTIFICAÇÃO DO TERRA (GND)</span>
+    <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-4 h-full flex flex-col justify-between">
+      <div>
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span>Conexões Físicas (Pico → CN55001)</span>
+          </h3>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded">
+            P7501 [B6B-ZR-3R4]
+          </span>
         </div>
-        <p className="text-slate-300 text-[11px] leading-relaxed">
-          • <strong>Manual Oficial (P7501):</strong> O GND é estritamente o <strong>PINO 4</strong>.<br />
-          • <strong>Contagem Física (10V → 8V):</strong> O GND corresponde ao <strong>PINO 3</strong> (0.0Ω com chassi).<br />
-          • <span className="text-amber-300 font-medium">O correto do projeto é a referência do manual (Pino 4).</span> Valide sempre o bipe de 0.0Ω no multímetro antes de energizar!
-        </p>
+
+        {/* Critical Safety Alert Box */}
+        <div className="mt-3 p-3 bg-amber-950/30 border border-amber-800/60 rounded-lg text-xs space-y-1.5">
+          <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>DISCLAIMER CRÍTICO: IDENTIFICAÇÃO DO TERRA (GND)</span>
+          </div>
+          <p className="text-slate-300 text-[11px] leading-relaxed">
+            • <strong>Manual Oficial (P7501):</strong> O GND é estritamente o <strong>PINO 4</strong>.<br />
+            • <strong>Contagem Física (10V → 8V):</strong> O GND corresponde ao <strong>PINO 3</strong> (0.0Ω com chassi).<br />
+            • <span className="text-amber-300 font-medium">O correto do projeto é a referência do manual (Pino 4).</span> Valide sempre o bipe de 0.0Ω no multímetro antes de energizar!
+          </p>
+        </div>
       </div>
 
       {/* Dual Pinout Table */}
-      <div className="space-y-1.5 text-[11px] font-mono">
+      <div className="space-y-1.5 text-[11px] font-mono pt-2 border-t border-slate-800/80">
         <div className="flex justify-between py-1 border-b border-slate-800/60">
           <span className="text-rose-400">Pino 1 (Manual) / Pino 6 (Físico) [VDD 3.3V]:</span>
           <span className="text-slate-200">GP26 (ADC0 / Pin 31) • Monitor 3.3V</span>

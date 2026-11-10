@@ -15,20 +15,45 @@ export function useFrmCryptoViewModel() {
   const [codebookReport, setCodebookReport] = useState<CodebookReport | null>(null);
   const [activeTab, setActiveTab] = useState<FrmTab>('entropy');
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [codebookFilter, setCodebookFilter] = useState<string>('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [crypt, toc, codebook] = await Promise.all([
+      const results = await Promise.allSettled([
         invokeCommand<CryptanalysisReport>('analyze_frm'),
         invokeCommand<FrmTocDumpReport>('dump_frm_toc'),
         invokeCommand<CodebookReport>('get_codebook'),
       ]);
-      setCryptReport(crypt);
-      setTocReport(toc);
-      setCodebookReport(codebook);
+
+      if (results[0].status === 'fulfilled') {
+        setCryptReport(results[0].value);
+      } else {
+        logger.error('FrmCryptoViewModel', 'Failed analyzing FRM entropy', results[0].reason);
+      }
+
+      if (results[1].status === 'fulfilled') {
+        setTocReport(results[1].value);
+      } else {
+        logger.error('FrmCryptoViewModel', 'Failed dumping FRM TOC', results[1].reason);
+      }
+
+      if (results[2].status === 'fulfilled') {
+        setCodebookReport(results[2].value);
+      } else {
+        logger.error('FrmCryptoViewModel', 'Failed getting codebook', results[2].reason);
+      }
+
+      // If primary cryptReport failed, record error
+      if (results[0].status === 'rejected') {
+        const err = results[0].reason;
+        setError(err instanceof Error ? err.message : String(err));
+      }
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
       logger.error('FrmCryptoViewModel', 'Failed loading crypto forensic reports', err);
     } finally {
       setLoading(false);
@@ -61,6 +86,7 @@ export function useFrmCryptoViewModel() {
     activeTab,
     setActiveTab,
     loading,
+    error,
     codebookFilter,
     setCodebookFilter,
     refresh: loadData,

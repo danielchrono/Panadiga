@@ -497,6 +497,19 @@ static void process_serial_command(char *line) {
         printf("AUTODETECT: OK (%" PRIu32 " MB NOR Flash | EEMUL NVRAM: 0x%08" PRIX32 "..0x%08" PRIX32 ")\n",
                geo.mb, geo.nvram_base, 0x80000000UL + geo.bytes - 1UL);
     }
+    else if (strcmp(cmd, "CFI") == 0) {
+        uint32_t cfi_size = 0U;
+        if (dwire_hw_query_cfi(&cfi_size)) {
+            const uint32_t mb = cfi_size / (1024UL * 1024UL);
+            const uint32_t nvram_size = (cfi_size == 0x01000000UL) ? 0x00020000UL : 0x00010000UL;
+            const uint32_t nvram_base = 0x80000000UL + (cfi_size - nvram_size);
+            (void)gdb_rsp_set_flash_size(cfi_size);
+            printf("CFI: OK ('QRY' detected | Device Size: %" PRIu32 " MB | NVRAM @ 0x%08" PRIX32 ")\n",
+                   mb, nvram_base);
+        } else {
+            printf("CFI: FAILED (No 'QRY' signature detected; chip may be in uninitialized state or non-CFI)\n");
+        }
+    }
     else if (strcmp(cmd, "FLASH_SIZE") == 0) {
         uint32_t mb = 8U;
         if (arg != NULL && *arg != '\0') {

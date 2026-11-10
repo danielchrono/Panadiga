@@ -270,3 +270,39 @@ uint32_t dwire_hw_autodetect_flash_size(void) {
     /* 4. Valid distinct data in upper 8 MB aperture -> 16 MB NOR Flash (DMR-EX / DMR-EZ) */
     return 0x01000000UL;
 }
+
+bool dwire_hw_query_cfi(uint32_t *out_size_bytes) {
+    /* 1. Enter CFI mode (write 0x0098 to offset 0xAA on 16-bit word bus) */
+    dwire_hw_write_mem32(0x800000AAUL, 0x00980098UL);
+    sleep_us(10);
+
+    /* 2. Read QRY identification string at offset 0x10 (0x20 on 16-bit word bus) */
+    const uint32_t qry0 = dwire_hw_read_mem32(0x80000020UL);
+    const uint32_t qry1 = dwire_hw_read_mem32(0x80000024UL);
+
+    /* Byte 0x20 = 'Q' (0x51), Byte 0x22 = 'R' (0x52), Byte 0x24 = 'Y' (0x59) */
+    const uint8_t q = (uint8_t)(qry0 & 0xFFU);
+    const uint8_t r = (uint8_t)((qry0 >> 16) & 0xFFU);
+    const uint8_t y = (uint8_t)(qry1 & 0xFFU);
+
+    const bool valid = (q == 'Q' && r == 'R' && y == 'Y');
+    uint32_t size = 0U;
+
+    if (valid) {
+        /* Offset 0x27 (0x4E in byte addresses) holds device size exponent 2^N */
+        const uint32_t sz_word = dwire_hw_read_mem32(0x8000004CUL);
+        const uint8_t exponent = (uint8_t)((sz_word >> 16) & 0xFFU);
+        if (exponent >= 20U && exponent <= 26U) {
+            size = 1UL << exponent;
+        }
+    }
+
+    /* 3. ALWAYS restore flash array to normal Read Mode */
+    dwire_hw_write_mem32(0x80000000UL, 0x00F000F0UL);
+    sleep_us(10);
+
+    if (out_size_bytes != NULL) {
+        *out_size_bytes = size;
+    }
+    return valid;
+}

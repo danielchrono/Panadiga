@@ -205,6 +205,17 @@ void dwire_hw_engage_bus_active(void);
  */
 uint32_t dwire_hw_autodetect_flash_size(void);
 
+/**
+ * @brief Query Common Flash Interface (JEDEC CFI Query 0x98) to read laser-etched geometry.
+ *
+ * Sends command 0x0098 to offset 0xAA, inspects the 'QRY' header, extracts the 2^N size
+ * exponent, and immediately resets the array to normal Read Mode with 0x00F0.
+ *
+ * @param out_size_bytes Pointer to receive detected size in bytes (or NULL).
+ * @return true if valid 'QRY' signature and size exponent were decoded, false otherwise.
+ */
+bool dwire_hw_query_cfi(uint32_t *out_size_bytes);
+
 #ifdef __cplusplus
 }
 #endif

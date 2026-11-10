@@ -38,3 +38,12 @@
   - Superbloco MBR: `0x01C00000` (LBA 57344) $\longrightarrow$ `0x00000000` (LBA 0)
   - Tabela de Descritores: `0x01C03000` (LBA 57368) $\longrightarrow$ `0x00003000` (LBA 24..31)
 - Preserva 100% dos títulos gravados na Partição 3 sem qualquer perda de dados.
+
+---
+
+## 4. Veredito Final de Viabilidade de Bancada & Protocolo "What's Next"
+
+1. **Camada DWire32A:** O On-Chip Debug (OCD) Matsushita AM34 opera a nível físico síncrono e **não exige desafio-resposta criptográfico**. O handshake e parada da CPU (`DCSR = 0x00000001`) ocorrem via controle síncrono de pinos e `nRESET` em Open-Drain.
+2. **Cura do U99:** A sanitização por apagamento dos micro-setores de NVRAM (últimos 64 KB em 2/4/8 MB e 128 KB em 16 MB) é suficiente e segura contra brick, pois o IPL (`0x80000000..0x807EFFFF`) é protegido contra escrita (`E05`).
+3. **Descriptografia Integral:** Os módulos do firmware e do HD estão cifrados em Feistel/ECB de 64 bits. O desbloqueio dos 100% será efetuado a partir da chave simétrica extraída do IPL em texto-plano capturado no **First-Contact Backup**.
+4. **Prontidão de Bancada:** Todos os 9 Quality Gates foram validados e o sistema está aprovado para operação física com a sonda RP2040/RP2350.

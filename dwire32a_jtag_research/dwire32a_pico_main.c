@@ -341,8 +341,8 @@ static void process_serial_command(char *line) {
         if (count == 0U) {
             count = 1U;
         }
-        if (count > 16384U) {
-            count = 16384U; /* Allow full 64KB NVRAM (16,384 words) dump in a single command */
+        if (count > 32768U) {
+            count = 32768U; /* Allow full 128KB NVRAM (32,768 words) dump in a single command */
         }
 
         printf("[DUMP] Reading %" PRIu32 " words (%" PRIu32 " bytes) from 0x%08" PRIX32 "...\n",

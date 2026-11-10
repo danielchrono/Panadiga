@@ -41,10 +41,15 @@ export const HddStorageView: React.FC = () => {
     setTagFilter,
     searchQuery,
     setSearchQuery,
+    imagePath,
+    error,
     extractPartitions,
+    refresh,
   } = useHddStorageViewModel();
 
   const [copiedSha, setCopiedSha] = useState(false);
+  const [inputPath, setInputPath] = useState(imagePath || '');
+  const [showPathInput, setShowPathInput] = useState(false);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -52,24 +57,50 @@ export const HddStorageView: React.FC = () => {
     setTimeout(() => setCopiedSha(false), 2000);
   };
 
-  if (loading || !hddReport) {
-    return (
-      <div className="flex items-center justify-center h-full text-slate-500 font-mono text-xs">
-        {t('hdd.loading', 'Lendo imagem física do HD (104.857.600 bytes) via zero-copy mmap...')}
-      </div>
-    );
-  }
+  const handleOpenPath = () => {
+    if (inputPath.trim()) {
+      refresh(inputPath.trim());
+      setShowPathInput(false);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-mono">
       {/* Top Header & Fast Partition Extractor */}
       <HddTopHeader
+        report={hddReport}
         extracting={extracting}
         onExtractPartitions={extractPartitions}
+        onSelectImage={() => setShowPathInput(prev => !prev)}
       />
 
+      {/* Path Input Dropdown when user clicks Abrir Imagem */}
+      {showPathInput && (
+        <div className="p-4 rounded-xl bg-slate-950 border border-cyan-500/40 shadow-xl space-y-2">
+          <label className="text-[11px] text-cyan-300 font-bold uppercase">
+            Caminho do Arquivo de Imagem (.bin / .raw / .img)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Ex: firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin"
+              value={inputPath}
+              onChange={e => setInputPath(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleOpenPath()}
+              className="flex-1 px-3 py-2 rounded-lg bg-bench-900 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-cyan-400"
+            />
+            <button
+              onClick={handleOpenPath}
+              className="px-4 py-2 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors"
+            >
+              Carregar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Metrics Row */}
-      <HddMetricsGrid />
+      <HddMetricsGrid report={hddReport} />
 
       {/* Navigation Tabs */}
       <div
@@ -178,13 +209,58 @@ export const HddStorageView: React.FC = () => {
         </button>
       </div>
 
+      {/* Empty State / Image Selector when no report is loaded */}
+      {!hddReport && activeTab !== 'writer' && (
+        <div className="p-8 rounded-2xl bg-bench-900 border border-slate-800 text-center space-y-4 max-w-2xl mx-auto shadow-xl">
+          <div className="w-12 h-12 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 flex items-center justify-center mx-auto">
+            <HardDrive className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-100">
+              {error ? 'Imagem de Disco Padrão Não Encontrada' : 'Nenhuma Imagem MEIHDFS Carregada'}
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+              {error || 'Informe o caminho de um dump físico (.bin, .raw, .img) ou alterne para a aba Gravação Física para gerenciar discos conectados via SATA/USB.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 max-w-md mx-auto pt-2">
+            <input
+              type="text"
+              placeholder="Ex: C:\dumps\panasonic_hdd.bin"
+              value={inputPath}
+              onChange={e => setInputPath(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleOpenPath()}
+              className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono"
+            />
+            <button
+              onClick={handleOpenPath}
+              disabled={loading || !inputPath.trim()}
+              className="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Carregando...' : 'Analisar'}
+            </button>
+          </div>
+
+          <div className="pt-4 border-t border-slate-800 flex items-center justify-center gap-4 text-xs">
+            <button
+              onClick={() => setActiveTab('writer')}
+              className="px-4 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold flex items-center gap-2 transition-colors"
+            >
+              <HardDrive className="w-4 h-4" />
+              <span>Ver Discos Físicos Conectados (Win32/SATA)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tab 1: Overview */}
-      {activeTab === 'overview' && (
+      {activeTab === 'overview' && hddReport && (
         <HddPartitionTable hddReport={hddReport} />
       )}
 
       {/* Tab 2: MBR vs Mirror LBA 57344 */}
-      {activeTab === 'mbr' && (
+      {activeTab === 'mbr' && hddReport && (
         <HddMbrComparison hddReport={hddReport} />
       )}
 
@@ -205,7 +281,7 @@ export const HddStorageView: React.FC = () => {
       )}
 
       {/* Tab 5: Chunk Density Map (100 MB) */}
-      {activeTab === 'density' && (
+      {activeTab === 'density' && hddReport && (
         <HddDensityMap hddReport={hddReport} />
       )}
 

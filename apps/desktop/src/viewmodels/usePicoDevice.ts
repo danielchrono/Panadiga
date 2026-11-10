@@ -8,21 +8,34 @@ export interface UsePicoDeviceOptions {
   onLog?: (level: 'info' | 'warn' | 'error' | 'success', source: 'HOST' | 'PICO', message: string) => void;
 }
 
+export const DEFAULT_DISCONNECTED_STATUS: PicoDeviceStatus = {
+  connected: false,
+  port: '',
+  baudRate: 115200,
+  vdd_volts: 0.0,
+  target_powered: false,
+  breakin_mode: 2,
+  core_state: 'DISCONNECTED',
+  bus_freq_hz: 0,
+  firmware_version: 'DWire32A Bus Master',
+  chip_id: '',
+  total_probes: 0,
+  hits_detected: 0,
+  open_bus_high: 0,
+  open_bus_low: 0,
+  ram_loader_injected: false,
+  last_keepalive: '',
+};
+
 /**
  * Single Responsibility: Manages Pico USB hardware connection, port enumeration,
  * reactive telemetry streams, and break-in modes.
  */
 export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
-  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(null);
+  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(DEFAULT_DISCONNECTED_STATUS);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [availablePorts, setAvailablePorts] = useState<string[]>([
-    'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]',
-    'MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]',
-    'BLE_PICO_W [Bluetooth LE - Nordic UART Service (NUS)]',
-  ]);
-  const [selectedPort, setSelectedPort] = useState<string>(
-    'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]'
-  );
+  const [availablePorts, setAvailablePorts] = useState<string[]>([]);
+  const [selectedPort, setSelectedPort] = useState<string>('');
   const [modelCatalog, setModelCatalog] = useState<DigaModelProfile[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('AUTO');
 
@@ -79,7 +92,13 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         allPorts.push('BLE_PICO_W [Bluetooth LE - Nordic UART Service (NUS)]');
       }
       setAvailablePorts(allPorts);
-      if (!allPorts.includes(selectedPort)) {
+
+      const realPorts = allPorts.filter(p => !p.startsWith('MOCK') && !p.startsWith('BLE'));
+      if (realPorts.length > 0) {
+        if (!selectedPort || selectedPort.startsWith('MOCK') || !allPorts.includes(selectedPort)) {
+          setSelectedPort(realPorts[0]);
+        }
+      } else if (allPorts.length > 0 && !selectedPort) {
         setSelectedPort(allPorts[0]);
       }
     } catch (err) {
@@ -90,6 +109,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   }, [selectedPort]);
 
   const pollDeviceStatus = useCallback(async () => {
+    if (!selectedPort) return;
     setIsLoading(true);
     try {
       const status = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
@@ -120,60 +140,113 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   );
 
   const toggleConnection = useCallback(async () => {
-    if (!deviceStatus) return;
-    const nextConnected = !deviceStatus.connected;
-
-    if (nextConnected && selectedPort.startsWith('BLE_')) {
-      try {
-        const bleDev = await bleService.connect();
-        onLog?.('success', 'HOST', `Conectado via Bluetooth LE NUS: ${bleDev.name}`);
-        setDeviceStatus(prev =>
-          prev
-            ? {
-                ...prev,
-                connected: true,
-                core_state: 'HALTED',
-                port: selectedPort,
-              }
-            : null
-        );
-        return;
-      } catch (err) {
-        onLog?.(
-          'error',
-          'HOST',
-          `Falha ao parear Bluetooth LE: ${err instanceof Error ? err.message : String(err)}`
-        );
-        return;
-      }
-    } else if (!nextConnected && bleService.isConnected()) {
-      bleService.disconnect();
-      onLog?.('warn', 'HOST', 'Desconectado do link Bluetooth LE');
+    if (!selectedPort) {
+      onLog?.('warn', 'HOST', 'Nenhuma porta selecionada para conexão.');
+      return;
     }
 
-    setDeviceStatus(prev =>
-      prev
-        ? {
-            ...prev,
-            connected: nextConnected,
-            core_state: nextConnected ? 'HALTED' : 'DISCONNECTED',
-          }
-        : null
-    );
-    onLog?.(
-      nextConnected ? 'success' : 'warn',
-      'HOST',
-      nextConnected
-        ? `Conectado com sucesso em ${selectedPort}`
-        : 'Desconectado da interface DWire32A'
-    );
+    if (deviceStatus?.connected) {
+      // Disconnect
+      try {
+        if (selectedPort.startsWith('BLE_') && bleService.isConnected()) {
+          bleService.disconnect();
+        } else {
+          await invokeCommand<string>('pico_send_serial_command', {
+            port_name: selectedPort,
+            command: 'ISOLATE',
+          }).catch(() => {});
+        }
+      } finally {
+        setDeviceStatus(prev => ({
+          ...(prev || DEFAULT_DISCONNECTED_STATUS),
+          connected: false,
+          core_state: 'DISCONNECTED',
+          vdd_volts: 0.0,
+          target_powered: false,
+          port: selectedPort,
+        }));
+        onLog?.('warn', 'HOST', `Desconectado da interface DWire32A (${selectedPort}). Pinos colocados em Hi-Z.`);
+      }
+      return;
+    }
+
+    // Connect
+    setIsLoading(true);
+    onLog?.('info', 'HOST', `Estabelecendo conexão física com ${selectedPort} (115200 bps)...`);
+
+    try {
+      if (selectedPort.startsWith('BLE_')) {
+        const bleDev = await bleService.connect();
+        onLog?.('success', 'HOST', `Conectado via Bluetooth LE NUS: ${bleDev.name}`);
+        setDeviceStatus(prev => ({
+          ...(prev || DEFAULT_DISCONNECTED_STATUS),
+          connected: true,
+          port: selectedPort,
+          core_state: 'HALTED',
+          vdd_volts: 3.3,
+          target_powered: true,
+        }));
+        return;
+      }
+
+      // Real physical connection test via Tauri IPC
+      const result = await invokeCommand<{
+        connected: boolean;
+        port_name: string;
+        baud_rate: number;
+        vdd_voltage: number;
+        target_powered: boolean;
+        firmware_banner: string;
+        is_mock: boolean;
+        message: string;
+      }>('pico_connect_and_test', {
+        port_name: selectedPort,
+        baud_rate: 115200,
+      });
+
+      if (result && result.connected) {
+        const statusDto = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
+          port_name: selectedPort,
+        });
+
+        setDeviceStatus({
+          ...statusDto,
+          connected: true,
+          port: selectedPort,
+          vdd_volts: result.vdd_voltage,
+          target_powered: result.target_powered,
+          core_state: result.target_powered ? 'HALTED' : 'RUNNING',
+        });
+
+        onLog?.('success', 'PICO', result.firmware_banner);
+        onLog?.(
+          'success',
+          'HOST',
+          `Conexão estabelecida com sucesso em ${selectedPort}! VDD: ${result.vdd_voltage.toFixed(2)}V`
+        );
+      } else {
+        throw new Error(result?.message || 'Dispositivo não respondeu ao handshake inicial.');
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      onLog?.('error', 'HOST', `Falha ao conectar em ${selectedPort}: ${errMsg}`);
+      setDeviceStatus(prev => ({
+        ...(prev || DEFAULT_DISCONNECTED_STATUS),
+        connected: false,
+        port: selectedPort,
+        core_state: 'DISCONNECTED',
+        vdd_volts: 0.0,
+        target_powered: false,
+      }));
+    } finally {
+      setIsLoading(false);
+    }
   }, [deviceStatus, selectedPort, onLog]);
 
   // Reactive Push-Based Event Stream Subscription
   useEffect(() => {
     refreshPorts();
     refreshModelCatalog();
-    pollDeviceStatus();
 
     let unlisten: (() => void) | undefined;
     let active = true;
@@ -207,7 +280,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       active = false;
       unlisten?.();
     };
-  }, [refreshPorts, refreshModelCatalog, pollDeviceStatus, onLog]);
+  }, [refreshPorts, refreshModelCatalog, onLog]);
 
   // Derived Instantaneous Safety State
   const isVoltageSafe = deviceStatus

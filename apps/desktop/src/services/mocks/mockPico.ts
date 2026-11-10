@@ -1,22 +1,22 @@
 import { PicoDeviceStatus, SerialLogEntry } from '@/models';
 
 export const mockPicoDeviceStatus: PicoDeviceStatus = {
-  connected: true,
-  port: 'COM4 (RP2040 DWire32A Interface)',
+  connected: false,
+  port: '',
   baudRate: 115200,
-  vdd_volts: 3.28,
-  target_powered: true,
+  vdd_volts: 0.0,
+  target_powered: false,
   breakin_mode: 2,
-  core_state: 'HALTED',
-  bus_freq_hz: 1000000, // 1.0 MHz
-  firmware_version: 'v1.4.2-dwire32a-panadiga',
+  core_state: 'DISCONNECTED',
+  bus_freq_hz: 0,
+  firmware_version: 'v2.0-PIO-DWire32A',
   chip_id: 'RP2040-B2',
-  total_probes: 256,
-  hits_detected: 4,
-  open_bus_high: 218,
-  open_bus_low: 34,
+  total_probes: 0,
+  hits_detected: 0,
+  open_bus_high: 0,
+  open_bus_low: 0,
   ram_loader_injected: false,
-  last_keepalive: new Date().toLocaleTimeString(),
+  last_keepalive: '',
 };
 
 export const mockInitialSerialLogs: SerialLogEntry[] = [

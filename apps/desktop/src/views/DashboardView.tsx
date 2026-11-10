@@ -62,7 +62,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       />
 
       {/* Top Telemetry Metric Cards */}
-      <DashboardTelemetryGrid />
+      <DashboardTelemetryGrid overview={overview} />
 
       {/* Quick Launch Instruments */}
       <DashboardInstruments onNavigate={onNavigate} />

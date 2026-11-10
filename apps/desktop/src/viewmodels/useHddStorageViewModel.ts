@@ -18,22 +18,32 @@ export function useHddStorageViewModel() {
   const [manifest, setManifest] = useState<PartitionExtractionManifest | null>(null);
   const [tagFilter, setTagFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [imagePath, setImagePath] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (customPath?: string) => {
     setLoading(true);
+    setError(null);
+    const targetPath = customPath !== undefined ? customPath : imagePath;
+    const args = targetPath.trim() ? { image_path: targetPath.trim() } : {};
     try {
       const [hddData, meihdfsData] = await Promise.all([
-        invokeCommand<HddAnalysisReport>('inspect_hdd'),
-        invokeCommand<MeihdfsAllocationReport>('decode_meihdfs_allocations'),
+        invokeCommand<HddAnalysisReport>('inspect_hdd', args),
+        invokeCommand<MeihdfsAllocationReport>('decode_meihdfs_allocations', args),
       ]);
       setHddReport(hddData);
       setMeihdfsReport(meihdfsData);
+      if (hddData?.image_path) {
+        setImagePath(hddData.image_path);
+      }
     } catch (err) {
-      logger.error('HddStorageViewModel', 'Failed loading HDD forensics', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      logger.warn('HddStorageViewModel', 'Failed loading HDD forensics', err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [imagePath]);
 
   useEffect(() => {
     loadData();
@@ -42,7 +52,8 @@ export function useHddStorageViewModel() {
   const extractPartitions = useCallback(async () => {
     setExtracting(true);
     try {
-      const res = await invokeCommand<PartitionExtractionManifest>('extract_partitions');
+      const args = imagePath.trim() ? { image_path: imagePath.trim() } : {};
+      const res = await invokeCommand<PartitionExtractionManifest>('extract_partitions', args);
       setManifest(res);
       setActiveTab('extract');
     } catch (err) {
@@ -50,7 +61,7 @@ export function useHddStorageViewModel() {
     } finally {
       setExtracting(false);
     }
-  }, []);
+  }, [imagePath]);
 
   const filteredRecords = useMemo(() => {
     if (!meihdfsReport) return [];
@@ -79,6 +90,9 @@ export function useHddStorageViewModel() {
     setTagFilter,
     searchQuery,
     setSearchQuery,
+    imagePath,
+    setImagePath,
+    error,
     extractPartitions,
     refresh: loadData,
   };

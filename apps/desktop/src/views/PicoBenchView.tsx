@@ -27,6 +27,7 @@ export const PicoBenchView: React.FC = () => {
     modelCatalog,
     selectedModel,
     selectTargetModel,
+    refreshPorts,
     logs,
     isErasing,
     eraseResult,
@@ -77,6 +78,7 @@ export const PicoBenchView: React.FC = () => {
         onSelectModel={selectTargetModel}
         onToggleConnection={toggleConnection}
         onInjectAndErase={injectRamLoaderAndErase}
+        onRefreshPorts={refreshPorts}
       />
 
       {/* Telemetry Instruments Grid */}

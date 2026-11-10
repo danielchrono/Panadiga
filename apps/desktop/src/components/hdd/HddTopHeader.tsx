@@ -1,18 +1,29 @@
 import React from 'react';
-import { HardDrive, Download } from 'lucide-react';
+import { HardDrive, Download, FolderOpen } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useTranslation } from '@/i18n/useTranslation';
+import { HddAnalysisReport } from '@/models';
 
 export interface HddTopHeaderProps {
+  report?: HddAnalysisReport | null;
   extracting: boolean;
   onExtractPartitions: () => void;
+  onSelectImage?: () => void;
 }
 
 export const HddTopHeader: React.FC<HddTopHeaderProps> = ({
+  report,
   extracting,
   onExtractPartitions,
+  onSelectImage,
 }) => {
   const { t } = useTranslation();
+
+  const fileName = report ? report.image_path.split(/[/\\]/).pop() || report.image_path : null;
+  const isGb = (report?.file_size_mb ?? 0) >= 1024;
+  const sizeFormatted = isGb
+    ? `${((report?.file_size_mb ?? 0) / 1024).toFixed(2)} GB`
+    : `${report?.file_size_mb.toFixed(2)} MB`;
 
   return (
     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-2xl bg-bench-900 border border-slate-800 shadow-xl">
@@ -21,22 +32,43 @@ export const HddTopHeader: React.FC<HddTopHeaderProps> = ({
           <HardDrive className="w-6 h-6" />
         </div>
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-base font-bold text-slate-100">
-              {t('hdd.title', 'Hitachi PATA 100 MB Forensic Image (MEIHDFS)')}
+              {fileName ? fileName : t('hdd.noImageTitle', 'Nenhuma Imagem de Disco Carregada')}
             </h2>
-            <StatusBadge variant="success" label={t('hdd.badgeOk', 'MBR & ESPELHO 100% OK')} />
+            {report ? (
+              report.mbr_tables.mirror_is_bit_identical ? (
+                <StatusBadge variant="success" label={t('hdd.badgeOk', 'MBR & ESPELHO 100% OK')} />
+              ) : (
+                <StatusBadge variant="error" label="ESPELHO COM DIVERGÊNCIA" />
+              )
+            ) : (
+              <StatusBadge variant="neutral" label="OFFLINE" />
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            {t('hdd.subtitle', 'panasonic DMR EH-55 Firmware hdd_100.bin • 204.800 setores LBA de 512 bytes')}
+            {report
+              ? `${sizeFormatted} • ${report.total_sectors.toLocaleString()} setores LBA • Magic: ${report.mbr_tables.magic_ascii || 'PAD_HDD'}`
+              : t('hdd.noImageSub', 'Selecione um arquivo de imagem .bin / .raw ou acerte um disco físico na aba Gravação Direta')}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3 shrink-0 flex-wrap">
+        {onSelectImage && (
+          <button
+            type="button"
+            onClick={onSelectImage}
+            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          >
+            <FolderOpen className="w-4 h-4 text-cyan-400" />
+            <span>{t('hdd.openImage', 'Abrir Imagem')}</span>
+          </button>
+        )}
+
         <button
           onClick={onExtractPartitions}
-          disabled={extracting}
+          disabled={extracting || !report}
           className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-cyan-950/50 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:opacity-50"
         >
           {extracting ? (

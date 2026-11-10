@@ -16,6 +16,7 @@ export interface PicoBenchTopBarProps {
   onSelectModel?: (modelId: string) => void;
   onToggleConnection: () => void;
   onInjectAndErase: () => void;
+  onRefreshPorts?: () => void;
 }
 
 interface FlashReport {
@@ -42,6 +43,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   onSelectModel,
   onToggleConnection,
   onInjectAndErase,
+  onRefreshPorts,
 }) => {
   const { showToast } = useToast();
   const [isFlashing, setIsFlashing] = useState<boolean>(false);
@@ -151,9 +153,22 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
 
         {/* Col 2: Serial Port Selector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-slate-500 uppercase font-semibold">
-            Porta Serial / Interface
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] text-slate-500 uppercase font-semibold">
+              Porta Serial / Interface
+            </label>
+            {onRefreshPorts && (
+              <button
+                type="button"
+                onClick={onRefreshPorts}
+                title="Escanear portas COM USB"
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors focus:outline-none"
+              >
+                <RefreshCw className="w-2.5 h-2.5" />
+                <span>Atualizar</span>
+              </button>
+            )}
+          </div>
           <select
             aria-label="Selecionar porta serial do Pico"
             value={selectedPort}
@@ -161,7 +176,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
             className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-cyan-500 font-mono truncate"
           >
             {availablePorts.length === 0 ? (
-              <option value="">Nenhuma porta serial</option>
+              <option value="">Nenhuma porta serial detectada</option>
             ) : (
               availablePorts.map(p => (
                 <option key={p} value={p}>

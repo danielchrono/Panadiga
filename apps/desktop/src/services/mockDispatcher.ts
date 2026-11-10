@@ -23,6 +23,9 @@ import {
 } from './mockData';
 import { logger } from '@/utils/logger';
 
+let mockConnected = false;
+let mockPort = '';
+
 export async function handleMockCommand<T>(
   cmd: string,
   args?: Record<string, unknown>
@@ -42,6 +45,33 @@ export async function handleMockCommand<T>(
 
     case 'decode_meihdfs_allocations':
       return mockMeihdfsAllocationReport as unknown as T;
+
+    case 'pico_connect_and_test': {
+      const portName = (args?.port_name as string) || 'MOCK_RP2040';
+      const isRp2350 = portName.includes('2350');
+      mockConnected = true;
+      mockPort = portName;
+      return {
+        connected: true,
+        port_name: portName,
+        baud_rate: 115200,
+        vdd_voltage: 3.28,
+        target_powered: true,
+        firmware_banner: `PANASONIC DWIRE32A / OCD ENGINE v2.0 (${isRp2350 ? 'RP2350' : 'RP2040'}, 520 KB SRAM)`,
+        is_mock: portName.startsWith('MOCK'),
+        message: `Conectado ao dispositivo em ${portName}. Barramento DWire32A pronto.`,
+      } as unknown as T;
+    }
+
+    case 'pico_get_status':
+      return {
+        ...mockPicoDeviceStatus,
+        connected: mockConnected,
+        port: mockPort || (args?.port_name as string) || '',
+        vdd_volts: mockConnected ? 3.28 : 0.0,
+        target_powered: mockConnected,
+        core_state: mockConnected ? 'HALTED' : 'DISCONNECTED',
+      } as unknown as T;
 
     case 'extract_partitions': {
       const manifest: PartitionExtractionManifest = {
@@ -85,9 +115,6 @@ export async function handleMockCommand<T>(
 
     case 'get_codebook':
       return mockCodebookReport as unknown as T;
-
-    case 'pico_get_status':
-      return mockPicoDeviceStatus as unknown as T;
 
     case 'get_diga_model_catalog':
       return [

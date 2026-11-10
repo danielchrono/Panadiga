@@ -27,26 +27,14 @@ vi.mock("@tauri-apps/api/core", () => ({
         ]);
       case "pico_connect_and_test":
         return Promise.resolve({
-          success: true,
-          message: "Connected to Raspberry Pi Pico (RP2040) on COM5",
-          detected_architecture: "Raspberry Pi Pico (RP2040)",
-          chip_family: "RP2040",
-          sram_size_bytes: 270336,
-          flash_sector_cache_size: 8192,
-          am34_registers: {
-            d0: 0x00000000,
-            d1: 0x00000001,
-            d2: 0x00000002,
-            d3: 0x00000003,
-            a0: 0x10000000,
-            a1: 0x10000100,
-            a2: 0x10000200,
-            a3: 0x10000300,
-            sp: 0x1003fff0,
-            pc: 0x80000000,
-            mdr: 0x00000000,
-            psw: 0x00000040,
-          },
+          connected: true,
+          port_name: "COM5",
+          baud_rate: 115200,
+          vdd_voltage: 3.28,
+          target_powered: true,
+          firmware_banner: "Raspberry Pi Pico (RP2040) DWire32A v2.0",
+          is_mock: false,
+          message: "Conectado ao Raspberry Pi Pico (RP2040) na porta COM5",
         });
       case "pico_send_serial_command":
       case "pico_send_command":

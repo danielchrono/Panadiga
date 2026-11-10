@@ -394,10 +394,10 @@ static inline dwire_status_t ram_loader_execute_erase_for_flash_size(uint32_t fl
         printf("[OK]\n");
     }
 
-    /* Step 4: Await 'pi' breakpoint instruction */
+    /* Step 4: Await 'pi' breakpoint instruction (up to 8.0s timeout for worn/16MB Flash) */
     printf("[ERASE_NVRAM] Polling for CPU OCD breakpoint ('pi' trap)...\n");
     bool breakpoint_hit = false;
-    for (int retry = 0; retry < 25; ++retry) {
+    for (int retry = 0; retry < 80; ++retry) {
         if (dwire_hw_is_cpu_halted()) {
             breakpoint_hit = true;
             break;

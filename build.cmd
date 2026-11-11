@@ -99,15 +99,19 @@ if exist "target\release\WebView2Loader.dll" (
 :: Copy tools and Ghidra scripts
 xcopy /e /i /y "tools" "dist\tools" >nul 2>nul
 
-:: Copy compiled Pico firmware binaries if present
+:: Copy compiled Pico firmware binaries into dist\ and dist\firmware\
 if exist "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" (
+    copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\panasonic_dwire32a_rp2040.uf2" >nul
     copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\firmware\panasonic_dwire32a_rp2040.uf2" >nul
 ) else if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" (
+    copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" "dist\panasonic_dwire32a_rp2040.uf2" >nul
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" "dist\firmware\panasonic_dwire32a_rp2040.uf2" >nul
 )
 if exist "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" (
+    copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\panasonic_dwire32a_rp2350.uf2" >nul
     copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
 ) else if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" (
+    copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" "dist\panasonic_dwire32a_rp2350.uf2" >nul
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
 )
 

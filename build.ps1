@@ -56,9 +56,11 @@ function Build-Desktop {
     Copy-Item -Recurse -Force "tools\*" "dist\tools\"
     if (Test-Path "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2") {
         Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\firmware\"
+        Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\"
     }
     if (Test-Path "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2") {
         Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\firmware\"
+        Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\"
     }
     # Clean redundant runners from dist
     Remove-Item "dist\run.cmd", "dist\run.ps1", "dist\run.sh" -Force -ErrorAction SilentlyContinue

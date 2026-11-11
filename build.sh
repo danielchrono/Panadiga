@@ -117,13 +117,17 @@ fi
 # Copy compiled Pico firmware binaries if present (canonical location)
 if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" ]; then
     cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" dist/firmware/
+    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" dist/
 elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" ]; then
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" dist/firmware/
+    cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" dist/
 fi
 if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" ]; then
     cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" dist/firmware/
+    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" dist/
 elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" ]; then
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/firmware/
+    cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/
 fi
 
 # Clean legacy or redundant script runners from dist/

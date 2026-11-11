@@ -31,6 +31,7 @@ pub fn pico_execute_in_circuit_erase_full(
         let ipl_bin = crate::constants::PANA_FRM_GLOBAL_HEADER.to_vec();
         save_live_backup_files(&nvram_bin, &sram_bin, &ipl_bin);
         let digest = sha256_hex(&nvram_bin);
+        crate::desktop::pico::serial::set_ram_loader_injected(true);
 
         return Ok(InCircuitNvramEraseResult {
             success: true,
@@ -104,6 +105,9 @@ pub fn pico_execute_in_circuit_erase_full(
         log_lines.push(line.to_string());
     }
     let success = !erase_out.contains("ERROR") && !erase_out.contains("SAFETY INTERLOCK");
+    if success {
+        crate::desktop::pico::serial::set_ram_loader_injected(true);
+    }
 
     Ok(InCircuitNvramEraseResult {
         success,

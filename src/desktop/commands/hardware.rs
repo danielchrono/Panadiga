@@ -54,7 +54,7 @@ pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
 /// Frontend `pico_get_status` command.
 #[tauri::command]
 pub fn pico_get_status(port_name: Option<String>) -> Result<PicoDeviceStatusDto, String> {
-    let port = port_name.unwrap_or_else(|| "MOCK_RP2040".to_string());
+    let port = port_name.unwrap_or_else(|| "".to_string());
     super::super::pico::pico_get_device_status_dto(port, None)
 }
 
@@ -64,7 +64,7 @@ pub fn pico_set_breakin_mode(
     port_name: Option<String>,
     mode: u8,
 ) -> Result<PicoDeviceStatusDto, String> {
-    let port = port_name.unwrap_or_else(|| "MOCK_RP2040".to_string());
+    let port = port_name.unwrap_or_else(|| "".to_string());
     let _ = super::super::pico::pico_execute_cold_break_in(port.clone(), mode)?;
     super::super::pico::pico_get_device_status_dto(port, Some(mode))
 }
@@ -74,7 +74,7 @@ pub fn pico_set_breakin_mode(
 pub fn pico_inject_ram_loader(
     port_name: Option<String>,
 ) -> Result<InCircuitNvramEraseResult, String> {
-    let port = port_name.unwrap_or_else(|| "MOCK_RP2040".to_string());
+    let port = port_name.unwrap_or_else(|| "".to_string());
     super::super::pico::pico_execute_in_circuit_erase_full(port)
 }
 
@@ -83,7 +83,7 @@ pub fn pico_inject_ram_loader(
 pub fn pico_first_contact_backup(
     port_name: Option<String>,
 ) -> Result<FirstContactBackupResult, String> {
-    let port = port_name.unwrap_or_else(|| "MOCK_RP2040".to_string());
+    let port = port_name.unwrap_or_else(|| "".to_string());
     super::super::pico::pico_execute_first_contact_backup(port)
 }
 
@@ -93,7 +93,7 @@ pub fn pico_send_serial_command(
     port_name: Option<String>,
     command: String,
 ) -> Result<String, String> {
-    let port = port_name.unwrap_or_else(|| "MOCK_RP2040".to_string());
+    let port = port_name.unwrap_or_else(|| "".to_string());
     super::super::pico::pico_send_raw_serial_command(port, command)
 }
 

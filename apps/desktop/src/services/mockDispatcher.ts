@@ -25,6 +25,7 @@ import { logger } from '@/utils/logger';
 
 let mockConnected = false;
 let mockPort = '';
+let mockBootselDetected = false;
 
 export async function handleMockCommand<T>(
   cmd: string,
@@ -266,11 +267,9 @@ export async function handleMockCommand<T>(
     }
 
     case 'list_pico_serial_ports': {
-      return [
-        'MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]',
-        'MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]',
-        'COM4 [Raspberry Pi Pico (RP2040) DWire32A - VID:2E8A PID:000A]',
-      ] as unknown as T;
+      // In real runtime, the backend provides actual COM ports.
+      // Returning an empty list forces the UI to rely on the Tauri command.
+      return [] as unknown as T;
     }
 
     case 'start_gdb_bridge_command': {
@@ -427,13 +426,35 @@ export async function handleMockCommand<T>(
         message: 'Operação física de gravação MEIHDFS executada com sucesso.',
       } as unknown as T;
 
+    case 'pico_first_contact_backup': {
+      return {
+        success: true,
+        detected_model: 'DMR-EH55 (8MB NOR Flash | EEMUL 0x807F0000)',
+        nvram_bytes: 65536,
+        nvram_sha256: '0a394c8e7710bcf1489e3a6a92ecda46e01768494c8fa72722ee20c5c363dc78',
+        double_read_verified: true,
+        sram_bytes: 32768,
+        ipl_bytes: 131072,
+        log_lines: [
+          'Handshake Mode 2 OK: Matsushita AM34 core halted @ 0x80000000',
+          'Autodetected Model: DMR-EH55 (8MB Top-Boot Spansion S29JL064H)',
+          'Double-Read NVRAM @ 0x807F0000 (64KB): Hash matches (verified zero cable error)',
+          'Dumped SRAM secret keys @ 0x00000000 (32KB)',
+          'First-contact safety backup complete. Target ready for surgical operations.',
+        ],
+      } as unknown as T;
+    }
+
     case 'pico_detect_bootsel_drives':
-      return ['D:\\ (RPI-RP2)'] as unknown as T;
+      return (mockBootselDetected ? ['D:\\ (RPI-RP2)'] : []) as unknown as T;
 
     case 'pico_trigger_bootsel_reboot':
+      mockBootselDetected = true;
+      mockConnected = false;
       return 'Dispositivo reiniciado em modo BOOTSEL' as unknown as T;
 
     case 'pico_flash_firmware':
+      mockBootselDetected = false;
       return {
         success: true,
         target_board: 'Raspberry Pi Pico (RP2040)',
@@ -454,7 +475,14 @@ export function subscribeMockEventStream<T>(
 ): () => void {
   if (eventName === 'pico_telemetry') {
     const interval = setInterval(() => {
-      handler({ ...mockPicoDeviceStatus } as unknown as T);
+      handler({
+        ...mockPicoDeviceStatus,
+        connected: mockConnected,
+        port: mockPort,
+        vdd_volts: mockConnected ? 3.28 : 0.0,
+        target_powered: mockConnected,
+        core_state: mockConnected ? 'HALTED' : 'DISCONNECTED',
+      } as unknown as T);
     }, 1500);
     return () => clearInterval(interval);
   }

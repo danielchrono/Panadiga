@@ -39,17 +39,31 @@ vi.mock("@tauri-apps/api/core", () => ({
       case "pico_send_serial_command":
       case "pico_send_command":
         return Promise.resolve("VDD=3.28V | OCD=HALTED | PC=0x80000000 | MODE=2");
+      case "start_gdb_bridge_command":
       case "pico_start_gdb_server":
         return Promise.resolve({
-          port: 3333,
-          is_running: true,
+          running: true,
+          port_name: "COM5",
+          listen_addr: "127.0.0.1:3333",
           connected_clients: 0,
+          last_event: "Ouvindo conexões GDB em 127.0.0.1:3333",
         });
+      case "stop_gdb_bridge_command":
       case "pico_stop_gdb_server":
         return Promise.resolve({
-          port: 3333,
-          is_running: false,
+          running: false,
+          port_name: "",
+          listen_addr: "127.0.0.1:3333",
           connected_clients: 0,
+          last_event: "Servidor Ponte GDB desativado.",
+        });
+      case "get_gdb_bridge_status_command":
+        return Promise.resolve({
+          running: false,
+          port_name: "",
+          listen_addr: "127.0.0.1:3333",
+          connected_clients: 0,
+          last_event: "Ponte GDB inativa",
         });
       default:
         return handleMockCommand(cmd, args as Record<string, unknown>);

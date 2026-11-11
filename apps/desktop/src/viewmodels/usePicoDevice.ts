@@ -87,8 +87,10 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     setIsLoading(true);
     try {
       const ports = await invokeCommand<string[]>('list_pico_serial_ports');
+      const isBleAvailable =
+        typeof navigator !== 'undefined' && 'bluetooth' in navigator;
       const allPorts = [...(ports || [])];
-      if (!allPorts.some(p => p.includes('BLE_PICO_W'))) {
+      if (isBleAvailable && !allPorts.some(p => p.includes('BLE_PICO_W'))) {
         allPorts.push('BLE_PICO_W [Bluetooth LE - Nordic UART Service (NUS)]');
       }
       setAvailablePorts(allPorts);
@@ -100,6 +102,8 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         }
       } else if (allPorts.length > 0 && !selectedPort) {
         setSelectedPort(allPorts[0]);
+      } else if (allPorts.length === 0) {
+        setSelectedPort('');
       }
     } catch (err) {
       logger.warn('PicoDevice', 'Failed loading system serial ports', err);
@@ -205,18 +209,19 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       });
 
       if (result && result.connected) {
-        const statusDto = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
-          port_name: selectedPort,
-        });
-
-        setDeviceStatus({
-          ...statusDto,
+        const isRp2350 = result.port_name.includes('2350') || result.firmware_banner.includes('2350');
+        setDeviceStatus(prev => ({
+          ...(prev || DEFAULT_DISCONNECTED_STATUS),
           connected: true,
           port: selectedPort,
+          baudRate: result.baud_rate,
           vdd_volts: result.vdd_voltage,
           target_powered: result.target_powered,
           core_state: result.target_powered ? 'HALTED' : 'RUNNING',
-        });
+          firmware_version: result.firmware_banner || 'v2.0-PIO-DWire32A',
+          chip_id: isRp2350 ? 'RP2350-A2' : 'RP2040-B2',
+          last_keepalive: 'OK',
+        }));
 
         onLog?.('success', 'PICO', result.firmware_banner);
         onLog?.(

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PicoDeviceStatus, DigaModelProfile } from '@/models';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Radio, RefreshCw, Sparkles, Bluetooth, Cpu, DownloadCloud, CheckCircle2 } from 'lucide-react';
+import { Radio, RefreshCw, Sparkles, Bluetooth, Cpu, DownloadCloud, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { invokeCommand } from '@/services/ipc';
 import { useToast } from '@/context/ToastContext';
 
@@ -12,11 +12,14 @@ export interface PicoBenchTopBarProps {
   modelCatalog?: DigaModelProfile[];
   selectedModel?: string;
   isErasing: boolean;
+  isBackingUp?: boolean;
   onSelectPort: (port: string) => void;
   onSelectModel?: (modelId: string) => void;
   onToggleConnection: () => void;
   onInjectAndErase: () => void;
+  onFirstContactBackup?: () => void;
   onRefreshPorts?: () => void;
+  onRefreshStatus?: () => void;
 }
 
 interface FlashReport {
@@ -39,11 +42,14 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   modelCatalog = [],
   selectedModel = 'AUTO',
   isErasing,
+  isBackingUp = false,
   onSelectPort,
   onSelectModel,
   onToggleConnection,
   onInjectAndErase,
+  onFirstContactBackup,
   onRefreshPorts,
+  onRefreshStatus,
 }) => {
   const { showToast } = useToast();
   const [isFlashing, setIsFlashing] = useState<boolean>(false);
@@ -98,6 +104,16 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
               ) : (
                 <StatusBadge variant="error" label="DESCONECTADO" />
               )}
+              {deviceStatus?.connected && onRefreshStatus && (
+                <button
+                  type="button"
+                  onClick={onRefreshStatus}
+                  title="Atualizar telemetria e verificar status do dispositivo"
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                </button>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
               Matsushita AM34 / UniPhier Single-Wire OCD Host Controller via PIO0 State Machine
@@ -125,11 +141,39 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
               </>
             )}
           </button>
+          {/* New Action: Reboot to BOOTSEL via 1200‑baud touch */}
+          <button
+            onClick={async () => {
+              try {
+                const msg = await invokeCommand<string>('pico_trigger_bootsel_reboot', {
+                  port_name: selectedPort,
+                });
+                showToast({
+                  type: 'success',
+                  title: 'BOOTSEL Reboot Initiated',
+                  message: msg,
+                });
+              } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                showToast({
+                  type: 'error',
+                  title: 'BOOTSEL Reboot Failed',
+                  message: msg,
+                });
+              }
+            }}
+            disabled={isBle}
+            title="Reinicia o Pico em modo BOOTSEL usando a sequência 1200‑baud (sem botão físico)"
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>BOOTSEL Reset</span>
+          </button>
         </div>
       </div>
 
-      {/* Tier 2: 4-Column Controls Grid (No Bleeding, Balanced Heights) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-center">
+      {/* Tier 2: 5-Column Controls Grid (Balanced Proportions, No Bleeding) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
         {/* Col 1: Model Selector */}
         <div className="flex flex-col gap-1">
           <label className="text-[10px] text-slate-500 uppercase font-semibold">
@@ -189,7 +233,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
 
         {/* Col 3: Connect / Disconnect Action */}
         <div className="flex flex-col gap-1 justify-end">
-          <span className="text-[10px] text-transparent select-none">Ação</span>
+          <span className="text-[10px] text-transparent select-none">Conexão</span>
           <button
             onClick={onToggleConnection}
             className={`w-full py-2 px-3 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 ${
@@ -211,9 +255,32 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
           </button>
         </div>
 
-        {/* Col 4: Inject RAM Loader & Erase Action */}
+        {/* Col 4: First-Contact Read-Only Backup Action */}
         <div className="flex flex-col gap-1 justify-end">
-          <span className="text-[10px] text-transparent select-none">Higienização</span>
+          <span className="text-[10px] text-cyan-400 font-semibold uppercase">1º Contato</span>
+          <button
+            onClick={onFirstContactBackup}
+            disabled={isBackingUp || !deviceStatus?.connected}
+            title="Backup não-destrutivo de NVRAM, SRAM e IPL com verificação de integridade"
+            className="w-full py-2 px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+          >
+            {isBackingUp ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Lendo NVRAM...</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Backup 1º Contato</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Col 5: Inject RAM Loader & Erase Action */}
+        <div className="flex flex-col gap-1 justify-end">
+          <span className="text-[10px] text-emerald-400 font-semibold uppercase">Higienização</span>
           <button
             onClick={onInjectAndErase}
             disabled={isErasing || !deviceStatus?.connected}
@@ -222,12 +289,12 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
             {isErasing ? (
               <>
                 <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                <span>Injetando no AM34...</span>
+                <span>Injetando...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Injetar Loader & Limpar</span>
+                <span>Injetar & Limpar</span>
               </>
             )}
           </button>

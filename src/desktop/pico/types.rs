@@ -106,12 +106,9 @@ pub struct FirstContactBackupResult {
     pub log_lines: Vec<String>,
 }
 
-/// Pure helper function to normalize port name string, extracting "COMx" or detecting mock mode.
+/// Pure helper function to normalize port name string, extracting "COMx" or simulator identifier.
 pub fn extract_port_name(input: &str) -> String {
     let trimmed = input.trim();
-    if trimmed.to_uppercase().contains("MOCK") {
-        return "MOCK".to_string();
-    }
     trimmed
         .split_whitespace()
         .next()

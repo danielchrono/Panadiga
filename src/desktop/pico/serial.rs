@@ -95,10 +95,10 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
             ports.push(label);
         }
     }
-    ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
-    ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
-    ports
-        .push("MOCK_RP2350_RISCV [RP2350 Hazard3 RISC-V Bench Simulator - 520KB SRAM]".to_string());
+    // Removed mock ports injection to ensure only real hardware ports are listed.
+    // ports.push("MOCK_RP2040 [RP2040 DWire32A Bench Simulator - 264KB SRAM]".to_string());
+    // ports.push("MOCK_RP2350 [RP2350 Pico 2 DWire32A Bench Simulator - 520KB SRAM]".to_string());
+    // ports.push("MOCK_RP2350_RISCV [RP2350 Hazard3 RISC-V Bench Simulator - 520KB SRAM]".to_string());
     Ok(ports)
 }
 
@@ -203,13 +203,68 @@ pub fn pico_connect_and_test(
     })
 }
 
+static RAM_LOADER_INJECTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+static SCAN_TOTAL_PROBES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+static SCAN_HITS_DETECTED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Manages state tracking for RAM loader injection in the current process.
+pub fn set_ram_loader_injected(injected: bool) {
+    RAM_LOADER_INJECTED.store(injected, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// Checks whether the in-circuit RAM loader has been injected during this session.
+pub fn is_ram_loader_injected() -> bool {
+    RAM_LOADER_INJECTED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 /// Retrieves full `PicoDeviceStatusDto` matching the React Frontend `PicoDeviceStatus` interface.
 pub fn pico_get_device_status_dto(
     port_name: String,
     mode_override: Option<u8>,
 ) -> Result<PicoDeviceStatusDto, String> {
+    // If no port name provided, return a disconnected status DTO.
+    if port_name.trim().is_empty() {
+        return Ok(PicoDeviceStatusDto {
+            connected: false,
+            port: "".to_string(),
+            baud_rate: 0,
+            vdd_volts: 0.0,
+            target_powered: false,
+            breakin_mode: 2,
+            core_state: "DISCONNECTED".to_string(),
+            bus_freq_hz: 0,
+            firmware_version: "".to_string(),
+            chip_id: "".to_string(),
+            total_probes: 0,
+            hits_detected: 0,
+            open_bus_high: 0,
+            open_bus_low: 0,
+            ram_loader_injected: false,
+            last_keepalive: "".to_string(),
+        });
+    }
     let status = pico_connect_and_test(port_name.clone(), 115_200)?;
     let is_rp2350 = status.port_name.contains("2350") || status.firmware_banner.contains("2350");
+
+    let probes = if status.is_mock {
+        1024
+    } else {
+        SCAN_TOTAL_PROBES.load(std::sync::atomic::Ordering::SeqCst)
+    };
+    let hits = if status.is_mock {
+        12
+    } else {
+        SCAN_HITS_DETECTED.load(std::sync::atomic::Ordering::SeqCst)
+    };
+    let open_high = if status.is_mock { 1012 } else { 0 };
+
+    let firmware_ver = if !status.firmware_banner.is_empty() {
+        status.firmware_banner.clone()
+    } else {
+        "v2.0-PIO-DWire32A".to_string()
+    };
+
     Ok(PicoDeviceStatusDto {
         connected: status.connected,
         port: status.port_name,
@@ -217,23 +272,25 @@ pub fn pico_get_device_status_dto(
         vdd_volts: status.vdd_voltage,
         target_powered: status.target_powered,
         breakin_mode: mode_override.unwrap_or(2),
-        core_state: if status.target_powered {
+        core_state: if !status.connected {
+            "DISCONNECTED".to_string()
+        } else if status.target_powered {
             "HALTED".to_string()
         } else {
-            "DISCONNECTED".to_string()
+            "RUNNING".to_string()
         },
         bus_freq_hz: 1_000_000,
-        firmware_version: "v2.0-PIO-DWire32A".to_string(),
+        firmware_version: firmware_ver,
         chip_id: if is_rp2350 {
             "RP2350-A2".to_string()
         } else {
             "RP2040-B2".to_string()
         },
-        total_probes: 1024,
-        hits_detected: 12,
-        open_bus_high: 1012,
+        total_probes: probes,
+        hits_detected: hits,
+        open_bus_high: open_high,
         open_bus_low: 0,
-        ram_loader_injected: false,
+        ram_loader_injected: is_ram_loader_injected(),
         last_keepalive: "OK".to_string(),
     })
 }
@@ -256,6 +313,7 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
             "ADC" => "ADC0 Raw: 4072 (3.281 V). Rail within tolerance (+-5%).".to_string(),
             "GDB" => "GDB Remote Serial Protocol mode active.".to_string(),
             "ISOLATE" | "HIZ" => {
+                set_ram_loader_injected(false);
                 "ISOLATE: OK (All 6 pins in High-Impedance Hi-Z mode; unified JST ZR-6 plug is electrically invisible)".to_string()
             }
             "ENGAGE" => {
@@ -268,6 +326,10 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
 
     ensure_serial_port_unlocked(&clean)?;
 
+    if trimmed == "ISOLATE" || trimmed == "HIZ" {
+        set_ram_loader_injected(false);
+    }
+
     let mut port = serialport::new(&clean, 115_200)
         .timeout(Duration::from_millis(2000))
         .open()
@@ -278,7 +340,27 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
         .map_err(|e| format!("Falha ao transmitir comando CDC: {}", e))?;
     let _ = port.flush();
 
-    read_serial_response_complete(&mut *port, Duration::from_millis(8000))
+    let response = read_serial_response_complete(&mut *port, Duration::from_millis(8000))?;
+
+    if trimmed.starts_with("SCAN") {
+        if let Some(pos) = response.find("Hits: ") {
+            let after = &response[pos + 6..];
+            if let Some(comma) = after.find(',') {
+                if let Ok(h) = after[..comma].trim().parse::<u32>() {
+                    SCAN_HITS_DETECTED.store(h, std::sync::atomic::Ordering::SeqCst);
+                }
+            }
+        }
+        if let Some(pos) = response.find("Probes: ") {
+            let after = &response[pos + 8..];
+            let end_pos = after.find(')').unwrap_or(after.len());
+            if let Ok(p) = after[..end_pos].trim().parse::<u32>() {
+                SCAN_TOTAL_PROBES.store(p, std::sync::atomic::Ordering::SeqCst);
+            }
+        }
+    }
+
+    Ok(response)
 }
 
 /// Executes Cold Break-In sequence on the DMR-EH55 via RP2040 PIO state machine.

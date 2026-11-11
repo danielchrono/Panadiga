@@ -10,7 +10,7 @@ import {
   DwirePinoutCard,
 } from '@/components/pico';
 import { useTranslation } from '@/i18n/useTranslation';
-import { CheckCircle2, Send } from 'lucide-react';
+import { CheckCircle2, Send, ShieldCheck } from 'lucide-react';
 
 /**
  * MVVM View: Panasonic DWire32A Hardware Bench Controller.
@@ -28,9 +28,13 @@ export const PicoBenchView: React.FC = () => {
     selectedModel,
     selectTargetModel,
     refreshPorts,
+    refreshStatus,
     logs,
+    logContainerRef,
     isErasing,
     eraseResult,
+    isBackingUp,
+    backupResult,
     commandInput,
     setCommandInput,
     gdbStatus,
@@ -42,12 +46,31 @@ export const PicoBenchView: React.FC = () => {
     changeBreakinMode,
     toggleConnection,
     injectRamLoaderAndErase,
+    executeFirstContactBackup,
     sendCommand,
     clearLogs,
   } = usePicoBenchViewModel();
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-mono">
+      {/* First-Contact Safety Backup Notification */}
+      {backupResult?.success && (
+        <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/40 p-4 flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0" />
+            <div>
+              <h4 className="text-xs font-bold text-cyan-300">
+                BACKUP DE 1º CONTATO & DOUBLE-READ CONCLUÍDOS COM SUCESSO!
+              </h4>
+              <p className="text-[11px] text-slate-300 mt-0.5 font-sans">
+                Modelo: {backupResult.detected_model} | NVRAM: {backupResult.nvram_bytes.toLocaleString()} bytes | SRAM: {backupResult.sram_bytes.toLocaleString()} bytes. Integridade verificada via SHA-256.
+              </p>
+            </div>
+          </div>
+          <StatusBadge variant="info" label="BACKUP SEGURO" />
+        </div>
+      )}
+
       {/* Erase Success Notification */}
       {eraseResult?.success && (
         <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/40 p-4 flex items-center justify-between shadow-xl">
@@ -74,11 +97,14 @@ export const PicoBenchView: React.FC = () => {
         modelCatalog={modelCatalog}
         selectedModel={selectedModel}
         isErasing={isErasing}
+        isBackingUp={isBackingUp}
         onSelectPort={setSelectedPort}
         onSelectModel={selectTargetModel}
         onToggleConnection={toggleConnection}
         onInjectAndErase={injectRamLoaderAndErase}
+        onFirstContactBackup={executeFirstContactBackup}
         onRefreshPorts={refreshPorts}
+        onRefreshStatus={refreshStatus}
       />
 
       {/* Telemetry Instruments Grid */}
@@ -110,7 +136,7 @@ export const PicoBenchView: React.FC = () => {
         {/* Right Column: Live Terminal & CDC Command Bar */}
         <div className="lg:col-span-7 flex flex-col space-y-3 h-[740px]">
           <div className="flex-1 min-h-0 flex flex-col">
-            <TerminalView logs={logs} onClear={clearLogs} />
+            <TerminalView logs={logs} onClear={clearLogs} containerRef={logContainerRef} />
           </div>
 
           {/* Interactive Command Input */}

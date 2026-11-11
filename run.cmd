@@ -1,5 +1,6 @@
 @echo off
 @chcp 65001 >nul
+if exist "%USERPROFILE%\.cargo\bin" set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
 setlocal enabledelayedexpansion
 title Panadiga Suite - Fast Launcher
 

@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
+if exist "%USERPROFILE%\.cargo\bin" set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
 title Panadiga Suite - Native Build Pipeline
 
 echo ====================================================================
@@ -28,13 +29,13 @@ if not exist "apps\desktop\node_modules" (
     call npm --prefix apps\desktop ci
     if errorlevel 1 (
         echo [ERRO] Falha ao instalar dependencias do frontend.
-        exit /b 1
+        goto :error_exit
     )
 )
 call npm --prefix apps\desktop run build
 if errorlevel 1 (
     echo [ERRO] Falha no build de producao do frontend Vite.
-    exit /b 1
+    goto :error_exit
 )
 echo [OK] Bundle otimizado gerado em apps\desktop\dist\
 echo.
@@ -50,7 +51,7 @@ echo [3/4] Compilando Binario Unificado Panadiga em modo Release (%NUMBER_OF_PRO
 cargo build --release -p panadiga
 if errorlevel 1 (
     echo [ERRO] Falha ao compilar binario unificado em modo release.
-    exit /b 1
+    goto :error_exit
 )
 echo [OK] Binario unificado gerado com sucesso: target\release\panadiga.exe
 echo.
@@ -170,3 +171,12 @@ echo [OK] BUILD ANDROID CONCLUIDO COM SUCESSO!
 echo      Arquivo .apk gerado em gen\android\app\build\outputs\apk\
 echo ====================================================================
 exit /b 0
+
+:error_exit
+echo.
+echo ====================================================================
+echo [ERRO CRITICO] O processo de build falhou ou foi interrompido.
+echo ====================================================================
+if not defined CI pause
+exit /b 1
+

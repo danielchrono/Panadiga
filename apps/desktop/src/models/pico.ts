@@ -113,4 +113,15 @@ export interface DigaModelProfile {
   soc_name: string;
 }
 
+export interface FirstContactBackupResult {
+  success: boolean;
+  detected_model: string;
+  nvram_bytes: number;
+  nvram_sha256: string;
+  double_read_verified: boolean;
+  sram_bytes: number;
+  ipl_bytes: number;
+  log_lines: string[];
+}
+
 

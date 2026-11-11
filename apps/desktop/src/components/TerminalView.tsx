@@ -7,6 +7,7 @@ interface TerminalViewProps {
   onClear: () => void;
   title?: string;
   autoScroll?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement>;
 }
 
 export const TerminalView: React.FC<TerminalViewProps> = ({
@@ -14,8 +15,10 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
   onClear,
   title = 'DWire32A Bus Monitor / OCD CDC Console',
   autoScroll = true,
+  containerRef,
 }) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const localRef = useRef<HTMLDivElement>(null);
+  const scrollRef = containerRef || localRef;
 
   useEffect(() => {
     if (autoScroll && scrollRef.current) {

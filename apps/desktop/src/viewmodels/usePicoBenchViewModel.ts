@@ -60,6 +60,9 @@ export function usePicoBenchViewModel() {
     isErasing: erase.isErasing,
     eraseResult: erase.eraseResult,
     injectRamLoaderAndErase: erase.injectRamLoaderAndErase,
+    isBackingUp: erase.isBackingUp,
+    backupResult: erase.backupResult,
+    executeFirstContactBackup: erase.executeFirstContactBackup,
 
     // Interactive Serial Console Subsystem
     logs: console.logs,

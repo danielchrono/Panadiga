@@ -417,10 +417,40 @@ pub fn get_diga_model_catalog_dto() -> Vec<DigaModelProfileDto> {
 }
 
 /// Resolves the first existing file path from a candidate list, or returns `fallback`.
+/// Probes current working dir, parent dirs (`../`, `../../`), and relative to the running executable.
 pub fn resolve_candidate(candidates: &[&str], fallback: &str) -> String {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()));
+
     for &c in candidates {
-        if Path::new(c).exists() {
+        let p = Path::new(c);
+        if p.exists() {
             return c.to_string();
+        }
+
+        // Try one and two levels up (e.g. running from dist/ or apps/desktop/)
+        let p1 = Path::new("..").join(c);
+        if p1.exists() {
+            return p1.to_string_lossy().to_string();
+        }
+        let p2 = Path::new("../..").join(c);
+        if p2.exists() {
+            return p2.to_string_lossy().to_string();
+        }
+
+        // Try relative to the directory containing panadiga.exe
+        if let Some(ref ed) = exe_dir {
+            let exe_rel = ed.join(c);
+            if exe_rel.exists() {
+                return exe_rel.to_string_lossy().to_string();
+            }
+            if let Some(parent) = ed.parent() {
+                let parent_rel = parent.join(c);
+                if parent_rel.exists() {
+                    return parent_rel.to_string_lossy().to_string();
+                }
+            }
         }
     }
     fallback.to_string()
@@ -531,9 +561,25 @@ pub fn resolve_default_flash_path(input_path: Option<String>) -> String {
         }
     }
 
-    let search_dirs = ["firmware_and_images", "../../firmware_and_images", "."];
-    for dir in search_dirs {
-        if let Ok(entries) = std::fs::read_dir(dir) {
+    let mut candidate_dirs = vec![
+        std::path::PathBuf::from("firmware_and_images"),
+        std::path::PathBuf::from("../firmware_and_images"),
+        std::path::PathBuf::from("../../firmware_and_images"),
+        std::path::PathBuf::from("."),
+        std::path::PathBuf::from(".."),
+    ];
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            candidate_dirs.push(exe_dir.join("firmware_and_images"));
+            if let Some(parent) = exe_dir.parent() {
+                candidate_dirs.push(parent.join("firmware_and_images"));
+            }
+        }
+    }
+
+    for dir in candidate_dirs {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_file() {
@@ -556,10 +602,11 @@ pub fn resolve_default_flash_path(input_path: Option<String>) -> String {
 
     resolve_candidate(
         &[
-            "firmware_and_images/panasonic_flash_dump.bin",
             "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
+            "firmware_and_images/panasonic_dmr-eh55_flash_cleaned.bin",
             "panasonic_dmr-eh55_flash_dump.bin",
+            "firmware_and_images/panasonic_flash_dump.bin",
         ],
-        "firmware_and_images/panasonic_flash_dump.bin",
+        "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
     )
 }

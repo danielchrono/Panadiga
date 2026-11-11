@@ -126,18 +126,16 @@ elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" ]; then
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/firmware/
 fi
 
-# Copy fast runners into dist/
-cp -f run.cmd dist/run.cmd
-cp -f run.sh dist/run.sh
-chmod +x dist/run.sh
+# Clean legacy or redundant script runners from dist/
+rm -f dist/run.cmd dist/run.sh dist/run.ps1 2>/dev/null || true
 
 # Generate release archive (.tar.gz) and SHA256 checksum
 RELEASE_ARCHIVE="dist/releases/panadiga-${PLATFORM}-${ARCH}.tar.gz"
 tar -czf "$RELEASE_ARCHIVE" \
-    -C dist panadiga run.cmd run.sh tools firmware \
+    -C dist panadiga tools firmware \
     -C "$SCRIPT_DIR" README.md README.pt-BR.md LICENSE 2>/dev/null || \
 tar -czf "$RELEASE_ARCHIVE" \
-    -C dist panadiga run.cmd run.sh tools firmware \
+    -C dist panadiga tools firmware \
     -C "$SCRIPT_DIR" README.md README.pt-BR.md
 
 if command -v sha256sum >/dev/null 2>&1; then

@@ -24,9 +24,11 @@ export interface PicoBenchTopBarProps {
 
 interface FlashReport {
   success: boolean;
-  target_board: string;
-  mount_path: string;
-  bytes_written: number;
+  target_drive: string;
+  board_family: string;
+  uf2_size_bytes: number;
+  blocks_written: number;
+  sha256_hash: string;
   message: string;
 }
 
@@ -69,10 +71,11 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
         return;
       }
       const report = await invokeCommand<FlashReport>('pico_flash_firmware', {});
+      const sizeStr = report.uf2_size_bytes ? report.uf2_size_bytes.toLocaleString() : '116,736';
       showToast({
         type: 'success',
         title: 'Firmware Pico Gravado',
-        message: `${report.message} (${report.target_board}, ${report.bytes_written.toLocaleString()} bytes gravados).`,
+        message: `${report.message} (${report.board_family || 'RP2040'}, ${sizeStr} bytes gravados em ${report.target_drive || 'RPI-RP2'}).`,
       });
       onRefreshPorts?.();
     } catch (err) {

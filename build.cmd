@@ -111,11 +111,10 @@ if exist "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" (
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
 )
 
-:: Copy fast runners into dist\
-copy /y "run.cmd" "dist\run.cmd" >nul
-copy /y "run.sh" "dist\run.sh" >nul
-
-:: Clean legacy launcher if present
+:: Clean legacy or redundant script runners from dist\
+if exist "dist\run.cmd" del /f /q "dist\run.cmd" >nul 2>nul
+if exist "dist\run.sh" del /f /q "dist\run.sh" >nul 2>nul
+if exist "dist\run.ps1" del /f /q "dist\run.ps1" >nul 2>nul
 if exist "dist\Executar_Panadiga.cmd" del /f /q "dist\Executar_Panadiga.cmd" >nul 2>nul
 if exist "dist\Executar_Panadiga.bat" del /f /q "dist\Executar_Panadiga.bat" >nul 2>nul
 
@@ -123,17 +122,16 @@ if exist "dist\Executar_Panadiga.bat" del /f /q "dist\Executar_Panadiga.bat" >nu
 powershell -NoProfile -Command "Get-ChildItem -Path dist -Recurse | Where-Object { $_.LastWriteTime.Year -lt 1980 } | ForEach-Object { $_.LastWriteTime = (Get-Date) }" >nul 2>nul
 
 :: Generate release archive .zip with SHA256 checksum
-powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; $items = @('dist\panadiga.exe', 'dist\WebView2Loader.dll', 'dist\run.cmd', 'dist\run.sh', 'dist\tools', 'dist\firmware', 'README.md', 'README.pt-BR.md', 'LICENSE') | Where-Object { Test-Path $_ }; Compress-Archive -Path $items -DestinationPath $zip -CompressionLevel Optimal; if (Test-Path $zip) { $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; Set-Content -Path 'dist\releases\SHA256SUMS.txt' -Value \"$hash  panadiga-windows-x86_64.zip\" -Encoding UTF8 }"
+powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; $items = @('dist\panadiga.exe', 'dist\WebView2Loader.dll', 'dist\tools', 'dist\firmware', 'README.md', 'README.pt-BR.md', 'LICENSE') | Where-Object { Test-Path $_ }; Compress-Archive -Path $items -DestinationPath $zip -CompressionLevel Optimal; if (Test-Path $zip) { $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; Set-Content -Path 'dist\releases\SHA256SUMS.txt' -Value \"$hash  panadiga-windows-x86_64.zip\" -Encoding UTF8 }"
 
 echo.
 echo ====================================================================
 echo    [OK] BUILD CONCLUIDO COM SUCESSO!
-echo    - Binario Unificado: dist\panadiga.exe
-echo    - Runtime DLL:       dist\WebView2Loader.dll
-echo    - Ferramentas:       dist\tools\ (Ghidra scripts, Python CLI, RAG)
-echo    - Firmware Pico:     dist\firmware\ (.UF2 RP2040 e RP2350)
-echo    - Pacote Release:    dist\releases\panadiga-windows-x86_64.zip
-echo    - Inicializador:     dist\run.cmd e dist\run.sh
+echo    - Binario Executavel: dist\panadiga.exe
+echo    - Runtime DLL:        dist\WebView2Loader.dll
+echo    - Ferramentas:        dist\tools\ (Ghidra scripts, Python CLI, RAG)
+echo    - Firmware Pico:      dist\firmware\ (.UF2 RP2040 e RP2350)
+echo    - Pacote Release:     dist\releases\panadiga-windows-x86_64.zip
 echo ====================================================================
 if defined BUILD_ALL goto :build_android
 if not defined CI if "%1"=="" pause

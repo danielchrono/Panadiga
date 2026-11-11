@@ -60,7 +60,8 @@ function Build-Desktop {
     if (Test-Path "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2") {
         Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\firmware\"
     }
-    Copy-Item -Force "run.cmd", "run.ps1" "dist\"
+    # Clean redundant runners from dist
+    Remove-Item "dist\run.cmd", "dist\run.ps1", "dist\run.sh" -Force -ErrorAction SilentlyContinue
 
     # Create ZIP archive (guard missing files)
     $zipPath = "dist\releases\panadiga-windows-x86_64.zip"
@@ -68,8 +69,6 @@ function Build-Desktop {
     $items = @(
         "dist\panadiga.exe",
         "dist\WebView2Loader.dll",
-        "dist\run.cmd",
-        "dist\run.ps1",
         "dist\tools",
         "dist\firmware",
         "README.md",

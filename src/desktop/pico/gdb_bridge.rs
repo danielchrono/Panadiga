@@ -112,11 +112,37 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
     }
 
     let clean_port = extract_port_name(&port_name);
+    if clean_port.is_empty() {
+        return Err("Nenhuma porta serial selecionada para a Ponte GDB RSP. Conecte o Pico ou selecione uma porta COM primeiro.".to_string());
+    }
+
     let addr = if listen_addr.trim().is_empty() {
         "127.0.0.1:3333".to_string()
     } else {
         listen_addr.trim().to_string()
     };
+
+    // Pre-validate that TCP port can be bound
+    let pre_test_listener = TcpListener::bind(&addr).map_err(|e| {
+        format!("Falha ao vincular porta TCP {}: {}. Verifique se outra instância do GDB ou processo não está utilizando a porta.", addr, e)
+    })?;
+    drop(pre_test_listener);
+
+    // If hardware port, pre-validate serial accessibility
+    if !clean_port.starts_with("MOCK") {
+        match serialport::new(&clean_port, 115200)
+            .timeout(Duration::from_millis(150))
+            .open()
+        {
+            Ok(_) => {}
+            Err(e) => {
+                return Err(format!(
+                    "Falha ao abrir porta serial {} para a Ponte GDB RSP: {}. Verifique se o Pico está conectado e não ocupado por outro terminal.",
+                    clean_port, e
+                ));
+            }
+        }
+    }
 
     ctrl.running.store(true, Ordering::Relaxed);
     ctrl.client_connected.store(false, Ordering::Relaxed);

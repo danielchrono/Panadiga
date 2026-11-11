@@ -11,22 +11,22 @@ import { Zap, AlertTriangle } from 'lucide-react';
  */
 export const DwirePinoutCard: React.FC = () => {
   return (
-    <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-4 h-full flex flex-col justify-between">
+    <div className="rounded-xl bg-bench-900 border border-slate-800 p-4 shadow-xl space-y-3 flex flex-col justify-between overflow-hidden">
       <div>
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span>Conexões Físicas (Pico → CN55001)</span>
+            <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+            <span className="truncate">Conexões Físicas (Pico → CN55001)</span>
           </h3>
-          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded">
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-800/80 px-2 py-0.5 rounded shrink-0">
             P7501 [B6B-ZR-3R4]
           </span>
         </div>
 
         {/* Critical Safety Alert Box */}
-        <div className="mt-3 p-3 bg-amber-950/30 border border-amber-800/60 rounded-lg text-xs space-y-1.5">
+        <div className="mt-2.5 p-2.5 bg-amber-950/30 border border-amber-800/60 rounded-lg text-xs space-y-1">
           <div className="flex items-center gap-1.5 text-amber-400 font-bold text-[11px]">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span>DISCLAIMER CRÍTICO: IDENTIFICAÇÃO DO TERRA (GND)</span>
           </div>
           <p className="text-slate-300 text-[11px] leading-relaxed">
@@ -37,31 +37,31 @@ export const DwirePinoutCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Dual Pinout Table */}
-      <div className="space-y-1.5 text-[11px] font-mono pt-2 border-t border-slate-800/80">
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-rose-400">Pino 1 (Manual) / Pino 6 (Físico) [VDD 3.3V]:</span>
-          <span className="text-slate-200">GP26 (ADC0 / Pin 31) • Monitor 3.3V</span>
+      {/* Zero-Bleed Responsive Dual Pinout List */}
+      <div className="space-y-1 text-[11px] font-mono pt-2 border-t border-slate-800/80">
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 border-b border-slate-800/60 gap-0.5">
+          <span className="text-rose-400 font-medium break-words">Pino 1 (Manual) / Pino 6 (Físico) [VDD 3.3V]:</span>
+          <span className="text-slate-200 text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GP26 (ADC0 / Pin 31) • Monitor 3.3V</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-purple-400">Pino 2 (Manual) / Pino 5 (Físico) [nRESET]:</span>
-          <span className="text-slate-200">GP5 (Pin 7) • Open-Drain (Nunca Push-Pull)</span>
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 border-b border-slate-800/60 gap-0.5">
+          <span className="text-purple-400 font-medium break-words">Pino 2 (Manual) / Pino 5 (Físico) [nRESET]:</span>
+          <span className="text-slate-200 text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GP5 (Pin 7) • Open-Drain (Nunca Push-Pull)</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-sky-400">Pino 3 (Manual) / Pino 4 (Físico) [SDATA]:</span>
-          <span className="text-slate-200">GP4 (Pin 6) • Half-Duplex (100Ω + Pull-up 4.7k)</span>
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 border-b border-slate-800/60 gap-0.5">
+          <span className="text-sky-400 font-medium break-words">Pino 3 (Manual) / Pino 4 (Físico) [SDATA]:</span>
+          <span className="text-slate-200 text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GP4 (Pin 6) • Half-Duplex (100Ω + Pull-up 4.7k)</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-emerald-800/60 bg-emerald-950/20 px-1 rounded">
-          <span className="text-emerald-400 font-bold">Pino 4 (Manual) / Pino 3 (Físico) [GND]:</span>
-          <span className="text-emerald-300 font-bold">GND (Pin 38) • Terra 0.0Ω Chassi</span>
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 border-b border-emerald-800/60 bg-emerald-950/20 px-1 rounded gap-0.5">
+          <span className="text-emerald-400 font-bold break-words">Pino 4 (Manual) / Pino 3 (Físico) [GND]:</span>
+          <span className="text-emerald-300 font-bold text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GND (Pin 38) • Terra 0.0Ω Chassi</span>
         </div>
-        <div className="flex justify-between py-1 border-b border-slate-800/60">
-          <span className="text-sky-400">Pino 5 (Manual) / Pino 2 (Físico) [SCLK]:</span>
-          <span className="text-slate-200">GP3 (Pin 5) • Clock Master 1.0 MHz</span>
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 border-b border-slate-800/60 gap-0.5">
+          <span className="text-sky-400 font-medium break-words">Pino 5 (Manual) / Pino 2 (Físico) [SCLK]:</span>
+          <span className="text-slate-200 text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GP3 (Pin 5) • Clock Master 1.0 MHz</span>
         </div>
-        <div className="flex justify-between py-1">
-          <span className="text-sky-400">Pino 6 (Manual) / Pino 1 (Físico) [EXTRG]:</span>
-          <span className="text-slate-200">GP2 (Pin 4) • External Break Trigger</span>
+        <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between py-1 gap-0.5">
+          <span className="text-sky-400 font-medium break-words">Pino 6 (Manual) / Pino 1 (Físico) [EXTRG]:</span>
+          <span className="text-slate-200 text-[10px] 2xl:text-[11px] 2xl:text-right shrink-0">GP2 (Pin 4) • External Break Trigger</span>
         </div>
       </div>
     </div>

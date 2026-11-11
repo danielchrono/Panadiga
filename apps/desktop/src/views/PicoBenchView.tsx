@@ -123,18 +123,18 @@ export const PicoBenchView: React.FC = () => {
       {/* Main Grid: Timing Modes & Live Serial Terminal (Balanced Columns) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left Column: Timing Profile Selector & Pinout Guide */}
-        <div className="lg:col-span-5 flex flex-col space-y-6 h-[740px]">
+        <div className="lg:col-span-5 flex flex-col space-y-4 min-h-[740px]">
           <ColdBreakinSelector
             currentMode={deviceStatus?.breakin_mode ?? 2}
             onSelectMode={changeBreakinMode}
           />
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 flex flex-col">
             <DwirePinoutCard />
           </div>
         </div>
 
         {/* Right Column: Live Terminal & CDC Command Bar */}
-        <div className="lg:col-span-7 flex flex-col space-y-3 h-[740px]">
+        <div className="lg:col-span-7 flex flex-col space-y-3 min-h-[740px]">
           <div className="flex-1 min-h-0 flex flex-col">
             <TerminalView logs={logs} onClear={clearLogs} containerRef={logContainerRef} />
           </div>

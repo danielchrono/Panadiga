@@ -1,12 +1,14 @@
 ﻿# Panadiga Unified Engineering Suite - Master Build Script (PowerShell)
 # Usage:
-#   .\build.ps1              # Desktop unified release build
-#   .\build.ps1 -Android     # Android ARM64 APK build
-#   .\build.ps1 -All         # Desktop + Android APK release
+#   .\build.ps1              # Full build (Desktop + Android if SDK detected)
+#   .\build.ps1 -Desktop     # Desktop unified release build only
+#   .\build.ps1 -Android     # Android ARM64 APK build only
+#   .\build.ps1 -All         # Force Desktop + Android APK release
 
 [CmdletBinding()]
 param(
     [switch]$Android,
+    [switch]$Desktop,
     [switch]$All
 )
 
@@ -127,17 +129,20 @@ function Build-Android {
         Write-Host "[*] Compilando APK via Tauri CLI..." -ForegroundColor Yellow
         npx @tauri-apps/cli android build --apk --target aarch64
 
-        # Find and copy generated APK to dist\releases
+        # Find and copy generated APK to dist\ and dist\releases\
         $apkFiles = Get-ChildItem -Path "gen\android\app\build\outputs\apk" -Filter "*.apk" -Recurse -ErrorAction SilentlyContinue
         if ($apkFiles) {
-            New-Item -ItemType Directory -Force -Path "dist\releases" | Out-Null
-            foreach ($apk in $apkFiles) {
-                $destName = "panadiga-$($apk.Name)"
-                Copy-Item -Force $apk.FullName "dist\releases\$destName"
-                $apkHash = (Get-FileHash -Algorithm SHA256 $apk.FullName).Hash
-                Add-Content -Path "dist\releases\SHA256SUMS.txt" -Value "$apkHash  $destName" -Encoding UTF8
-                Write-Host "[OK] APK copiado para dist\releases\$destName" -ForegroundColor Green
-            }
+            $apk = $apkFiles | Select-Object -First 1
+            $destName = "panadiga-android-arm64.apk"
+            New-Item -ItemType Directory -Force -Path "dist", "dist\releases" | Out-Null
+            Copy-Item -Force $apk.FullName "dist\$destName"
+            Copy-Item -Force $apk.FullName "dist\releases\$destName"
+            $apkHash = (Get-FileHash -Algorithm SHA256 "dist\$destName").Hash
+            $shaFile = "$scriptDir\dist\releases\SHA256SUMS.txt"
+            $lines = if (Test-Path $shaFile) { (Get-Content $shaFile) | Where-Object { $_ -notmatch 'panadiga-android-arm64\.apk' } } else { @() }
+            $lines += "$apkHash  $destName"
+            [IO.File]::WriteAllLines($shaFile, $lines, [System.Text.Encoding]::UTF8)
+            Write-Host "[OK] APK copiado para dist\$destName e dist\releases\$destName" -ForegroundColor Green
         }
     } finally {
         Write-Host "[*] Restaurando Cargo.toml para crate-type = ['rlib']..." -ForegroundColor Gray
@@ -145,9 +150,18 @@ function Build-Android {
     }
 }
 
+$hasAndroidSdk = $false
+if ($env:ANDROID_HOME -and (Test-Path $env:ANDROID_HOME)) {
+    $hasAndroidSdk = $true
+} elseif (Test-Path "$env:LOCALAPPDATA\Android\Sdk") {
+    $hasAndroidSdk = $true
+}
+
 if ($Android) {
     Build-Android
-} elseif ($All) {
+} elseif ($Desktop) {
+    Build-Desktop
+} elseif ($All -or $hasAndroidSdk) {
     Build-Desktop
     Build-Android
 } else {

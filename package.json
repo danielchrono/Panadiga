@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "build": "npm --prefix apps/desktop run build",
+    "build:desktop": "powershell -ExecutionPolicy Bypass -File build.ps1 -Desktop",
+    "build:android": "powershell -ExecutionPolicy Bypass -File build.ps1 -Android",
+    "build:all": "powershell -ExecutionPolicy Bypass -File build.ps1 -All",
     "tauri": "npx @tauri-apps/cli"
   }
 }

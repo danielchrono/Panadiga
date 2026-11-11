@@ -20,12 +20,21 @@ if defined CI set "CI=true"
 set CARGO_BUILD_JOBS=%NUMBER_OF_PROCESSORS%
 set CARGO_INCREMENTAL=1
 
-:: Dispatch Android build if requested
+:: Dispatch build modes
+if "%1"=="--desktop" (
+    set "DESKTOP_ONLY=1"
+    goto :build_desktop_start
+)
+if "%1"=="-d" (
+    set "DESKTOP_ONLY=1"
+    goto :build_desktop_start
+)
 if "%1"=="--android" goto :build_android
 if "%1"=="-a" goto :build_android
 if "%1"=="--apk" goto :build_android
 if "%1"=="--all" set "BUILD_ALL=1"
 
+:build_desktop_start
 :: [1/4] Build React Interface (UI)
 echo [1/4] Compilando Frontend Desktop (React / TypeScript / Vite)...
 if not exist "apps\desktop\node_modules" (
@@ -124,7 +133,18 @@ echo    - Ferramentas:        dist\tools\ (Ghidra scripts, Python CLI, RAG)
 echo    - Firmware Pico:      dist\panasonic_dwire32a_rp*.uf2 (RP2040 e RP2350)
 echo    - Pacote Release:     dist\releases\panadiga-windows-x86_64.zip
 echo ====================================================================
+if defined DESKTOP_ONLY (
+    if not defined CI if "%1"=="" pause
+    exit /b 0
+)
+
+:: If Android SDK is detected or --all was requested, proceed directly to Android APK build
 if defined BUILD_ALL goto :build_android
+if "%1"=="" (
+    if exist "%LOCALAPPDATA%\Android\Sdk" goto :build_android
+    if defined ANDROID_HOME goto :build_android
+)
+
 if not defined CI if "%1"=="" pause
 exit /b 0
 
@@ -183,13 +203,16 @@ if %ANDROID_STATUS% neq 0 (
     goto :error_exit
 )
 
-:: Copy generated APK to dist\releases and update SHA256SUMS.txt
+:: Copy generated APK to dist\ and dist\releases\ and update SHA256SUMS.txt
+if not exist "dist" mkdir "dist"
 if not exist "dist\releases" mkdir "dist\releases"
-powershell -NoProfile -Command "$apk = Get-ChildItem -Path 'gen\android\app\build\outputs\apk' -Recurse -Filter '*.apk' | Select-Object -First 1; if ($apk) { Copy-Item $apk.FullName 'dist\releases\panadiga-android-arm64.apk' -Force; $h = (Get-FileHash -Algorithm SHA256 'dist\releases\panadiga-android-arm64.apk').Hash; $txt = 'dist\releases\SHA256SUMS.txt'; $lines = if (Test-Path $txt) { (Get-Content $txt) | Where-Object { $_ -notmatch 'panadiga-android-arm64.apk' } } else { @() }; $lines += \"$h  panadiga-android-arm64.apk\"; Set-Content -Path $txt -Value $lines -Encoding UTF8 }"
+powershell -NoProfile -Command "$apk = Get-ChildItem -Path 'gen\android\app\build\outputs\apk' -Recurse -Filter '*.apk' | Select-Object -First 1; if ($apk) { Copy-Item $apk.FullName 'dist\panadiga-android-arm64.apk' -Force; Copy-Item $apk.FullName 'dist\releases\panadiga-android-arm64.apk' -Force; $h = (Get-FileHash -Algorithm SHA256 'dist\releases\panadiga-android-arm64.apk').Hash; $txt = 'dist\releases\SHA256SUMS.txt'; $lines = if (Test-Path $txt) { (Get-Content $txt) | Where-Object { $_ -notmatch 'panadiga-android-arm64.apk' } } else { @() }; $lines += \"$h  panadiga-android-arm64.apk\"; Set-Content -Path $txt -Value $lines -Encoding UTF8 }"
 
 echo ====================================================================
 echo [OK] BUILD ANDROID CONCLUIDO COM SUCESSO!
-echo      Arquivo APK consolidado em dist\releases\panadiga-android-arm64.apk
+echo      Arquivo APK consolidado em:
+echo      - dist\panadiga-android-arm64.apk
+echo      - dist\releases\panadiga-android-arm64.apk
 echo ====================================================================
 if not defined CI if "%1"=="" pause
 exit /b 0

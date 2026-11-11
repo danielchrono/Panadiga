@@ -15,6 +15,10 @@ if "%1"=="--help" goto :help
 if "%1"=="-h" goto :help
 if "%1"=="--dev" goto :run_dev
 if "%1"=="--build" goto :build_and_run
+if "%1"=="--android" goto :run_android
+if "%1"=="--apk" goto :run_android
+if "%1"=="-a" goto :run_android
+if "%1"=="--all" goto :run_all
 if "%1"=="--validate" goto :run_validate
 if "%1"=="--lint" goto :run_validate
 if "%1"=="--cli" goto :run_cli
@@ -76,6 +80,16 @@ if exist "%DIST_EXE%" (
     start "" "%TARGET_EXE%"
 )
 exit /b 0
+
+:run_android
+echo [INFO] Compilando APK Android ARM64...
+call "%SCRIPT_DIR%build.cmd" --android
+exit /b %ERRORLEVEL%
+
+:run_all
+echo [INFO] Executando build unificado completo (Desktop + Android + Firmwares)...
+call "%SCRIPT_DIR%build.cmd" --all
+exit /b %ERRORLEVEL%
 
 :run_cli
 shift

@@ -104,7 +104,7 @@ echo ""
 
 # [4/4] Packaging Distribution into dist/
 echo "[4/4] Empacotando distribuição consolidada para dist/..."
-mkdir -p dist/tools dist/firmware dist/releases
+mkdir -p dist/tools dist/releases
 
 cp -f target/release/panadiga dist/panadiga
 chmod +x dist/panadiga
@@ -114,32 +114,29 @@ if [ -d "tools" ]; then
     cp -rf tools/* dist/tools/ 2>/dev/null || true
 fi
 
-# Copy compiled Pico firmware binaries if present (canonical location)
+# Copy compiled Pico firmware binaries directly into dist/ root
 if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" ]; then
-    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" dist/firmware/
     cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" dist/
 elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" ]; then
-    cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" dist/firmware/
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" dist/
 fi
 if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" ]; then
-    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" dist/firmware/
     cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" dist/
 elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" ]; then
-    cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/firmware/
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/
 fi
 
-# Clean legacy or redundant script runners from dist/
-rm -f dist/run.cmd dist/run.sh dist/run.ps1 2>/dev/null || true
+# Clean legacy or redundant script runners and deprecated folders from dist/
+rm -f dist/run.cmd dist/run.sh dist/run.ps1 dist/WebView2Loader.dll 2>/dev/null || true
+rm -rf dist/firmware 2>/dev/null || true
 
 # Generate release archive (.tar.gz) and SHA256 checksum
 RELEASE_ARCHIVE="dist/releases/panadiga-${PLATFORM}-${ARCH}.tar.gz"
 tar -czf "$RELEASE_ARCHIVE" \
-    -C dist panadiga tools firmware \
+    -C dist panadiga panasonic_dwire32a_rp2040.uf2 panasonic_dwire32a_rp2350.uf2 LEIA-ME.txt tools \
     -C "$SCRIPT_DIR" README.md README.pt-BR.md LICENSE 2>/dev/null || \
 tar -czf "$RELEASE_ARCHIVE" \
-    -C dist panadiga tools firmware \
+    -C dist panadiga tools \
     -C "$SCRIPT_DIR" README.md README.pt-BR.md
 
 if command -v sha256sum >/dev/null 2>&1; then
@@ -156,7 +153,7 @@ echo "===================================================================="
 echo "   [OK] BUILD CONCLUÍDO COM SUCESSO!"
 echo "   - Binário Unificado: dist/panadiga"
 echo "   - Ferramentas:       dist/tools/"
-echo "   - Firmware Pico:     dist/firmware/"
+echo "   - Firmware Pico:     dist/panasonic_dwire32a_rp*.uf2"
 echo "   - Pacote Release:    $RELEASE_ARCHIVE"
 echo "   - Checksum SHA256:   $HASH"
 echo "===================================================================="

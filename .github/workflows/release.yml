@@ -98,9 +98,11 @@ jobs:
           $staging = "staging_release"
           New-Item -ItemType Directory -Path $staging | Out-Null
           Copy-Item "${{ matrix.platform.bin }}" -Destination "$staging\panadiga.exe"
-          $webview2 = "target/${{ matrix.platform.target }}/release/WebView2Loader.dll"
-          if (Test-Path $webview2) {
-              Copy-Item $webview2 -Destination "$staging\WebView2Loader.dll"
+          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2") {
+              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" -Destination "$staging\panasonic_dwire32a_rp2040.uf2"
+          }
+          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2") {
+              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" -Destination "$staging\panasonic_dwire32a_rp2350.uf2"
           }
           Copy-Item "tools" -Destination "$staging\tools" -Recurse
           Copy-Item "README.md" -Destination "$staging\README.md"

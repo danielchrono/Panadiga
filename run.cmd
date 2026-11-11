@@ -30,9 +30,6 @@ if "%1"=="rag" goto :run_cli_direct
 
 :: Default: Run Desktop GUI immediately from dist\ or target\release\
 if exist "%DIST_EXE%" (
-    if not exist "%SCRIPT_DIR%dist\WebView2Loader.dll" (
-        if exist "%SCRIPT_DIR%target\release\WebView2Loader.dll" copy /y "%SCRIPT_DIR%target\release\WebView2Loader.dll" "%SCRIPT_DIR%dist\WebView2Loader.dll" >nul
-    )
     echo [INFO] Iniciando Panadiga Desktop diretamente de dist\...
     start "" "%DIST_EXE%"
     exit /b 0

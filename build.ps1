@@ -44,35 +44,28 @@ function Build-Desktop {
     Write-Host "[OK] Binário unificado gerado: target\release\panadiga.exe" -ForegroundColor Green
 
     Write-Host "`n[4/4] Empacotando distribuição para dist\..." -ForegroundColor Yellow
-    New-Item -ItemType Directory -Force -Path "dist", "dist\tools", "dist\firmware", "dist\releases" | Out-Null
+    New-Item -ItemType Directory -Force -Path "dist", "dist\tools", "dist\releases" | Out-Null
     Copy-Item -Force "target\release\panadiga.exe" "dist\panadiga.exe"
-
-    if (Test-Path "target\release\WebView2Loader.dll") {
-        Copy-Item -Force "target\release\WebView2Loader.dll" "dist\WebView2Loader.dll"
-    } elseif (Test-Path "target\debug\WebView2Loader.dll") {
-        Copy-Item -Force "target\debug\WebView2Loader.dll" "dist\WebView2Loader.dll"
-    }
 
     Copy-Item -Recurse -Force "tools\*" "dist\tools\"
     if (Test-Path "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2") {
-        Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\firmware\"
         Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\"
     }
     if (Test-Path "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2") {
-        Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\firmware\"
         Copy-Item -Force "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\"
     }
-    # Clean redundant runners from dist
-    Remove-Item "dist\run.cmd", "dist\run.ps1", "dist\run.sh" -Force -ErrorAction SilentlyContinue
+    # Clean redundant runners and deprecated files from dist
+    Remove-Item "dist\run.cmd", "dist\run.ps1", "dist\run.sh", "dist\WebView2Loader.dll", "dist\firmware" -Recurse -Force -ErrorAction SilentlyContinue
 
     # Create ZIP archive (guard missing files)
     $zipPath = "dist\releases\panadiga-windows-x86_64.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
     $items = @(
         "dist\panadiga.exe",
-        "dist\WebView2Loader.dll",
+        "dist\panasonic_dwire32a_rp2040.uf2",
+        "dist\panasonic_dwire32a_rp2350.uf2",
+        "dist\LEIA-ME.txt",
         "dist\tools",
-        "dist\firmware",
         "README.md",
         "README.pt-BR.md",
         "LICENSE"

@@ -72,9 +72,8 @@ jobs:
           name: panadiga-windows-x86_64
           path: |
             dist/panadiga.exe
-            dist/WebView2Loader.dll
-            dist/run.cmd
-            dist/run.sh
+            dist/panasonic_dwire32a_rp2040.uf2
+            dist/panasonic_dwire32a_rp2350.uf2
             dist/tools/
             dist/releases/panadiga-windows-x86_64.zip
             dist/releases/SHA256SUMS.txt

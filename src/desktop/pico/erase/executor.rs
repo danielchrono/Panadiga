@@ -13,6 +13,23 @@ use super::parser::parse_autodetected_nvram_base;
 use crate::desktop::pico::serial::read_serial_response_complete;
 use crate::desktop::pico::types::{InCircuitNvramEraseResult, extract_port_name};
 
+pub(crate) fn query_port_vdd(port: &mut dyn serialport::SerialPort) -> f32 {
+    let _ = port.write_all(b"STATUS\r\n");
+    let _ = port.flush();
+    if let Ok(resp) = read_serial_response_complete(port, Duration::from_millis(600)) {
+        for token in resp.split_whitespace() {
+            if let Ok(v) = token
+                .trim_end_matches('V')
+                .trim_end_matches('v')
+                .parse::<f32>()
+            {
+                return v;
+            }
+        }
+    }
+    3.30
+}
+
 /// Executes full in-circuit sequence:
 /// 1. Multi-mode Handshake (Mode 2 -> Mode 0 -> Mode 3 -> Mode 1) + Auto-Detect Flash Size
 /// 2. Pre-Erase Live Secret & Full 64KB NVRAM Binary Dump (`nvram_live_backup.bin`, `sram_secrets.bin`, `ipl_bootcamp_header.bin`)
@@ -56,6 +73,7 @@ pub fn pico_execute_in_circuit_erase_full(
     }
 
     let (mut port, hs_out) = open_and_handshake_dwire(&clean)?;
+    let voltage_before = query_port_vdd(&mut *port);
     let nvram_base_hex = parse_autodetected_nvram_base(&hs_out);
     let mut log_lines = vec![format!("[HANDSHAKE] {}", hs_out)];
 
@@ -105,6 +123,7 @@ pub fn pico_execute_in_circuit_erase_full(
         log_lines.push(line.to_string());
     }
     let success = !erase_out.contains("ERROR") && !erase_out.contains("SAFETY INTERLOCK");
+    let voltage_after = query_port_vdd(&mut *port);
     if success {
         crate::desktop::pico::serial::set_ram_loader_injected(true);
     }
@@ -112,8 +131,8 @@ pub fn pico_execute_in_circuit_erase_full(
     Ok(InCircuitNvramEraseResult {
         success,
         elapsed_ms: start_ts.elapsed().as_millis() as u64,
-        voltage_before: 3.30,
-        voltage_after: 3.29,
+        voltage_before,
+        voltage_after,
         ram_loader_addr: format!("0x{:08X}", crate::constants::AM34_SRAM_LOADER_BASE),
         bytes_erased,
         verification_sha256: nv_sha256,

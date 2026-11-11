@@ -278,8 +278,17 @@ static void process_serial_command(char *line) {
     else if (strcmp(cmd, "HANDSHAKE") == 0) {
         printf("[HANDSHAKE] Executing Multi-Mode Cold Break-In and querying AM34 OCD DCSR...\n");
         const float vdd = dwire_hw_read_vdd();
-        if (vdd < DWIRE_VDD_THRESHOLD_V) {
-            printf("[HANDSHAKE] ABORT: Target VDD is %.2fV (< %.2fV threshold). Is the recorder powered on?\n",
+        const bool probe_floating = (vdd >= DWIRE_VDD_FLOATING_CEIL_V);
+        const bool target_unpowered = (!probe_floating && (vdd < DWIRE_VDD_THRESHOLD_V));
+
+        if (probe_floating) {
+            printf("[HANDSHAKE] ABORT: VDD reads %.2fV (>= %.2fV ceiling). "
+                   "ADC input is FLOATING — probe cable is NOT connected to CN55001 "
+                   "or the 1k series resistor on GP26 is missing/open.\n",
+                   vdd, DWIRE_VDD_FLOATING_CEIL_V);
+        } else if (target_unpowered) {
+            printf("[HANDSHAKE] ABORT: Target VDD is %.2fV (< %.2fV threshold). "
+                   "Is the Panasonic recorder powered on?\n",
                    vdd, DWIRE_VDD_THRESHOLD_V);
         } else {
             static const dwire_breakin_mode_t priority_modes[4] = {

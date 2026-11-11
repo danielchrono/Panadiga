@@ -121,12 +121,10 @@ flowchart TD
 Panadiga/
 ├── run.cmd                                           <-- Inicializador Rápido Desktop GUI & CLI (Windows)
 ├── run.sh                                            <-- Inicializador Rápido Desktop GUI & CLI (Linux/macOS)
-├── build.cmd                                         <-- Pipeline Mestre de Compilação Paralela (Windows)
-├── build.sh                                          <-- Pipeline Mestre de Compilação Paralela (Linux/macOS)
+├── build.cmd                                         <-- Pipeline Mestre de Compilação Paralela (Windows; --android, --all)
+├── build.sh                                          <-- Pipeline Mestre de Compilação Paralela (Linux/macOS; --android, --all)
 ├── validate_all.cmd                                  <-- Script de Execução dos 9 Quality Gates (CMD)
 ├── validate_all.ps1                                  <-- Script de Validação dos 9 Quality Gates (PowerShell)
-├── build-android.cmd                                 <-- Pipeline de Empacotamento do APK Android (Windows)
-├── build-android.sh                                  <-- Pipeline de Empacotamento do APK Android (Unix)
 ├── Cargo.toml                                        <-- Especificação Mestre do Workspace Rust (Edição 2024)
 ├── tauri.conf.json                                   <-- Configuração Desktop & Mobile Tauri 2.0
 ├── src/                                              <-- Motor Nativo em Rust de Alta Performance
@@ -188,12 +186,10 @@ Panadiga/
 | :------------------------------ | :------------ | :---------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **`run.cmd`**           | Windows       | Execução / Auto-Build | Executa o aplicativo Desktop diretamente de `dist/` ou `target/release/`. Caso não compilado, aciona o `build.cmd` automaticamente. Suporta `--dev`, `--cli`, `--validate`.                         |
 | **`run.sh`**            | Linux / macOS | Execução / Auto-Build | Equivalente Unix do `run.cmd`. Valida artefatos, compila se necessário e inicia a interface ou CLI.                                                                                                           |
-| **`build.cmd`**         | Windows       | Build Release Completo  | Compila bundle React, exporta scripts Ghidra do SSOT, compila o binário Rust otimizado (`%NUMBER_OF_PROCESSORS%` threads), compila firmware do Pico e empacota `dist/releases/panadiga-windows-x86_64.zip`. |
-| **`build.sh`**          | Linux / macOS | Build Release Completo  | Pipeline Unix paralelo completo de compilação, empacotamento e hashes SHA-256.                                                                                                                                 |
+| **`build.cmd`**         | Windows       | Master Release Paralelo | Compila bundle React, exporta scripts Ghidra do SSOT, compila o binário Rust otimizado (`%NUMBER_OF_PROCESSORS%` threads), empacota `dist/releases/panadiga-windows-x86_64.zip`. Suporta `--android` (ou `-a`) para APK Mobile e `--all` para release duplo consolidado. |
+| **`build.sh`**          | Linux / macOS | Master Release Paralelo | Pipeline Unix paralelo completo de compilação, empacotamento e hashes SHA-256. Suporta `--android` para APK Mobile e `--all` para release duplo consolidado.                                                  |
 | **`validate_all.cmd`**  | Windows       | 9 Quality Gates         | Executa a bateria de 9 quality gates via CMD nativo.                                                                                                                                                             |
 | **`validate_all.ps1`**  | Windows       | 9 Quality Gates         | Runner PowerShell avançado com saída colorida e verificação estrita de regressões.                                                                                                                          |
-| **`build-android.cmd`** | Windows       | APK Mobile Android      | Compila o target Android (`aarch64-linux-android`) via Tauri 2 Mobile com suporte nativo a BLE e USB-C OTG.                                                                                                    |
-| **`build-android.sh`**  | Linux / macOS | APK Mobile Android      | Versão Unix do pipeline de compilação Android.                                                                                                                                                                |
 
 ---
 

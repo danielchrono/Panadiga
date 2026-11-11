@@ -1,0 +1,9 @@
+{
+  "name": "panadiga",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix apps/desktop run build",
+    "tauri": "npx @tauri-apps/cli"
+  }
+}

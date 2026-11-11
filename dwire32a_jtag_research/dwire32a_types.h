@@ -57,6 +57,26 @@ typedef enum dwire_adc_channel dwire_adc_channel_t;
 /** Threshold voltage below which the target is considered unpowered or disconnected. */
 #define DWIRE_VDD_THRESHOLD_V     2.5f
 
+/**
+ * @brief Upper boundary for a valid VDD reading when the probe IS connected.
+ *
+ * The RP2040 ADC input (GP26) floats near AVDD (~3.3V) through internal ESD
+ * diodes when no probe is attached, causing spurious readings in the range
+ * 2.8V..3.3V.  Any reading at or above this ceiling with no AC variation is
+ * treated as "probe disconnected / floating ADC" and is NOT classified as
+ * "target powered".  Legitimate 3.3V rails always accompany DWire32A bus
+ * activity that is verified separately.
+ */
+#define DWIRE_VDD_FLOATING_CEIL_V 3.08f
+
+/**
+ * @brief Number of ADC samples averaged per VDD measurement.
+ *
+ * Averaging 8 successive samples at the RP2040 SAR ADC rate (~0.5 µs/sample)
+ * takes ≤ 4 µs and reduces quantisation noise by √8 ≈ 2.8 LSB.
+ */
+#define DWIRE_ADC_SAMPLE_COUNT    8U
+
 /** RP2040 ADC reference voltage (3.3V VREG/AVDD). */
 #define DWIRE_ADC_VREF            3.3f
 

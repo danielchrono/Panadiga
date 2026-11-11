@@ -259,12 +259,12 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     listenEvent<PicoDeviceStatus>('pico_telemetry', incoming => {
       if (!active) return;
       setDeviceStatus(prev => {
-        // Instantaneous Reactive Safety Guard: Voltage boundary verification (3.0V - 3.35V)
-        if (incoming.vdd_volts < 3.0 || incoming.vdd_volts > 3.35) {
+        // Instantaneous Reactive Safety Guard: Voltage boundary verification (2.8V - 3.55V)
+        if (incoming.vdd_volts < 2.8 || incoming.vdd_volts > 3.55) {
           onLog?.(
             'warn',
             'PICO',
-            `ALERTA REATIVO: Tensão VDD fora da faixa nominal (3.0V-3.35V): ${incoming.vdd_volts.toFixed(2)}V`
+            `ALERTA REATIVO: Tensão VDD fora da faixa nominal (2.8V-3.55V): ${incoming.vdd_volts.toFixed(2)}V`
           );
         }
         return {

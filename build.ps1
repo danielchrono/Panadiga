@@ -1,4 +1,4 @@
-# Panadiga Unified Engineering Suite - Master Build Script (PowerShell)
+﻿# Panadiga Unified Engineering Suite - Master Build Script (PowerShell)
 # Usage:
 #   .\build.ps1              # Desktop unified release build
 #   .\build.ps1 -Android     # Android ARM64 APK build
@@ -62,10 +62,25 @@ function Build-Desktop {
     }
     Copy-Item -Force "run.cmd", "run.ps1" "dist\"
 
-    # Create ZIP archive
+    # Create ZIP archive (guard missing files)
     $zipPath = "dist\releases\panadiga-windows-x86_64.zip"
     if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
-    Compress-Archive -Path "dist\panadiga.exe", "dist\WebView2Loader.dll", "dist\run.cmd", "dist\run.ps1", "dist\tools", "dist\firmware", "README.md", "README.pt-BR.md", "LICENSE" -DestinationPath $zipPath -CompressionLevel Optimal
+    $items = @(
+        "dist\panadiga.exe",
+        "dist\WebView2Loader.dll",
+        "dist\run.cmd",
+        "dist\run.ps1",
+        "dist\tools",
+        "dist\firmware",
+        "README.md",
+        "README.pt-BR.md",
+        "LICENSE"
+    ) | Where-Object { Test-Path $_ }
+    if ($items.Count -gt 0) {
+        Compress-Archive -Path $items -DestinationPath $zipPath -CompressionLevel Optimal
+    } else {
+        Write-Host "[WARN] No files to archive for Windows distribution." -ForegroundColor Yellow
+    }
     $hash = (Get-FileHash -Algorithm SHA256 $zipPath).Hash
     [IO.File]::WriteAllText("$scriptDir\dist\releases\SHA256SUMS.txt", "$hash  panadiga-windows-x86_64.zip`r`n", [Text.Encoding]::UTF8)
 
@@ -116,7 +131,7 @@ function Build-Android {
         }
 
         Write-Host "[*] Compilando APK via Tauri CLI..." -ForegroundColor Yellow
-        npx @tauri-apps/cli android build --apk --target aarch64-linux-android
+        npx @tauri-apps/cli android build --apk --target aarch64
 
         # Find and copy generated APK to dist\releases
         $apkFiles = Get-ChildItem -Path "gen\android\app\build\outputs\apk" -Filter "*.apk" -Recurse -ErrorAction SilentlyContinue

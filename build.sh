@@ -55,7 +55,23 @@ if [ "${1:-}" = "--android" ] || [ "${1:-}" = "-a" ]; then
     fi
 
     echo "[*] Executando build de APK via Tauri CLI..."
-    npx @tauri-apps/cli android build --apk --target aarch64-linux-android
+    npx @tauri-apps/cli android build --apk --target aarch64
+
+    # Copy generated APK to dist/releases and update SHA256SUMS.txt
+    mkdir -p dist/releases
+    APK_SRC=$(find gen/android/app/build/outputs/apk -name "*.apk" -type f 2>/dev/null | head -n 1)
+    if [ -n "$APK_SRC" ]; then
+        cp -f "$APK_SRC" dist/releases/panadiga-android-arm64.apk
+        if command -v sha256sum >/dev/null 2>&1; then
+            APK_HASH=$(sha256sum dist/releases/panadiga-android-arm64.apk | awk '{print $1}')
+        elif command -v shasum >/dev/null 2>&1; then
+            APK_HASH=$(shasum -a 256 dist/releases/panadiga-android-arm64.apk | awk '{print $1}')
+        else
+            APK_HASH="UNKNOWN"
+        fi
+        sed -i '/panadiga-android-arm64.apk/d' dist/releases/SHA256SUMS.txt 2>/dev/null || true
+        echo "$APK_HASH  panadiga-android-arm64.apk" >> dist/releases/SHA256SUMS.txt
+    fi
 
     echo "===================================================================="
     echo "[OK] BUILD ANDROID CONCLUÍDO COM SUCESSO!"
@@ -98,11 +114,15 @@ if [ -d "tools" ]; then
     cp -rf tools/* dist/tools/ 2>/dev/null || true
 fi
 
-# Copy compiled Pico firmware binaries if present
-if [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" ]; then
+# Copy compiled Pico firmware binaries if present (canonical location)
+if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" ]; then
+    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" dist/firmware/
+elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" ]; then
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2" dist/firmware/
 fi
-if [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" ]; then
+if [ -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" ]; then
+    cp -f "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" dist/firmware/
+elif [ -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" ]; then
     cp -f "dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2" dist/firmware/
 fi
 

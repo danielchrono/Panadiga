@@ -14,12 +14,16 @@ echo.
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
 
+:: Sanitize CI environment variable for clap/tauri-cli compatibility (accepts only true/false)
+if defined CI set "CI=true"
+
 set CARGO_BUILD_JOBS=%NUMBER_OF_PROCESSORS%
 set CARGO_INCREMENTAL=1
 
 :: Dispatch Android build if requested
 if "%1"=="--android" goto :build_android
 if "%1"=="-a" goto :build_android
+if "%1"=="--apk" goto :build_android
 if "%1"=="--all" set "BUILD_ALL=1"
 
 :: [1/4] Build React Interface (UI)
@@ -56,11 +60,22 @@ if errorlevel 1 (
 echo [OK] Binario unificado gerado com sucesso: target\release\panadiga.exe
 echo.
 
-:: Optional: Compile Pico Firmware if arm-none-eabi-gcc is available
+:: Optional: Compile Pico Firmware only if both arm-none-eabi-gcc and cmake are available
 where arm-none-eabi-gcc >nul 2>nul
 if not errorlevel 1 (
-    echo [*] arm-none-eabi-gcc detectado! Compilando firmware C11 [RP2040 + RP2350]...
-    call dwire32a_jtag_research\build_pico_firmware.cmd all >nul 2>nul
+    if exist "dwire32a_jtag_research\cmake.exe" (
+        echo [*] CMake found locally. Using local CMake for firmware build.
+        set "CMAKE_EXE=dwire32a_jtag_research\cmake.exe"
+        call dwire32a_jtag_research\build_pico_firmware.cmd all --no-pause >nul 2>nul
+    ) else (
+        where cmake >nul 2>&1
+        if not errorlevel 1 (
+            echo [*] Toolchain ARM GCC e CMake detectados! Compilando firmware C11 [RP2040 + RP2350]...
+            call dwire32a_jtag_research\build_pico_firmware.cmd all >nul 2>nul
+        ) else (
+            rem echo [*] arm-none-eabi-gcc detectado, mas CMake nao está no PATH. Usando binarios UF2 embutidos no Rust.
+        )
+    )
 )
 
 :: [4/4] Packaging Distribution into dist\
@@ -77,16 +92,22 @@ if exist "target\release\WebView2Loader.dll" (
     copy /y "target\release\WebView2Loader.dll" "dist\WebView2Loader.dll" >nul
 ) else if exist "target\debug\WebView2Loader.dll" (
     copy /y "target\debug\WebView2Loader.dll" "dist\WebView2Loader.dll" >nul
+) else (
+    powershell -NoProfile -Command "Get-ChildItem -Path target -Recurse -Filter WebView2Loader.dll -ErrorAction SilentlyContinue | Where-Object { $_.DirectoryName -match 'x64' } | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName 'dist\WebView2Loader.dll' -Force }" >nul 2>nul
 )
 
 :: Copy tools and Ghidra scripts
 xcopy /e /i /y "tools" "dist\tools" >nul 2>nul
 
 :: Copy compiled Pico firmware binaries if present
-if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" (
+if exist "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" (
+    copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2040.uf2" "dist\firmware\panasonic_dwire32a_rp2040.uf2" >nul
+) else if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" (
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2040.uf2" "dist\firmware\panasonic_dwire32a_rp2040.uf2" >nul
 )
-if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" (
+if exist "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" (
+    copy /y "src\pico\firmware_bins\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
+) else if exist "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" (
     copy /y "dwire32a_jtag_research\panasonic_dwire32a_rp2350.uf2" "dist\firmware\panasonic_dwire32a_rp2350.uf2" >nul
 )
 
@@ -98,8 +119,11 @@ copy /y "run.sh" "dist\run.sh" >nul
 if exist "dist\Executar_Panadiga.cmd" del /f /q "dist\Executar_Panadiga.cmd" >nul 2>nul
 if exist "dist\Executar_Panadiga.bat" del /f /q "dist\Executar_Panadiga.bat" >nul 2>nul
 
+:: Normalize timestamps older than 1980 (e.g. WebView2Loader.dll) to satisfy ZIP FAT standard
+powershell -NoProfile -Command "Get-ChildItem -Path dist -Recurse | Where-Object { $_.LastWriteTime.Year -lt 1980 } | ForEach-Object { $_.LastWriteTime = (Get-Date) }" >nul 2>nul
+
 :: Generate release archive .zip with SHA256 checksum
-powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; Compress-Archive -Path 'dist\panadiga.exe', 'dist\WebView2Loader.dll', 'dist\run.cmd', 'dist\run.sh', 'dist\tools', 'dist\firmware', 'README.md', 'README.pt-BR.md', 'LICENSE' -DestinationPath $zip -CompressionLevel Optimal; $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; [IO.File]::WriteAllText('dist\releases\SHA256SUMS.txt', \"$hash  panadiga-windows-x86_64.zip`r`n\", [Text.Encoding]::UTF8)"
+powershell -NoProfile -Command "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; $zip = 'dist\releases\panadiga-windows-x86_64.zip'; if (Test-Path $zip) { Remove-Item $zip -Force }; $items = @('dist\panadiga.exe', 'dist\WebView2Loader.dll', 'dist\run.cmd', 'dist\run.sh', 'dist\tools', 'dist\firmware', 'README.md', 'README.pt-BR.md', 'LICENSE') | Where-Object { Test-Path $_ }; Compress-Archive -Path $items -DestinationPath $zip -CompressionLevel Optimal; if (Test-Path $zip) { $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash; Set-Content -Path 'dist\releases\SHA256SUMS.txt' -Value \"$hash  panadiga-windows-x86_64.zip\" -Encoding UTF8 }"
 
 echo.
 echo ====================================================================
@@ -127,7 +151,7 @@ if "%ANDROID_HOME%"=="" (
         set "ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk"
     ) else (
         echo [ERRO] ANDROID_HOME nao definido e SDK padrao nao encontrado.
-        exit /b 1
+        goto :error_exit
     )
 )
 echo [*] Android SDK detectado em: %ANDROID_HOME%
@@ -140,22 +164,26 @@ if defined NDK_HOME (
     set "ANDROID_NDK_ROOT=%NDK_HOME%"
 )
 
+:: Ensure local.properties exists for Gradle
+if not exist "gen\android" mkdir "gen\android"
+powershell -NoProfile -Command "$sdk = '%ANDROID_HOME%'.Replace('\', '/'); $ndk = '%NDK_HOME%'.Replace('\', '/'); $c = 'sdk.dir=' + $sdk + [Environment]::NewLine; if ($ndk) { $c += 'ndk.dir=' + $ndk + [Environment]::NewLine }; [IO.File]::WriteAllText('gen/android/local.properties', $c, [Text.Encoding]::ASCII)"
+
 echo [*] Verificando target aarch64-linux-android...
-rustup target add aarch64-linux-android || exit /b 1
+rustup target add aarch64-linux-android || goto :error_exit
 
 echo [*] Compilando frontend React...
-call npm --prefix apps\desktop run build || exit /b 1
+call npm --prefix apps\desktop run build || goto :error_exit
 
 echo [*] Configurando crate-type temporario para Android cdylib...
 powershell -Command "(Get-Content Cargo.toml) -replace 'crate-type = \[\"rlib\"\]', 'crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]' | Set-Content Cargo.toml"
 
-if not exist "gen\android" if not exist "src-tauri\gen\android" (
+if not exist "gen\android\app" (
     echo [*] Inicializando modulo nativo Android com Tauri CLI...
     call npx @tauri-apps/cli android init --ci --skip-targets-install
 )
 
-echo [*] Executando build de APK via Tauri CLI...
-call npx @tauri-apps/cli android build --apk --target aarch64-linux-android
+echo [*] Executando build de APK via Tauri CLI (target: aarch64)...
+call npx @tauri-apps/cli android build --apk --target aarch64
 set ANDROID_STATUS=%ERRORLEVEL%
 
 echo [*] Restaurando crate-type padrao para desktop (rlib)...
@@ -163,13 +191,18 @@ powershell -Command "(Get-Content Cargo.toml) -replace 'crate-type = \[\"staticl
 
 if %ANDROID_STATUS% neq 0 (
     echo [ERRO] Falha no build do APK Android.
-    exit /b %ANDROID_STATUS%
+    goto :error_exit
 )
+
+:: Copy generated APK to dist\releases and update SHA256SUMS.txt
+if not exist "dist\releases" mkdir "dist\releases"
+powershell -NoProfile -Command "$apk = Get-ChildItem -Path 'gen\android\app\build\outputs\apk' -Recurse -Filter '*.apk' | Select-Object -First 1; if ($apk) { Copy-Item $apk.FullName 'dist\releases\panadiga-android-arm64.apk' -Force; $h = (Get-FileHash -Algorithm SHA256 'dist\releases\panadiga-android-arm64.apk').Hash; $txt = 'dist\releases\SHA256SUMS.txt'; $lines = if (Test-Path $txt) { (Get-Content $txt) | Where-Object { $_ -notmatch 'panadiga-android-arm64.apk' } } else { @() }; $lines += \"$h  panadiga-android-arm64.apk\"; Set-Content -Path $txt -Value $lines -Encoding UTF8 }"
 
 echo ====================================================================
 echo [OK] BUILD ANDROID CONCLUIDO COM SUCESSO!
-echo      Arquivo .apk gerado em gen\android\app\build\outputs\apk\
+echo      Arquivo APK consolidado em dist\releases\panadiga-android-arm64.apk
 echo ====================================================================
+if not defined CI if "%1"=="" pause
 exit /b 0
 
 :error_exit

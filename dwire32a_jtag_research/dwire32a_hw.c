@@ -74,12 +74,27 @@ void dwire_hw_extrg_set(bool level) {
 
 float dwire_hw_read_vdd(void) {
     adc_select_input(DWIRE_ADC_CH_VDD);
-    const uint16_t raw_adc = adc_read();
-    return ((float)raw_adc * DWIRE_ADC_VREF) / DWIRE_ADC_RESOLUTION;
+    /* Average DWIRE_ADC_SAMPLE_COUNT successive reads to suppress quantisation
+     * noise and filter the RP2040 ESD-diode charge-share artefact that biases
+     * a floating GP26 input toward AVDD.  At ~500 ns per SAR conversion the
+     * total sampling window is < 4 µs — well within any power-state window. */
+    uint32_t accumulator = 0U;
+    for (uint8_t i = 0U; i < DWIRE_ADC_SAMPLE_COUNT; ++i) {
+        accumulator += (uint32_t)adc_read();
+    }
+    const float averaged = (float)accumulator / (float)DWIRE_ADC_SAMPLE_COUNT;
+    return (averaged * DWIRE_ADC_VREF) / DWIRE_ADC_RESOLUTION;
 }
 
 bool dwire_hw_is_target_powered(void) {
-    return (dwire_hw_read_vdd() >= DWIRE_VDD_THRESHOLD_V);
+    const float vdd = dwire_hw_read_vdd();
+    /* A floating ADC input (probe disconnected) biases toward AVDD (3.3 V).
+     * Readings at or above DWIRE_VDD_FLOATING_CEIL_V indicate a disconnected
+     * probe, NOT a powered target — return false to prevent false alarms. */
+    if (vdd >= DWIRE_VDD_FLOATING_CEIL_V) {
+        return false; /* Floating input: no probe attached */
+    }
+    return (vdd >= DWIRE_VDD_THRESHOLD_V);
 }
 
 bool dwire_hw_is_initialized(void) {

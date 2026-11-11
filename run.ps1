@@ -1,18 +1,8 @@
-<#
-.SYNOPSIS
-    Panadiga Engineering Suite - Fast Launcher & Runner.
-.DESCRIPTION
-    Quickly launches Panadiga Desktop UI, Dev Mode, or CLI commands with instant binary caching.
-.PARAMETER Dev
-    Starts Tauri Desktop application in live development mode with hot-reloading.
-.PARAMETER Build
-    Forces a complete rebuild using maximum parallelism before launching.
-.PARAMETER Cli
-    Runs the native CLI tool with any arguments passed.
-#>
+# PowerShell Fast Launcher for Panadiga
+# Mirrors the behavior of run.cmd
 
 [CmdletBinding()]
-param (
+param(
     [switch]$Dev,
     [switch]$Build,
     [switch]$Cli,
@@ -20,37 +10,37 @@ param (
     [string[]]$RemainingArgs
 )
 
+$ErrorActionPreference = "Stop"
 $OutputEncoding = [System.Text.Encoding]::UTF8
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$ErrorActionPreference = "Stop"
 
 $RootPath = if ($PSScriptRoot) { (Get-Item $PSScriptRoot).FullName } else { (Get-Item .).FullName }
 Set-Location $RootPath
 
-$DesktopExe = Join-Path $RootPath "dist_bin\panadiga-desktop.exe"
-$CliExe = Join-Path $RootPath "dist_bin\panadiga-cli.exe"
+$DesktopExe = Join-Path $RootPath "dist\\panadiga-desktop.exe"
+$CliExe = Join-Path $RootPath "dist\\panadiga-cli.exe"
 
-# 1. Dev Mode
+# 1. Dev mode
 if ($Dev) {
-    Write-Host "[INFO] Iniciando ambiente de desenvolvimento Desktop (Vite + Tauri Dev)..." -ForegroundColor Cyan
-    Set-Location (Join-Path $RootPath "apps\desktop")
+    Write-Host "[INFO] Starting Desktop development (Vite + Tauri Dev)..." -ForegroundColor Cyan
+    Set-Location (Join-Path $RootPath "apps\\desktop")
     npm run tauri dev
     exit $LASTEXITCODE
 }
 
-# 2. Build Mode
+# 2. Build mode
 if ($Build) {
-    Write-Host "[INFO] Executando rebuild completo com paralelismo acelerado..." -ForegroundColor Cyan
+    Write-Host "[INFO] Performing full rebuild of the ecosystem..." -ForegroundColor Cyan
     & "$RootPath\build_all.ps1"
     if (Test-Path $DesktopExe) {
-        Write-Host "[INFO] Iniciando Panadiga Desktop..." -ForegroundColor Green
+        Write-Host "[INFO] Launching Panadiga Desktop..." -ForegroundColor Green
         Start-Process -FilePath $DesktopExe
     }
     exit 0
 }
 
-# 3. CLI Mode or Subcommand Shortcut
-$cliSubcommands = @("nvram", "hdd", "frm", "headers", "scan", "manuals", "pico", "ghidra", "rag", "help")
+# 3. CLI mode or shortcut subcommands
+$cliSubcommands = @("nvram","hdd","frm","headers","scan","manuals","pico","ghidra","rag","help")
 $firstArg = if ($RemainingArgs.Count -gt 0) { $RemainingArgs[0] } else { "" }
 
 if ($Cli -or ($cliSubcommands -contains $firstArg)) {
@@ -63,20 +53,19 @@ if ($Cli -or ($cliSubcommands -contains $firstArg)) {
     }
 }
 
-# 4. Default: Launch Desktop
+# 4. Default: launch Desktop GUI
 if (Test-Path $DesktopExe) {
-    Write-Host "[INFO] Iniciando Panadiga Desktop instantaneamente..." -ForegroundColor Green
+    Write-Host "[INFO] Starting Panadiga Desktop instantly..." -ForegroundColor Green
     Start-Process -FilePath $DesktopExe
     exit 0
 } else {
-    Write-Host "[AVISO] Binário Desktop não encontrado em dist_bin\. Compilando agora..." -ForegroundColor Yellow
+    Write-Host "[WARN] Desktop binary not found in dist\. Triggering build..." -ForegroundColor Yellow
     & "$RootPath\build_all.ps1"
     if (Test-Path $DesktopExe) {
-        Write-Host "[INFO] Iniciando Panadiga Desktop..." -ForegroundColor Green
         Start-Process -FilePath $DesktopExe
         exit 0
     } else {
-        Write-Error "Falha ao localizar executável após o build!"
+        Write-Error "Failed to locate executable after build!"
         exit 1
     }
 }

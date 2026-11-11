@@ -5,7 +5,7 @@
 //! In-Circuit Flash/NVRAM erasure orchestration resides in `erase.rs`.
 
 use serialport::SerialPortType;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::time::{Duration, Instant};
 
 use super::gdb_bridge::is_gdb_bridge_active;
@@ -58,6 +58,9 @@ pub fn read_serial_response_complete(
                     || out.contains("[HANDSHAKE] ABORT")
                     || out.contains("[HANDSHAKE] ACTIVE")
                     || out.contains("Auto-ready")
+                    || out.contains("PONG")
+                    || out.contains("VDD:")
+                    || out.contains("VDD=")
                 {
                     break;
                 }
@@ -154,16 +157,16 @@ pub fn pico_connect_and_test(
         .map_err(|e| format!("Falha ao abrir porta serial {}: {}", clean, e))?;
 
     let _ = port.write_all(b"\r\nPING\r\n");
-    let mut buffer = [0u8; 1024];
-    let bytes_read = port.read(&mut buffer).unwrap_or(0);
-    let response_text = String::from_utf8_lossy(&buffer[..bytes_read]).to_string();
+    let _ = port.flush();
+    let response_text =
+        read_serial_response_complete(&mut *port, Duration::from_millis(800)).unwrap_or_default();
 
     let _ = port.write_all(b"STATUS\r\n");
-    let mut vdd_buf = [0u8; 512];
-    let vdd_read = port.read(&mut vdd_buf).unwrap_or(0);
-    let vdd_text = String::from_utf8_lossy(&vdd_buf[..vdd_read]).to_string();
+    let _ = port.flush();
+    let vdd_text =
+        read_serial_response_complete(&mut *port, Duration::from_millis(800)).unwrap_or_default();
 
-    let mut vdd_volts = 3.30f32;
+    let mut vdd_volts = 0.0f32; // 0.0 = unknown / no reading yet
     for token in vdd_text.split_whitespace() {
         if let Ok(v) = token
             .trim_end_matches('V')
@@ -174,6 +177,13 @@ pub fn pico_connect_and_test(
             break;
         }
     }
+
+    // Floating ADC ceiling: GP26 unloaded biases toward AVDD (3.3 V).
+    // Treat readings >= 3.08 V with no probe as "disconnected", NOT "powered".
+    const VDD_FLOATING_CEIL: f32 = 3.08;
+    const VDD_MIN_THRESHOLD: f32 = 2.8;
+    let probe_floating = vdd_volts >= VDD_FLOATING_CEIL;
+    let target_powered = !probe_floating && vdd_volts >= VDD_MIN_THRESHOLD;
 
     let is_pico2 = response_text.contains("RP2350") || response_text.contains("Pico 2");
     let dev_label = if is_pico2 {
@@ -188,18 +198,32 @@ pub fn pico_connect_and_test(
         response_text.trim().to_string()
     };
 
+    let vdd_msg = if probe_floating {
+        format!(
+            "ALERTA: VDD={:.2}V (ADC flutuante — cabo CN55001 NÃO conectado ou resistor de 1kΩ ausente em GP26).",
+            vdd_volts
+        )
+    } else if !target_powered {
+        format!(
+            "ALERTA: VDD={:.2}V abaixo do limiar. Gravadora desligada ou cabo ruim.",
+            vdd_volts
+        )
+    } else {
+        format!(
+            "{} operacional na porta. VDD={:.2}V OK.",
+            dev_label, vdd_volts
+        )
+    };
+
     Ok(PicoStatusResponse {
         connected: true,
         port_name: clean,
         baud_rate,
         vdd_voltage: vdd_volts,
-        target_powered: vdd_volts >= 2.8,
+        target_powered,
         firmware_banner: banner,
         is_mock: false,
-        message: format!(
-            "{} operacional na porta. VDD detectado: {:.2}V.",
-            dev_label, vdd_volts
-        ),
+        message: vdd_msg,
     })
 }
 
@@ -274,10 +298,10 @@ pub fn pico_get_device_status_dto(
         breakin_mode: mode_override.unwrap_or(2),
         core_state: if !status.connected {
             "DISCONNECTED".to_string()
-        } else if status.target_powered {
-            "HALTED".to_string()
+        } else if !status.target_powered {
+            "DISCONNECTED".to_string()
         } else {
-            "RUNNING".to_string()
+            "HALTED".to_string()
         },
         bus_freq_hz: 1_000_000,
         firmware_version: firmware_ver,

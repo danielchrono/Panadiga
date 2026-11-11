@@ -19,40 +19,4 @@ export const mockPicoDeviceStatus: PicoDeviceStatus = {
   last_keepalive: '',
 };
 
-export const mockInitialSerialLogs: SerialLogEntry[] = [
-  {
-    id: '1',
-    timestamp: '22:28:01.102',
-    level: 'info',
-    source: 'HOST',
-    message: 'Iniciando handshake com Raspberry Pi Pico na porta COM4...',
-  },
-  {
-    id: '2',
-    timestamp: '22:28:01.145',
-    level: 'success',
-    source: 'PICO',
-    message: 'RP2040 conectado! Firmware v1.4.2-dwire32a inicializado via PIO0.',
-  },
-  {
-    id: '3',
-    timestamp: '22:28:01.150',
-    level: 'rx',
-    source: 'PICO',
-    message: 'ADC0 VDD Sense: 3.28V (Alimentação do DMR-EH55 confirmada acima de 2.50V).',
-  },
-  {
-    id: '4',
-    timestamp: '22:28:01.200',
-    level: 'info',
-    source: 'HOST',
-    message: 'Aplicando Cold Break-In Modo 2 (EXTRG High / Pre+Post Burst 32 Clocks)...',
-  },
-  {
-    id: '5',
-    timestamp: '22:28:01.240',
-    level: 'success',
-    source: 'TARGET',
-    message: 'AM34 Core capturado com sucesso! OCD Status: HALTED (PC: 0x80000000).',
-  },
-];
+export const mockInitialSerialLogs: SerialLogEntry[] = [];

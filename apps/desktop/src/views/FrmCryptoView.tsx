@@ -52,10 +52,14 @@ export const FrmCryptoView: React.FC = () => {
               'Não foi possível carregar ou analisar o contêiner PANA_DVD.FRM. Verifique se o arquivo está na pasta firmware_and_images/.'}
           </p>
         </div>
-        <Button variant="emerald" onClick={refresh} className="gap-2 mx-auto">
+        <button
+          type="button"
+          onClick={refresh}
+          className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs inline-flex items-center gap-2 transition-colors mx-auto"
+        >
           <RefreshCw className="w-4 h-4" />
-          <span>Tentar Novamente</span>
-        </Button>
+          <span>Recarregar Contêiner FRM</span>
+        </button>
       </div>
     );
   }

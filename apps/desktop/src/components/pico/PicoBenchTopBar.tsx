@@ -58,12 +58,23 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   const handleFlashFirmware = async () => {
     setIsFlashing(true);
     try {
+      const drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+      if (!drives || drives.length === 0) {
+        showToast({
+          type: 'warning',
+          title: 'Nenhum Drive BOOTSEL Detectado',
+          message:
+            'Nenhum drive RPI-RP2 encontrado. Clique em "BOOTSEL Reset" ou segure o botão BOOTSEL na placa ao conectar o cabo USB.',
+        });
+        return;
+      }
       const report = await invokeCommand<FlashReport>('pico_flash_firmware', {});
       showToast({
         type: 'success',
         title: 'Firmware Pico Gravado',
         message: `${report.message} (${report.target_board}, ${report.bytes_written.toLocaleString()} bytes gravados).`,
       });
+      onRefreshPorts?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast({
@@ -144,20 +155,28 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
           {/* New Action: Reboot to BOOTSEL via 1200‑baud touch */}
           <button
             onClick={async () => {
+              if (!selectedPort) {
+                showToast({
+                  type: 'warning',
+                  title: 'Porta Não Selecionada',
+                  message: 'Selecione a porta serial do Pico antes de solicitar o reset para BOOTSEL.',
+                });
+                return;
+              }
               try {
                 const msg = await invokeCommand<string>('pico_trigger_bootsel_reboot', {
                   port_name: selectedPort,
                 });
                 showToast({
                   type: 'success',
-                  title: 'BOOTSEL Reboot Initiated',
-                  message: msg,
+                  title: 'BOOTSEL Reset Iniciado',
+                  message: `${msg}. Aguarde 2 segundos para o drive RPI-RP2 ser montado e clique em "Flash Pico".`,
                 });
               } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 showToast({
                   type: 'error',
-                  title: 'BOOTSEL Reboot Failed',
+                  title: 'Falha no Reset BOOTSEL',
                   message: msg,
                 });
               }

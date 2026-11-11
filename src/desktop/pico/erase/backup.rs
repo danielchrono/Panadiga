@@ -49,10 +49,34 @@ pub(crate) fn dump_dwire_region_bytes(
     parse_dwire_dump_hex_to_bytes(&ascii)
 }
 
-pub(crate) fn save_live_backup_files(nvram: &[u8], sram: &[u8], ipl: &[u8]) {
-    let _ = fs::write("nvram_live_backup.bin", nvram);
-    let _ = fs::write("sram_secrets.bin", sram);
-    let _ = fs::write("ipl_bootcamp_header.bin", ipl);
+pub(crate) fn save_live_backup_files(nvram: &[u8], sram: &[u8], ipl: &[u8]) -> String {
+    // Timestamped, never-overwriting directory: the first-contact capture is immutable evidence.
+    let base = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let out_dir = base.join(format!("first_contact_{}", ts));
+    let _ = fs::create_dir_all(&out_dir);
+    let _ = fs::write(out_dir.join("nvram_live_backup.bin"), nvram);
+    let _ = fs::write(out_dir.join("sram_secrets.bin"), sram);
+    let _ = fs::write(out_dir.join("ipl_bootcamp_header.bin"), ipl);
+    let manifest = format!(
+        "{}  nvram_live_backup.bin\n{}  sram_secrets.bin\n{}  ipl_bootcamp_header.bin\n",
+        sha256_hex(nvram),
+        sha256_hex(sram),
+        sha256_hex(ipl)
+    );
+    let _ = fs::write(out_dir.join("SHA256SUMS.txt"), manifest);
+    out_dir.display().to_string()
+}
+
+/// True when a captured buffer is empty or one repeated byte (floating or shorted bus).
+pub(crate) fn is_uniform_bus_pattern(data: &[u8]) -> bool {
+    match data.first() {
+        None => true,
+        Some(&b0) => data.iter().all(|&b| b == b0),
+    }
 }
 
 /// Executes the non-destructive "What's Next" 1st-Contact Read-Only Backup:
@@ -106,10 +130,15 @@ pub fn pico_execute_first_contact_backup(
         dump_dwire_region_bytes(&mut *port, nvram_base_hex, nvram_words, nvram_timeout);
     let sha_1 = sha256_hex(&nv_bytes_1);
     let sha_2 = sha256_hex(&nv_bytes_2);
-    let double_read_verified = !nv_bytes_1.is_empty() && sha_1 == sha_2;
 
     let sr_bytes = dump_dwire_region_bytes(&mut *port, "0x00000000", 4096, 6000);
     let ipl_bytes = dump_dwire_region_bytes(&mut *port, "0x80000000", 1024, 4000);
+
+    // A floating (0xFF..) or shorted (0x00..) bus yields identical reads; that is NOT a valid capture.
+    // Require explicit HALT confirmation and a non-uniform bootloader header.
+    let bus_alive =
+        log_lines[0].contains("[HANDSHAKE] SUCCESS") && !is_uniform_bus_pattern(&ipl_bytes);
+    let double_read_verified = bus_alive && !nv_bytes_1.is_empty() && sha_1 == sha_2;
 
     // Auto-detect DIGA model from IPL Header or NVRAM strings
     let mut combined_probe = ipl_bytes.clone();
@@ -117,13 +146,18 @@ pub fn pico_execute_first_contact_backup(
     let detected_model = detect_diga_model_from_slice(&combined_probe);
 
     if double_read_verified {
-        save_live_backup_files(&nv_bytes_1, &sr_bytes, &ipl_bytes);
+        let dir = save_live_backup_files(&nv_bytes_1, &sr_bytes, &ipl_bytes);
         log_lines.push(format!(
-            "[DOUBLE-READ VERIFIED] SHA-256 idêntico nas 2 leituras ({} @ {}). Modelo detectado: {}",
+            "[DOUBLE-READ VERIFIED] SHA-256 idêntico nas 2 leituras ({} @ {}). Modelo detectado: {}. Salvo em {}/",
             &sha_1[..16],
             nvram_base_hex,
-            detected_model
+            detected_model,
+            dir
         ));
+    } else if !bus_alive {
+        log_lines.push(
+            "[ABORTADO] CPU não confirmada em HALT ou barramento flutuante/em curto (IPL uniforme). Nada foi salvo. Verifique a pinagem e o GND.".to_string(),
+        );
     } else {
         log_lines.push(format!(
             "[ALERTA DE INTEGRIDADE] Leituras divergentes no barramento (Read1={} vs Read2={}). Verifique o cabo de 6 pinos!",

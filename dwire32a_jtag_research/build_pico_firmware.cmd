@@ -3,7 +3,12 @@
 setlocal enabledelayedexpansion
 
 set "TARGET_BOARD=all"
-if not "%~1"=="" set "TARGET_BOARD=%~1"
+set "NO_PAUSE="
+if "%~1"=="--no-pause" set "NO_PAUSE=1"
+if "%~2"=="--no-pause" set "NO_PAUSE=1"
+if defined CI set "NO_PAUSE=1"
+if not "%~1"=="" if "%~1" neq "--no-pause" set "TARGET_BOARD=%~1"
+if not "%~2"=="" if "%~2" neq "--no-pause" set "TARGET_BOARD=%~2"
 
 echo ====================================================================
 echo    PANASONIC DWIRE32A / OCD - MULTI-PLATFORM BUILD SYSTEM
@@ -45,7 +50,7 @@ if defined PICO_SDK_PATH (
 where cmake >nul 2>nul
 if errorlevel 1 (
     echo [ERROR] CMake not found on PATH!
-    pause
+    if not defined NO_PAUSE pause
     exit /b 1
 )
 
@@ -81,7 +86,7 @@ echo.
 echo ====================================================================
 echo    BUILD EXECUTION COMPLETED!
 echo ====================================================================
-pause
+if not defined NO_PAUSE pause
 exit /b 0
 
 :BUILD_ONE

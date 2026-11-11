@@ -19,9 +19,14 @@ pub const UF2_BLOCK_SIZE: usize = 512;
 pub const UF2_PAYLOAD_SIZE: usize = 256;
 
 /// Raspberry Pi RP2040 and RP2350 UF2 Family IDs.
+/// Microsoft UF2 Spec constants:
 pub const RP2040_FAMILY_ID: u32 = 0xE484_9208;
 pub const RP2350_ARM_S_FAMILY_ID: u32 = 0xE484_920A;
 pub const RP2350_RISCV_FAMILY_ID: u32 = 0xE484_920B;
+
+/// Official Raspberry Pi Pico SDK (elf2uf2 / picotool) Family IDs:
+pub const RP2040_SDK_FAMILY_ID: u32 = 0xE48B_FF56;
+pub const RP2350_SDK_FAMILY_ID: u32 = 0xE48B_FF57;
 
 /// Pre-compiled DWire32A firmware binary containers embedded into the application executable.
 pub const EMBEDDED_RP2040_UF2: &[u8] =
@@ -43,7 +48,7 @@ pub struct PicoFlashReport {
 
 /// Validates that a buffer conforms to the UF2 specification.
 pub fn validate_uf2_buffer(data: &[u8]) -> Result<(usize, String)> {
-    if data.len() < UF2_BLOCK_SIZE || !data.len().is_multiple_of(UF2_BLOCK_SIZE) {
+    if data.len() < UF2_BLOCK_SIZE || (data.len() % UF2_BLOCK_SIZE != 0) {
         bail!(
             "Invalid UF2 payload length: {} bytes (must be a positive multiple of 512 bytes)",
             data.len()
@@ -72,8 +77,10 @@ pub fn validate_uf2_buffer(data: &[u8]) -> Result<(usize, String)> {
     // Inspect family ID from block 0
     let family_id = u32::from_le_bytes(data[28..32].try_into().unwrap());
     let family_name = match family_id {
-        RP2040_FAMILY_ID => "Raspberry Pi RP2040".to_string(),
-        RP2350_ARM_S_FAMILY_ID => "Raspberry Pi Pico 2 ARM-S (RP2350)".to_string(),
+        RP2040_FAMILY_ID | RP2040_SDK_FAMILY_ID => "Raspberry Pi RP2040".to_string(),
+        RP2350_ARM_S_FAMILY_ID | RP2350_SDK_FAMILY_ID => {
+            "Raspberry Pi Pico 2 ARM-S (RP2350)".to_string()
+        }
         RP2350_RISCV_FAMILY_ID => "Raspberry Pi Pico 2 RISC-V (RP2350)".to_string(),
         other => format!("Pico-Compatible Controller (Family ID 0x{:08X})", other),
     };
@@ -136,30 +143,50 @@ pub fn detect_bootsel_drives() -> Vec<PathBuf> {
 }
 
 /// Triggers an automatic reboot into BOOTSEL mode by opening and closing the serial port at 1200 baud.
+///
+/// On Windows the CDC driver may hold the port open for ~200 ms after the application releases it.
+/// A single retry with backoff handles that race condition reliably.
 pub fn trigger_1200_baud_bootsel(port_name: &str) -> Result<()> {
-    // Standard 1200 baud touch pattern used by Pico SDK / Arduino
-    match serialport::new(port_name, 1200)
-        .timeout(Duration::from_millis(500))
-        .open()
-    {
-        Ok(mut port) => {
-            // Drop DTR / RTS to trigger firmware reset hook
-            let _ = port.write_data_terminal_ready(false);
-            let _ = port.write_request_to_send(false);
-            thread::sleep(Duration::from_millis(150));
-            drop(port);
-            // Allow USB bus re-enumeration as Mass Storage
-            thread::sleep(Duration::from_millis(800));
-            Ok(())
+    // Standard 1200 baud touch pattern used by Pico SDK / Arduino toolchain.
+    // Attempt up to 2 times to handle the Windows CDC enumeration race.
+    let mut last_err: Option<String> = None;
+    for attempt in 0u8..2 {
+        if attempt > 0 {
+            // Brief pause so the Windows USB CDC driver fully releases the handle
+            thread::sleep(Duration::from_millis(300));
         }
-        Err(e) => {
-            bail!(
-                "Failed to initiate 1200-baud touch reset on port {}: {}",
-                port_name,
-                e
-            );
+        match serialport::new(port_name, 1200)
+            .timeout(Duration::from_millis(500))
+            .open()
+        {
+            Ok(mut port) => {
+                // Assert DTR=false, RTS=false to trigger the Pico SDK USB reset hook
+                let _ = port.write_data_terminal_ready(false);
+                let _ = port.write_request_to_send(false);
+                thread::sleep(Duration::from_millis(150));
+                drop(port);
+                // Allow USB bus re-enumeration as BOOTSEL Mass Storage device.
+                // RP2040 typically appears as RPI-RP2 within ~600 ms of reset.
+                thread::sleep(Duration::from_millis(1200));
+                return Ok(());
+            }
+            Err(e) => {
+                last_err = Some(format!(
+                    "attempt {}/{}: {} — {}",
+                    attempt + 1,
+                    2,
+                    port_name,
+                    e
+                ));
+            }
         }
     }
+    bail!(
+        "Failed to initiate 1200-baud BOOTSEL touch after 2 attempts on port {}. {}. \
+         If the port is not visible, hold the BOOTSEL button while plugging the USB cable.",
+        port_name,
+        last_err.unwrap_or_default()
+    )
 }
 
 /// Flashes a validated UF2 image buffer directly onto a detected BOOTSEL drive.
@@ -230,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_uf2_buffer_validation_valid() {
-        // Construct a synthetic 512-byte valid UF2 block for RP2040
+        // Construct a synthetic 512-byte valid UF2 block for RP2040 (Microsoft Spec)
         let mut block = vec![0u8; 512];
         block[0..4].copy_from_slice(&UF2_MAGIC_START0.to_le_bytes());
         block[4..8].copy_from_slice(&UF2_MAGIC_START1.to_le_bytes());
@@ -242,6 +269,15 @@ mod tests {
         let (blocks, family) = res.unwrap();
         assert_eq!(blocks, 1);
         assert!(family.contains("RP2040"));
+
+        // Test Official Pico SDK Family IDs (RP2040 & RP2350)
+        block[28..32].copy_from_slice(&RP2040_SDK_FAMILY_ID.to_le_bytes());
+        let res_sdk_2040 = validate_uf2_buffer(&block).unwrap();
+        assert!(res_sdk_2040.1.contains("RP2040"));
+
+        block[28..32].copy_from_slice(&RP2350_SDK_FAMILY_ID.to_le_bytes());
+        let res_sdk_2350 = validate_uf2_buffer(&block).unwrap();
+        assert!(res_sdk_2350.1.contains("RP2350"));
     }
 
     #[test]

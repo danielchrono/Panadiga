@@ -115,14 +115,10 @@ flowchart TD
 
 ```text
 Panadiga/
-├── run.cmd                                           <-- Fast Desktop GUI & CLI Launcher (Windows)
-├── run.sh                                            <-- Fast Desktop GUI & CLI Launcher (Linux/macOS)
-├── build.cmd                                         <-- Master Parallel Build Pipeline (Windows; --android, --all)
-├── build.sh                                          <-- Master Parallel Build Pipeline (Linux/macOS; --android, --all)
-├── validate_all.cmd                                  <-- 9 Quality Gates Execution Script (CMD)
-├── validate_all.ps1                                  <-- 9 Quality Gates Execution Script (PowerShell)
+├── package.json                                      <-- Unified Entrypoint (`npm start`, `npm run build:desktop`, `npm run validate`)
 ├── Cargo.toml                                        <-- Master Rust Workspace Specification (2024 Edition)
 ├── tauri.conf.json                                   <-- Tauri 2.0 Desktop & Mobile Configuration
+├── scripts/                                          <-- Cross-Platform Build, Packaging & 9-Gate Validation (`build.py`, `validate.py`)
 ├── src/                                              <-- High-Performance Native Rust Core Engine
 │   ├── main.rs                                       <-- Unified Entrypoint (CLI Dispatcher & Tauri GUI)
 │   ├── lib.rs                                        <-- Core Library Crate Exporting All Engines
@@ -176,16 +172,17 @@ Panadiga/
 
 ---
 
-### 3.1. Unified Cross-Platform Build & Launcher Scripts
+### 3.1. Unified Cross-Platform Commands (`package.json` & `scripts/`)
 
-| Script                          | Platform      | Mode                     | Description                                                                                                                                                                                                   |
-| :------------------------------ | :------------ | :----------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **`run.cmd`**           | Windows       | Fast Launch / Auto-Build | Launches the Desktop GUI directly from `dist/` or `target/release/`. If uncompiled, invokes `build.cmd` first. Supports `--dev`, `--cli`, `--validate`.                                           |
-| **`run.sh`**            | Linux / macOS | Fast Launch / Auto-Build | Unix equivalent of `run.cmd`. Automatically verifies binaries, builds missing artifacts, and executes GUI or CLI.                                                                                           |
-| **`build.cmd`**         | Windows       | Master Parallel Release  | Builds React bundle, exports Ghidra SSOT scripts, compiles native Rust release binary (`%NUMBER_OF_PROCESSORS%` threads), packages `dist/releases/panadiga-windows-x86_64.zip`. Supports `--android` (or `-a`) for Mobile APK and `--all` for dual-target release. |
-| **`build.sh`**          | Linux / macOS | Master Parallel Release  | Complete parallel Unix release pipeline with packaging and checksum generation. Supports `--android` for Mobile APK and `--all` for dual-target release.                                                              |
-| **`validate_all.cmd`**  | Windows       | 9 Quality Gates          | Executes the 9 quality gates through native CMD dispatching.                                                                                                                                                  |
-| **`validate_all.ps1`**  | Windows       | 9 Quality Gates          | Comprehensive PowerShell validation runner with colorized step-by-step reporting and zero regression tolerance.                                                                                               |
+| Command | Platform | Mode | Description |
+| :--- | :--- | :--- | :--- |
+| **`npm start`** | Windows / Linux / macOS | Fast Launch / Auto-Build | Launches the Desktop GUI directly from `dist/` or `target/release/` (auto-builds via `scripts/build.py --desktop` if missing). |
+| **`npm run dev`** | Windows / Linux / macOS | Vite Dev Server | Starts the frontend live-reload development server in `apps/desktop`. |
+| **`npm run cli -- <args>`** | Windows / Linux / macOS | Native CLI Dispatch | Forwards arguments to `panadiga` (`dist/`, `target/release/`, or `cargo run -p panadiga --`). |
+| **`npm run build:desktop`** | Windows / Linux / macOS | Desktop Release | Builds React bundle, exports Ghidra SSOT scripts, compiles Rust release binary, copies UF2s & `tools/`, and packages `.zip`/`.tar.gz` + `SHA256SUMS.txt`. |
+| **`npm run build:android`** | Windows / Linux / macOS | Android APK Release | Configures Android SDK/NDK, compiles AArch64 APK via Tauri Mobile, and safely restores `Cargo.toml`. |
+| **`npm run build:all`** | Windows / Linux / macOS | Dual Target + Pico | Compiles Pico UF2 firmwares (if ARM GCC present), Desktop Release, and Android APK. |
+| **`npm run validate`** (`npm test`) | Windows / Linux / macOS | 9 Quality Gates | Executes `python scripts/validate.py` covering Rust, TypeScript, Vitest, `jscpd`, `uxlint`, Playwright, Ghidra SSOT, C11 host tests, `mypy --strict`, and `pytest`. |
 
 ---
 
@@ -199,9 +196,9 @@ The native binary `panadiga` functions as both the Tauri graphical desktop clien
 # Build the native binary with maximum optimizations
 cargo build --release -p panadiga
 
-# Directly run via unified wrapper:
-./run.cmd --help       # Windows
-./run.sh --help        # Linux / macOS
+# Directly launch GUI or CLI via unified npm scripts (Windows / Linux / macOS):
+npm start
+npm run cli -- --help
 ```
 
 ### 4.2. Command 1: Multi-Geometry NVRAM Sanitation (`nvram clean`)
@@ -629,14 +626,10 @@ The Panadiga engineering ecosystem enforces a strict **9 Quality Gates** anti-re
 ### 13.2. Executing the Full Validation Suite
 
 ```bash
-# On Windows PowerShell:
-.validate_all.ps1
-
-# On Windows CMD:
-.validate_all.cmd
-
-# On Linux / macOS / WSL:
-./run.sh --validate
+# Universal across Windows, Linux, and macOS:
+npm run validate
+# or directly via Python 3:
+python scripts/validate.py
 ```
 
 ---

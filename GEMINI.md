@@ -17,7 +17,7 @@ Este arquivo define as diretrizes de projeto para Antigravity e assistentes base
    - Ao executar tarefas de alta complexidade em áreas específicas, consulte e instancie os subagentes localizados em `.agents/agents/`.
 
 3. **Validação Contínua**:
-   - Ao concluir modificações em código fonte (Rust, C, Python, TypeScript), rode `powershell -ExecutionPolicy Bypass -File validate_all.ps1`.
+   - Ao concluir modificações em código fonte (Rust, C, Python, TypeScript), rode `npm run validate` (ou `python scripts/validate.py`).
    - Mantenha o limiar de duplicação `jscpd` em 0% (0 clones).
    - Mantenha `mypy --strict` passando sem erros nas ferramentas Python.
 

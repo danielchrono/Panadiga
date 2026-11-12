@@ -3,10 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "start": "python scripts/build.py --run",
+    "dev": "npm --prefix apps/desktop run dev",
+    "cli": "python scripts/build.py --cli",
+    "validate": "python scripts/validate.py",
+    "test": "python scripts/validate.py",
     "build": "npm --prefix apps/desktop run build",
-    "build:desktop": "powershell -ExecutionPolicy Bypass -File build.ps1 -Desktop",
-    "build:android": "powershell -ExecutionPolicy Bypass -File build.ps1 -Android",
-    "build:all": "powershell -ExecutionPolicy Bypass -File build.ps1 -All",
+    "build:desktop": "python scripts/build.py --desktop",
+    "build:android": "python scripts/build.py --android",
+    "build:all": "python scripts/build.py --all",
+    "build:pico": "python scripts/build.py --pico",
+    "audit-bundle": "python tools/generate_audit_bundle.py",
     "tauri": "npx @tauri-apps/cli"
   }
 }

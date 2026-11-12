@@ -185,10 +185,12 @@ A auditoria confirmou a escolha arquitetural de **não adotar Redux**:
 
 ## 6. Homologação Universal dos 9 Quality Gates
 
-O ecossistema inteiro foi validado através do script automatizado `validate_all.ps1`, alcançando aprovação unânime em todos os portões de qualidade:
+O ecossistema inteiro foi validado através do script automatizado unificado (`scripts/validate.py`), alcançando aprovação unânime em todos os portões de qualidade:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File validate_all.ps1
+```bash
+npm run validate
+# ou diretamente:
+python scripts/validate.py
 ```
 
 ### Resultados Auditados:

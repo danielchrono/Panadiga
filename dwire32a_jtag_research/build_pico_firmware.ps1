@@ -76,6 +76,43 @@ if ($env:PICO_SDK_PATH) {
     Write-Host "[WARNING] Pico SDK path not detected. CMake will attempt automatic Git fetch if online." -ForegroundColor Yellow
 }
 
+# 1b. Auto-discover Visual Studio Build Tools / CMake / Ninja / ARM GCC if absent from PATH
+function Import-VsDevEnvironment {
+    $vsBasePaths = @(
+        "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools",
+        "C:\Program Files\Microsoft Visual Studio\2022\Community",
+        "C:\Program Files\Microsoft Visual Studio\2022\Professional",
+        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+    )
+    foreach ($vsBase in $vsBasePaths) {
+        $vcvars = Join-Path $vsBase "VC\Auxiliary\Build\vcvars64.bat"
+        if (Test-Path $vcvars) {
+            Write-Host "[INFO] Importing MSVC x64 developer environment from: $vcvars" -ForegroundColor DarkCyan
+            $envLines = cmd.exe /c "`"$vcvars`" >nul 2>&1 && set"
+            foreach ($line in $envLines) {
+                if ($line -match '^([^=]+)=(.*)$') {
+                    [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], "Process")
+                }
+            }
+            return
+        }
+    }
+}
+
+if (-not (Get-Command "cmake" -ErrorAction SilentlyContinue) -or -not (Get-Command "cl" -ErrorAction SilentlyContinue)) {
+    Import-VsDevEnvironment
+}
+
+if (-not (Get-Command "arm-none-eabi-gcc" -ErrorAction SilentlyContinue)) {
+    $armBins = Get-ChildItem -Path "C:\Program Files (x86)\Arm GNU Toolchain arm-none-eabi\*\bin", "C:\Program Files\Arm GNU Toolchain arm-none-eabi\*\bin" -ErrorAction SilentlyContinue | Sort-Object FullName -Descending
+    foreach ($bin in $armBins) {
+        if (Test-Path (Join-Path $bin.FullName "arm-none-eabi-gcc.exe")) {
+            $env:PATH = "$($bin.FullName);$env:PATH"
+            break
+        }
+    }
+}
+
 # 2. Check CMake
 $cmake = Get-Command "cmake" -ErrorAction SilentlyContinue
 if (-not $cmake) {
@@ -145,6 +182,25 @@ function Build-TargetBoard([string]$targetBoard) {
 $boardsToBuild = if ($Board -eq "all") { @("pico", "pico2") } else { @($Board) }
 foreach ($b in $boardsToBuild) {
     Build-TargetBoard -targetBoard $b
+}
+
+# 7. Assemble unified multi-family UF2 when both targets are present
+$rp2040Uf2 = Join-Path $ScriptDir "panasonic_dwire32a_rp2040.uf2"
+$rp2350Uf2 = Join-Path $ScriptDir "panasonic_dwire32a_rp2350.uf2"
+$unifiedUf2 = Join-Path $ScriptDir "panasonic_dwire32a_unified.uf2"
+$mergeScript = Join-Path $ScriptDir "merge_unified_uf2.py"
+if (($Board -eq "all") -and (Test-Path $rp2040Uf2) -and (Test-Path $rp2350Uf2) -and (Test-Path $mergeScript)) {
+    $pyCmd = Get-Command "python" -ErrorAction SilentlyContinue
+    if (-not $pyCmd) { $pyCmd = Get-Command "python3" -ErrorAction SilentlyContinue }
+    if ($pyCmd) {
+        Write-Host "`n>>> [3/3] Assembling Unified Multi-Family UF2 (RP2040 + RP2350)..." -ForegroundColor Cyan
+        & $pyCmd.Source $mergeScript --rp2040 $rp2040Uf2 --rp2350 $rp2350Uf2 --out $unifiedUf2
+        if ($LASTEXITCODE -ne 0) {
+            Write-Error "Failed to merge unified UF2."
+        }
+    } else {
+        Write-Host "[WARNING] Python interpreter not found; skipped unified UF2 merge." -ForegroundColor Yellow
+    }
 }
 
 Write-Host "`n====================================================================" -ForegroundColor Cyan

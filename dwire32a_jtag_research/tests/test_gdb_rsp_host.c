@@ -16,8 +16,8 @@
 #include <string.h>
 #include <assert.h>
 
-#include "../gdb_rsp.h"
-#include "../dwire32a_hw.h"
+#include "../gdb/gdb_rsp.h"
+#include "../hal/dwire32a_hw.h"
 
 /* =========================================================================
  * Mock Hardware & Target Memory Subsystem

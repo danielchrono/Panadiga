@@ -146,9 +146,7 @@ cargo run --release -- rag query "Quais sao os microsetores de NVRAM para unbric
 ### Rota 2: Pela Interface Gráfica Desktop (Tauri / React)
 1. Inicie a aplicação:
    ```bash
-   ./run.sh
-   # ou no Windows:
-   .\run.ps1
+   npm start
    ```
 2. Abra o módulo **RAG Assistant / Inteligência de Laboratório**.
 3. Digite sua dúvida sobre códigos de diagnóstico, procedimentos cirúrgicos ou esquemas elétricos.

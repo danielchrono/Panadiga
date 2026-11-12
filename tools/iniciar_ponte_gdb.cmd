@@ -11,7 +11,12 @@ echo.
 
 cd /d "%~dp0.."
 
-set "PANADIGA_EXE=target\release\panadiga.exe"
+if exist "%USERPROFILE%\.cargo\bin" set "PATH=%USERPROFILE%\.cargo\bin;%PATH%"
+
+set "PANADIGA_EXE=dist\panadiga.exe"
+if not exist "!PANADIGA_EXE!" (
+    set "PANADIGA_EXE=target\release\panadiga.exe"
+)
 if not exist "!PANADIGA_EXE!" (
     set "PANADIGA_EXE=target\debug\panadiga.exe"
 )

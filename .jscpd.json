@@ -33,6 +33,7 @@
     "apps/desktop/src",
     "src",
     "dwire32a_jtag_research",
-    "tools"
+    "tools",
+    "scripts"
   ]
 }

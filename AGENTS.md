@@ -68,8 +68,10 @@ Ao propor scripts, comandos de bancada ou modificações de firmware:
 
 Antes de considerar qualquer alteração concluída ou pronta para commit, execute o script de validação universal:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File validate_all.ps1
+```bash
+npm run validate
+# ou diretamente:
+python scripts/validate.py
 ```
 
 O portão valida de forma automatizada:

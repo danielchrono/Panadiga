@@ -11,7 +11,7 @@ echo.
 
 if defined GHIDRA_HOME (
     if exist "%GHIDRA_HOME%\ghidraRun.bat" (
-        echo [INFO] Iniciando Ghidra a partir de %%GHIDRA_HOME%%: %GHIDRA_HOME%
+        echo [INFO] Iniciando Ghidra a partir de GHIDRA_HOME: %GHIDRA_HOME%
         start "" "%GHIDRA_HOME%\ghidraRun.bat"
         exit /b 0
     )
@@ -48,7 +48,7 @@ for %%D in (
 )
 
 echo [AVISO] O executável principal do Ghidra (ghidraRun.bat) não foi encontrado no PATH
-echo nem em %%GHIDRA_HOME%%.
+echo nem em %GHIDRA_HOME%.
 echo.
 echo Para abrir o Ghidra automaticamente:
 echo   1. Baixe o Ghidra em https://ghidra-sre.org/ (Requer Java JDK 21+)

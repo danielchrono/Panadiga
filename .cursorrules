@@ -8,7 +8,7 @@ You are working on the Panadiga engineering repository (Panasonic DMR-EH55 rever
    - Flash write protection: Address range 0x80000000..0x807EFFFF is read-only IPL/bootloader. Only 0x807F0000..0x807FFFFF (64KB NVRAM/EEMUL) may be sanitized for U99 unbrick.
    - Never modify original HDD dumps in-place.
 2. **Quality Gates**:
-   - Before suggesting code changes as complete, ensure they pass `validate_all.ps1`.
+   - Before suggesting code changes as complete, ensure they pass `npm run validate` (`python scripts/validate.py`).
    - Maintain 0% duplicate code (`.jscpd.json` has threshold: 0).
    - Maintain `mypy --strict` compliance on all Python tools.
    - Maintain Rust idioms, no unused imports or clippy warnings.

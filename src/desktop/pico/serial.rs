@@ -217,7 +217,8 @@ pub fn pico_connect_and_test(
     // Sanity ceiling: the firmware discriminates a floating GP26 actively (internal pull-down),
     // so a legitimate ~3.24 V rail is a POWERED target and must never be treated as floating.
     const VDD_FLOATING_CEIL: f32 = 3.45;
-    const VDD_MIN_THRESHOLD: f32 = 2.8;
+    // Lower threshold to 2.5V to accommodate standby rails and the 1k series resistor divider drop.
+    const VDD_MIN_THRESHOLD: f32 = 2.5;
     let probe_floating = vdd_volts >= VDD_FLOATING_CEIL;
     let target_powered = !probe_floating && vdd_volts >= VDD_MIN_THRESHOLD;
 

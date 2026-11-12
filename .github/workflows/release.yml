@@ -104,6 +104,9 @@ jobs:
           if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2") {
               Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" -Destination "$staging\panasonic_dwire32a_rp2350.uf2"
           }
+          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_unified.uf2") {
+              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_unified.uf2" -Destination "$staging\panasonic_dwire32a_unified.uf2"
+          }
           Copy-Item "tools" -Destination "$staging\tools" -Recurse
           Copy-Item "README.md" -Destination "$staging\README.md"
           Copy-Item "LICENSE" -Destination "$staging\LICENSE"
@@ -226,6 +229,15 @@ jobs:
           cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
           sha256sum panasonic_dwire32a_rp2350.uf2 > panasonic_dwire32a_rp2350.uf2.sha256
 
+      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350)
+        run: |
+          cd dwire32a_jtag_research
+          python3 merge_unified_uf2.py \
+            --rp2040 panasonic_dwire32a_rp2040.uf2 \
+            --rp2350 panasonic_dwire32a_rp2350.uf2 \
+            --out panasonic_dwire32a_unified.uf2
+          sha256sum panasonic_dwire32a_unified.uf2 > panasonic_dwire32a_unified.uf2.sha256
+
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -244,6 +256,8 @@ jobs:
             dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2.sha256
             dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
             dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2.sha256
+            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2
+            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2.sha256
           generate_release_notes: true
 
   # ==========================================================================

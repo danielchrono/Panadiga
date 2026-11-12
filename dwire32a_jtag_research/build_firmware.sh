@@ -56,7 +56,11 @@ command -v arm-none-eabi-gcc >/dev/null 2>&1 || {
 build_board() {
     local board="$1"
     local build_dir="build_${board}"
-    local out_name="panasonic_dwire32a_${board}.uf2"
+    local arch_tag="rp2040"
+    if [ "${board}" = "pico2" ]; then
+        arch_tag="rp2350"
+    fi
+    local out_name="panasonic_dwire32a_${arch_tag}.uf2"
 
     echo ""
     echo ">>> [1/2] Configuring CMake for Board: ${board} in ${build_dir}..."
@@ -90,6 +94,12 @@ case "${TARGET}" in
     all)
         build_board "pico"
         build_board "pico2"
+        if command -v python3 >/dev/null 2>&1 && [ -f "${SCRIPT_DIR}/merge_unified_uf2.py" ]; then
+            python3 "${SCRIPT_DIR}/merge_unified_uf2.py" \
+                --rp2040 "${SCRIPT_DIR}/panasonic_dwire32a_rp2040.uf2" \
+                --rp2350 "${SCRIPT_DIR}/panasonic_dwire32a_rp2350.uf2" \
+                --out "${SCRIPT_DIR}/panasonic_dwire32a_unified.uf2"
+        fi
         ;;
     *)
         echo "[ERROR] Unknown board target '${TARGET}'. Use 'pico', 'pico2', or 'all'." >&2

@@ -2,13 +2,11 @@
 # Git Pre-Commit Hook: Blocks commits if any quality gate fails
 echo "[Git Hook] Executing Panadiga pre-commit quality validation..."
 
-if command -v pwsh >/dev/null 2>&1; then
-    pwsh -File ./validate_all.ps1
-elif command -v powershell >/dev/null 2>&1; then
-    powershell -ExecutionPolicy Bypass -File ./validate_all.ps1
-elif [ -f "./validate_all.sh" ]; then
-    bash ./validate_all.sh
+if command -v python3 >/dev/null 2>&1; then
+    python3 scripts/validate.py
+elif command -v python >/dev/null 2>&1; then
+    python scripts/validate.py
 else
-    echo "Validation script not found! Aborting commit."
+    echo "Python 3 not found! Aborting commit."
     exit 1
 fi

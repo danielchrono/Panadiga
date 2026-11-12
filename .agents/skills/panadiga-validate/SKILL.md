@@ -11,14 +11,14 @@ description: >-
 Esta skill orienta a execução e resolução de problemas da suíte de testes e qualidade do Panadiga.
 
 ## Como Executar
-No terminal PowerShell da raiz do repositório:
-```powershell
-powershell -ExecutionPolicy Bypass -File validate_all.ps1
+Na raiz do repositório (Windows, Linux ou macOS):
+```bash
+npm run validate
 ```
 
-Em ambiente Linux/Bash ou Git Bash:
+Ou diretamente via Python 3:
 ```bash
-./validate_all.sh
+python scripts/validate.py
 ```
 
 ## Os 9 Portões Validados

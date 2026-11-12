@@ -119,14 +119,10 @@ flowchart TD
 
 ```text
 Panadiga/
-├── run.cmd                                           <-- Inicializador Rápido Desktop GUI & CLI (Windows)
-├── run.sh                                            <-- Inicializador Rápido Desktop GUI & CLI (Linux/macOS)
-├── build.cmd                                         <-- Pipeline Mestre de Compilação Paralela (Windows; --android, --all)
-├── build.sh                                          <-- Pipeline Mestre de Compilação Paralela (Linux/macOS; --android, --all)
-├── validate_all.cmd                                  <-- Script de Execução dos 9 Quality Gates (CMD)
-├── validate_all.ps1                                  <-- Script de Validação dos 9 Quality Gates (PowerShell)
+├── package.json                                      <-- Ponto de Entrada Unificado (`npm start`, `npm run build:desktop`, `npm run validate`)
 ├── Cargo.toml                                        <-- Especificação Mestre do Workspace Rust (Edição 2024)
 ├── tauri.conf.json                                   <-- Configuração Desktop & Mobile Tauri 2.0
+├── scripts/                                          <-- Orquestração Multiplataforma (`build.py`, `validate.py`, `panadiga_ops.py`)
 ├── src/                                              <-- Motor Nativo em Rust de Alta Performance
 │   ├── main.rs                                       <-- Ponto de Entrada Unificado (CLI & GUI Tauri)
 │   ├── lib.rs                                        <-- Biblioteca Crate Exportando os Módulos Centrais
@@ -180,16 +176,17 @@ Panadiga/
 
 ---
 
-### 3.1. Scripts de Inicialização e Build Multiplataforma (Linux, macOS, Windows)
+### 3.1. Comandos Unificados Multiplataforma (`package.json` & `scripts/`)
 
-| Script                          | Plataforma    | Modo                    | Descrição                                                                                                                                                                                                      |
-| :------------------------------ | :------------ | :---------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`run.cmd`**           | Windows       | Execução / Auto-Build | Executa o aplicativo Desktop diretamente de `dist/` ou `target/release/`. Caso não compilado, aciona o `build.cmd` automaticamente. Suporta `--dev`, `--cli`, `--validate`.                         |
-| **`run.sh`**            | Linux / macOS | Execução / Auto-Build | Equivalente Unix do `run.cmd`. Valida artefatos, compila se necessário e inicia a interface ou CLI.                                                                                                           |
-| **`build.cmd`**         | Windows       | Master Release Paralelo | Compila bundle React, exporta scripts Ghidra do SSOT, compila o binário Rust otimizado (`%NUMBER_OF_PROCESSORS%` threads), empacota `dist/releases/panadiga-windows-x86_64.zip`. Suporta `--android` (ou `-a`) para APK Mobile e `--all` para release duplo consolidado. |
-| **`build.sh`**          | Linux / macOS | Master Release Paralelo | Pipeline Unix paralelo completo de compilação, empacotamento e hashes SHA-256. Suporta `--android` para APK Mobile e `--all` para release duplo consolidado.                                                  |
-| **`validate_all.cmd`**  | Windows       | 9 Quality Gates         | Executa a bateria de 9 quality gates via CMD nativo.                                                                                                                                                             |
-| **`validate_all.ps1`**  | Windows       | 9 Quality Gates         | Runner PowerShell avançado com saída colorida e verificação estrita de regressões.                                                                                                                          |
+| Comando | Plataforma | Modo | Descrição |
+| :--- | :--- | :--- | :--- |
+| **`npm start`** | Windows / Linux / macOS | Execução / Auto-Build | Inicia a GUI Desktop diretamente de `dist/` ou `target/release/` (compila via `scripts/build.py --desktop` se ausente). |
+| **`npm run dev`** | Windows / Linux / macOS | Dev Server Vite | Inicia o servidor de desenvolvimento com hot-reload em `apps/desktop`. |
+| **`npm run cli -- <args>`** | Windows / Linux / macOS | Dispatcher CLI Nativa | Encaminha argumentos para `panadiga` (`dist/`, `target/release/`, ou `cargo run -p panadiga --`). |
+| **`npm run build:desktop`** | Windows / Linux / macOS | Release Desktop | Compila bundle React, exporta scripts Ghidra do SSOT, compila Rust release, copia UF2s & `tools/` e empacota `.zip`/`.tar.gz` + `SHA256SUMS.txt`. |
+| **`npm run build:android`** | Windows / Linux / macOS | Release Android APK | Configura SDK/NDK Android, compila APK AArch64 via Tauri Mobile e restaura `Cargo.toml` com segurança. |
+| **`npm run build:all`** | Windows / Linux / macOS | Release Completo | Compila firmwares Pico UF2 (se ARM GCC presente), Release Desktop e APK Android. |
+| **`npm run validate`** (`npm test`) | Windows / Linux / macOS | 9 Quality Gates | Executa `python scripts/validate.py` cobrindo Rust, TypeScript, Vitest, `jscpd`, `uxlint`, Playwright, Ghidra SSOT, testes C11 host, `mypy --strict` e `pytest`. |
 
 ---
 
@@ -203,9 +200,9 @@ O binário compilado `panadiga` opera tanto como servidor gráfico de bancada De
 # Compilação do binário unificado de produção
 cargo build --release -p panadiga
 
-# Execução direta com o launcher unificado:
-./run.cmd --help       # Windows
-./run.sh --help        # Linux / macOS
+# Execução direta via scripts npm unificados (Windows / Linux / macOS):
+npm start
+npm run cli -- --help
 ```
 
 ### 4.2 Comando 1: Limpeza Cirúrgica da NVRAM Multi-Geometria (`nvram clean`)
@@ -634,14 +631,10 @@ O ecossistema Panadiga impõe uma rigorosa pipeline anti-regressão composta por
 ### 13.2. Execução da Validação Completa Local
 
 ```bash
-# No Windows PowerShell:
-.validate_all.ps1
-
-# No Windows CMD:
-.validate_all.cmd
-
-# No Linux / macOS / WSL:
-./run.sh --validate
+# Universal no Windows, Linux e macOS:
+npm run validate
+# ou diretamente via Python 3:
+python scripts/validate.py
 ```
 
 ---

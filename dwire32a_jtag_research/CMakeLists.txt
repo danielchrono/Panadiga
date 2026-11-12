@@ -23,12 +23,23 @@ pico_sdk_init()
 
 message(STATUS "[PANADIGA] Configuring DWire32A Engine for Board: ${PICO_BOARD} (SOC: ${PICO_PLATFORM})")
 
-# Define main firmware executable
+# Define main firmware executable (modular architecture grouped by concern)
 add_executable(panasonic_dwire32a
     dwire32a_pico_main.c
-    dwire32a_hw.c
-    dwire32a_led.c
-    gdb_rsp.c
+    hal/dwire32a_hw.c
+    hal/dwire32a_led.c
+    gdb/gdb_rsp_codec.c
+    gdb/gdb_rsp_memory.c
+    gdb/gdb_rsp_cpu.c
+    protocol/dwire32a_protocol.c
+    flash/dwire32a_flash.c
+    diag/dwire32a_diag_electrical.c
+    diag/dwire32a_diag_ocd.c
+    uart/p7501_uart_bitbang.c
+    uart/p7501_uart_capture.c
+    uart/p7501_fmu_probe.c
+    uart/p7501_uart_interactive.c
+    cli/dwire32a_cli.c
 )
 
 # Header include paths

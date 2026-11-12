@@ -52,7 +52,15 @@ export function useInCircuitErase({ selectedPort, onLog, onSuccess }: UseInCircu
           onLog?.('rx', 'PICO', line);
         }, index * 80);
       });
-      onLog?.('success', 'HOST', `Backup de 1º Contato concluído! Modelo: ${result.detected_model}. NVRAM: ${result.nvram_bytes}B.`);
+      if (result.success) {
+        onLog?.('success', 'HOST', `Backup de 1º Contato concluído! Modelo: ${result.detected_model}. NVRAM: ${result.nvram_bytes}B.`);
+      } else {
+        onLog?.(
+          'error',
+          'HOST',
+          'Backup de 1º Contato abortado: o barramento Matsushita AM34 não respondeu (alvo desligado VDD=0V ou fiação solta).'
+        );
+      }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       setBackupState({ isBackingUp: false, result: null, error: errMsg });

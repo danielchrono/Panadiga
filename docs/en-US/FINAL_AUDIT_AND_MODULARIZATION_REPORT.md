@@ -42,9 +42,11 @@ Monolithic modules were cleanly decomposed into sub-packages with top-level faca
 
 ## 3. The 9 Automated Quality Gates
 
-Every commit to the Panadiga repository must pass the universal automated gate script:
-```powershell
-powershell -ExecutionPolicy Bypass -File validate_all.ps1
+Every commit to the Panadiga repository must pass the universal automated gate script (`scripts/validate.py`):
+```bash
+npm run validate
+# or directly:
+python scripts/validate.py
 ```
 1. **Rust Workspace:** `cargo check --workspace` & `cargo test --workspace` (33 unit/integration tests).
 2. **TypeScript Strict:** `npm run typecheck` in `apps/desktop` (0 errors).

@@ -60,7 +60,29 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   const handleFlashFirmware = async () => {
     setIsFlashing(true);
     try {
-      const drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+      let drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+      if (!drives || drives.length === 0) {
+        // If a Pico port is selected, automatically trigger the 1200-baud BOOTSEL reset first
+        if (selectedPort && /VID:2E8A|RP2040|RP2350|Pico|DWire32A/i.test(selectedPort)) {
+          showToast({
+            type: 'info',
+            title: 'Reiniciando Pico em BOOTSEL',
+            message: 'Enviando pulso 1200-baud para reiniciar a placa em modo de gravação...',
+          });
+          try {
+            await invokeCommand('pico_trigger_bootsel_reboot', {
+              portName: selectedPort,
+              port_name: selectedPort,
+            });
+            await new Promise(r => setTimeout(r, 1600));
+            drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+          } catch {
+            // Check drives regardless of whether serial port error was reported during disconnect
+            drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+          }
+        }
+      }
+
       if (!drives || drives.length === 0) {
         showToast({
           type: 'warning',
@@ -75,9 +97,37 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
       showToast({
         type: 'success',
         title: 'Firmware Pico Gravado',
-        message: `${report.message} (${report.board_family || 'RP2040'}, ${sizeStr} bytes gravados em ${report.target_drive || 'RPI-RP2'}).`,
+        message: `${report.message} (${report.board_family || 'RP2040'}, ${sizeStr} bytes gravados em ${report.target_drive || 'RPI-RP2'}). Aguardando reinicialização USB...`,
       });
+
+      // Hot reload & Auto-connect loop: poll for newly mounted CDC COM port for up to 6 seconds
+      let detectedPort = '';
+      for (let i = 0; i < 12; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        try {
+          const ports = await invokeCommand<string[]>('list_pico_serial_ports');
+          const found = ports?.find(p => /VID:2E8A|RP2040|RP2350|Pico|DWire32A/i.test(p));
+          if (found) {
+            detectedPort = found;
+            break;
+          }
+        } catch {
+          // continue polling
+        }
+      }
+
       onRefreshPorts?.();
+      if (detectedPort) {
+        onSelectPort(detectedPort);
+        showToast({
+          type: 'success',
+          title: 'Pico Detectado',
+          message: `Reconectando automaticamente em ${detectedPort}...`,
+        });
+        setTimeout(() => {
+          onToggleConnection();
+        }, 400);
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       showToast({

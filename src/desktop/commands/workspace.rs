@@ -9,7 +9,7 @@ use std::path::Path;
 
 use super::dto::{
     BinaryFileStatusDto, HexDumpRowDto, SystemOverviewDto, detect_diga_model_from_slice,
-    resolve_candidate,
+    resolve_candidate, resolve_default_flash_path,
 };
 
 /// Returns the complete workspace and hardware overview for `useDashboardViewModel`.
@@ -37,15 +37,7 @@ pub fn get_system_overview() -> Result<SystemOverviewDto, String> {
         }
     };
 
-    let flash_candidates = [
-        "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
-        "panasonic_dmr-eh55_flash_dump.bin",
-        "firmware_and_images/dmr-ez485v/panasonic_dmr_ez485v_flash_dump_4mb.bin",
-    ];
-    let resolved_flash = resolve_candidate(
-        &flash_candidates,
-        "firmware_and_images/panasonic_dmr-eh55_flash_dump.bin",
-    );
+    let resolved_flash = resolve_default_flash_path(None);
 
     let (product_model, soc_processor, flash_rom) = if let Ok(data) = fs::read(&resolved_flash) {
         let model = detect_diga_model_from_slice(&data);

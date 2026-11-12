@@ -98,6 +98,7 @@ ehthumbs.db
 desktop.ini
 *.tmp
 *.bak
+scratch_*.log
 
 # ------------------------------------------------------------------------------
 # 9. IDE & Code Editors

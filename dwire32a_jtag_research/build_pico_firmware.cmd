@@ -76,6 +76,10 @@ cd /d "%~dp0"
 if "!TARGET_BOARD!"=="all" (
     call :BUILD_ONE pico panasonic_dwire32a_rp2040.uf2
     call :BUILD_ONE pico2 panasonic_dwire32a_rp2350.uf2
+    where python >nul 2>nul
+    if not errorlevel 1 (
+        python "%~dp0merge_unified_uf2.py" --rp2040 "%~dp0panasonic_dwire32a_rp2040.uf2" --rp2350 "%~dp0panasonic_dwire32a_rp2350.uf2" --out "%~dp0panasonic_dwire32a_unified.uf2"
+    )
 ) else if "!TARGET_BOARD!"=="pico2" (
     call :BUILD_ONE pico2 panasonic_dwire32a_rp2350.uf2
 ) else (

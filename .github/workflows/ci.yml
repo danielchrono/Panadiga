@@ -56,15 +56,10 @@ jobs:
           pip install typer rich mypy pytest
 
       - name: Execute Full 9 Commit Quality Gates
-        shell: powershell
-        run: .\validate_all.ps1
+        run: python scripts/validate.py
 
-      - name: Compile Native Rust Unified Release Binary
-        run: cargo build --release -p panadiga
-
-      - name: Package Windows Distribution Archive
-        shell: powershell
-        run: .\build.cmd
+      - name: Compile & Package Windows Distribution Archive
+        run: python scripts/build.py --desktop
 
       - name: Upload Windows Distribution Artifacts
         uses: actions/upload-artifact@v4
@@ -74,6 +69,7 @@ jobs:
             dist/panadiga.exe
             dist/panasonic_dwire32a_rp2040.uf2
             dist/panasonic_dwire32a_rp2350.uf2
+            dist/panasonic_dwire32a_unified.uf2
             dist/tools/
             dist/releases/panadiga-windows-x86_64.zip
             dist/releases/SHA256SUMS.txt
@@ -201,6 +197,15 @@ jobs:
           cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
           sha256sum panasonic_dwire32a_rp2350.uf2
 
+      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350)
+        run: |
+          cd dwire32a_jtag_research
+          python3 merge_unified_uf2.py \
+            --rp2040 panasonic_dwire32a_rp2040.uf2 \
+            --rp2350 panasonic_dwire32a_rp2350.uf2 \
+            --out panasonic_dwire32a_unified.uf2
+          sha256sum panasonic_dwire32a_unified.uf2
+
       - name: Upload Compiled Firmware Artifacts (UF2)
         uses: actions/upload-artifact@v4
         with:
@@ -208,6 +213,7 @@ jobs:
           path: |
             dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2
             dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
+            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2
           retention-days: 30
 
   # ==========================================================================

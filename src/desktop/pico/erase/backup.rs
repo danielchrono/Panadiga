@@ -30,6 +30,12 @@ pub(crate) fn open_and_handshake_dwire(
         .map_err(|e| format!("Falha ao enviar HANDSHAKE: {}", e))?;
     let _ = port.flush();
     let hs_out = read_serial_response_complete(&mut *port, Duration::from_millis(3000))?;
+    if !hs_out.contains("[HANDSHAKE] SUCCESS") {
+        return Err(format!(
+            "Cold Break-In falhou ao capturar o chip Matsushita AM34 (gravador desligado da tomada VDD=0V ou fiação solta). Resposta: {}",
+            hs_out.trim()
+        ));
+    }
     Ok((port, hs_out))
 }
 

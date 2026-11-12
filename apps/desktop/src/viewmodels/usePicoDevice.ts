@@ -113,9 +113,22 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
           !p.includes('BOOTSEL Mode') &&
           !p.includes('PID:0003')
       );
-      if (realPorts.length > 0) {
+
+      // Prioritize recognized Raspberry Pi Pico / DWire32A controllers (VID:2E8A)
+      // over motherboard management ports (e.g. Intel AMT SOL on COM3).
+      const preferredPicoPort = realPorts.find(
+        p =>
+          p.includes('VID:2E8A') ||
+          p.includes('RP2040') ||
+          p.includes('RP2350') ||
+          p.includes('Pico') ||
+          p.includes('DWire32A')
+      );
+      const targetDefault = preferredPicoPort || realPorts[0];
+
+      if (targetDefault) {
         if (!selectedPort || selectedPort.startsWith('MOCK') || !allPorts.includes(selectedPort)) {
-          setSelectedPort(realPorts[0]);
+          setSelectedPort(targetDefault);
         }
       } else if (allPorts.length > 0 && !selectedPort) {
         setSelectedPort(allPorts[0]);

@@ -32,7 +32,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   onSelectView,
-  vddVolts = 3.28,
+  vddVolts = 0.0,
   nvramCleaned = false,
 }) => {
   const navItems: Array<{
@@ -184,7 +184,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           <div className="flex items-center justify-between text-slate-400">
             <span>AM34 Core</span>
-            <span className="text-emerald-400 font-semibold">HALTED (OCD)</span>
+            <span
+              className={
+                vddVolts >= 2.8
+                  ? 'text-emerald-400 font-semibold'
+                  : 'text-slate-500 font-semibold'
+              }
+            >
+              {vddVolts >= 2.8 ? 'HALTED (OCD)' : 'DISCONNECTED'}
+            </span>
           </div>
 
           <div className="flex items-center justify-between text-slate-400">

@@ -1,7 +1,8 @@
-import React, { useState, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Sidebar, ViewKey } from './components/Sidebar';
 import { Header } from './components/Header';
-import { isDemoModeActive, setDemoMode } from './services/ipc';
+import { isDemoModeActive, setDemoMode, listenEvent } from './services/ipc';
+import { PicoDeviceStatus } from './models/pico';
 import { ToastProvider } from './context/ToastContext';
 import { ErrorBoundary } from './components/ui/error-boundary';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -44,6 +45,29 @@ export const App: React.FC = () => {
   const [demoMode, setDemoState] = useState<boolean>(isDemoModeActive());
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [hardwareStatus, setHardwareStatus] = useState<{
+    connected: boolean;
+    vdd_volts: number;
+  }>({
+    connected: false,
+    vdd_volts: 0.0,
+  });
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    listenEvent<PicoDeviceStatus>('pico_telemetry', incoming => {
+      setHardwareStatus({
+        connected: incoming.connected,
+        vdd_volts: incoming.vdd_volts,
+      });
+    }).then(cleanup => {
+      unlisten = cleanup;
+    });
+
+    return () => {
+      unlisten?.();
+    };
+  }, []);
 
   const viewTitles: Record<ViewKey, string> = {
     dashboard: 'Visão Geral do Gravador & Status da Bancada',
@@ -96,7 +120,7 @@ export const App: React.FC = () => {
         <Sidebar
           currentView={currentView}
           onSelectView={setCurrentView}
-          vddVolts={3.28}
+          vddVolts={hardwareStatus.vdd_volts}
           nvramCleaned={false}
         />
 
@@ -106,6 +130,8 @@ export const App: React.FC = () => {
             currentViewTitle={viewTitles[currentView]}
             demoMode={demoMode}
             onToggleDemoMode={handleToggleDemoMode}
+            hardwareConnected={hardwareStatus.connected}
+            vddVolts={hardwareStatus.vdd_volts}
           />
 
           {/* View Content with declarative Suspense loading & ErrorBoundary */}

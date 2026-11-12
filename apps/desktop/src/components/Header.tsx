@@ -22,8 +22,8 @@ export const Header: React.FC<HeaderProps> = ({
   demoMode,
   onToggleDemoMode,
   onRefresh,
-  vddVolts = 3.28,
-  hardwareConnected = true,
+  vddVolts = 0.0,
+  hardwareConnected = false,
 }) => {
   return (
     <header className="h-16 px-6 bg-bench-900/90 backdrop-blur border-b border-slate-800 flex items-center justify-between select-none z-10 shrink-0">

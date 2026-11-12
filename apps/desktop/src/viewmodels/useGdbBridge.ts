@@ -53,7 +53,9 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     onLog?.('info', 'HOST', `Iniciando Servidor Ponte GDB RSP em ${listenAddr} (Porta: ${selectedPort})...`);
     try {
       const status = await invokeCommand<GdbBridgeStatus>('start_gdb_bridge_command', {
+        portName: selectedPort,
         port_name: selectedPort,
+        listenAddr,
         listen_addr: listenAddr,
       });
       setGdbStatus(status);

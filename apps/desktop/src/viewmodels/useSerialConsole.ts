@@ -76,8 +76,10 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
 
     if (isTauriEnvironment() && !isDemoModeActive()) {
       try {
+        const targetPort = overridePort || selectedPort;
         const response = await invokeCommand<string>('pico_send_serial_command', {
-          port_name: overridePort || selectedPort,
+          portName: targetPort,
+          port_name: targetPort,
           command: cmd,
         });
         const source = cmd === 'RESET' ? 'TARGET' : 'PICO';

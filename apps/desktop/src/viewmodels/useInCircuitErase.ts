@@ -43,6 +43,7 @@ export function useInCircuitErase({ selectedPort, onLog, onSuccess }: UseInCircu
     onLog?.('info', 'HOST', 'Iniciando Procedimento de 1º Contato (Backup Read-Only & Verificação de Integridade)...');
     try {
       const result = await invokeCommand<FirstContactBackupResult>('pico_first_contact_backup', {
+        portName: selectedPort,
         port_name: selectedPort,
       });
       setBackupState({ isBackingUp: false, result, error: null });
@@ -64,6 +65,7 @@ export function useInCircuitErase({ selectedPort, onLog, onSuccess }: UseInCircu
     onLog?.('info', 'HOST', 'Disparando sequência cirúrgica: Injeção de RAM Loader + Apagamento de NVRAM In-Circuit...');
     try {
       const result = await invokeCommand<InCircuitNvramEraseResult>('pico_inject_ram_loader', {
+        portName: selectedPort,
         port_name: selectedPort,
       });
       setState({ status: 'success', result });

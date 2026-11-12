@@ -20,6 +20,27 @@ export const setDemoMode = (active: boolean): void => {
   demoModeActive = active;
 };
 
+function toCamelCaseKey(key: string): string {
+  return key.replace(/_([a-z0-9])/g, (_, char: string) => char.toUpperCase());
+}
+
+/**
+ * Normalizes argument dictionaries so that both camelCase (required by Tauri v2 IPC commands)
+ * and snake_case (legacy/internal) keys are populated transparently.
+ */
+export function normalizeArgsForTauri(args?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!args) return undefined;
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    const camel = toCamelCaseKey(key);
+    normalized[camel] = value;
+    if (camel !== key) {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
 /**
  * Universal invoke wrapper with full TypeScript safety.
  * Strictly prioritizes real native Tauri IPC pipeline.
@@ -28,12 +49,14 @@ export async function invokeCommand<T>(
   cmd: string,
   args?: Record<string, unknown>
 ): Promise<T> {
+  const normalizedArgs = normalizeArgsForTauri(args);
+
   if (isTauri() && !demoModeActive) {
     const { invoke } = await import('@tauri-apps/api/core');
-    return await invoke<T>(cmd, args);
+    return await invoke<T>(cmd, normalizedArgs);
   }
 
-  return handleMockCommand<T>(cmd, args);
+  return handleMockCommand<T>(cmd, normalizedArgs);
 }
 
 /**

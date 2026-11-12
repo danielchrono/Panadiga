@@ -58,7 +58,7 @@ pub fn extract_hdd_partitions_command(
 #[tauri::command]
 pub fn analyze_flash_dump(input_path: Option<String>) -> Result<NvramCleanReport, String> {
     let path = resolve_default_flash_path(input_path);
-    clean_nvram_command(path, None)
+    crate::nvram::inspect_flash_nvram(Path::new(&path)).map_err(|e| e.to_string())
 }
 
 /// Frontend `clean_nvram` command (surgical 64 KB NVRAM reset to 0xFF).
@@ -68,9 +68,19 @@ pub fn clean_nvram(
     output_path: Option<String>,
 ) -> Result<NvramCleanReport, String> {
     let path = resolve_default_flash_path(input_path);
-    let out = output_path
-        .or_else(|| Some("firmware_and_images/panasonic_dmr-eh55_flash_cleaned.bin".to_string()));
-    clean_nvram_command(path, out)
+    let in_p = Path::new(&path);
+    let out = output_path.unwrap_or_else(|| {
+        let parent = in_p.parent().unwrap_or_else(|| Path::new("."));
+        let stem = in_p
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("flash_dump");
+        parent
+            .join(format!("{stem}_CLEAN.bin"))
+            .to_string_lossy()
+            .to_string()
+    });
+    clean_nvram_command(path, Some(out))
 }
 
 /// Frontend `inspect_hdd` command.

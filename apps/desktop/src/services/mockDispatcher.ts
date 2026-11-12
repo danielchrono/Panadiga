@@ -48,7 +48,7 @@ export async function handleMockCommand<T>(
       return mockMeihdfsAllocationReport as unknown as T;
 
     case 'pico_connect_and_test': {
-      const portName = (args?.port_name as string) || 'MOCK_RP2040';
+      const portName = (args?.portName as string) || (args?.port_name as string) || 'MOCK_RP2040';
       const isRp2350 = portName.includes('2350');
       mockConnected = true;
       mockPort = portName;
@@ -68,7 +68,7 @@ export async function handleMockCommand<T>(
       return {
         ...mockPicoDeviceStatus,
         connected: mockConnected,
-        port: mockPort || (args?.port_name as string) || '',
+        port: mockPort || (args?.portName as string) || (args?.port_name as string) || '',
         vdd_volts: mockConnected ? 3.28 : 0.0,
         target_powered: mockConnected,
         core_state: mockConnected ? 'HALTED' : 'DISCONNECTED',
@@ -275,8 +275,8 @@ export async function handleMockCommand<T>(
     case 'start_gdb_bridge_command': {
       return {
         running: true,
-        port_name: (args?.port_name as string) || 'MOCK_RP2040',
-        listen_addr: (args?.listen_addr as string) || '127.0.0.1:3333',
+        port_name: (args?.portName as string) || (args?.port_name as string) || 'MOCK_RP2040',
+        listen_addr: (args?.listenAddr as string) || (args?.listen_addr as string) || '127.0.0.1:3333',
         connected_clients: 0,
         last_event: 'Ouvindo conexões GDB em 127.0.0.1:3333',
       } as unknown as T;

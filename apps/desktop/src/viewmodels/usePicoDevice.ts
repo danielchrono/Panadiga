@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { PicoDeviceStatus, ColdBreakinMode, DigaModelProfile } from '@/models';
 import { invokeCommand, listenEvent } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
@@ -39,6 +39,12 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   const [modelCatalog, setModelCatalog] = useState<DigaModelProfile[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>('AUTO');
 
+  /**
+   * Mutex ref: prevents concurrent pico_connect_and_test calls on different ports.
+   * Serial port ownership is exclusive — two simultaneous open() calls → "Acesso Negado".
+   */
+  const isConnectingRef = useRef<boolean>(false);
+
   const refreshModelCatalog = useCallback(async () => {
     try {
       const catalog = await invokeCommand<DigaModelProfile[]>('get_diga_model_catalog');
@@ -57,6 +63,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       if (modelId === 'AUTO') {
         try {
           const resp = await invokeCommand<string>('pico_send_serial_command', {
+            portName: selectedPort,
             port_name: selectedPort,
             command: 'AUTODETECT',
           });
@@ -67,6 +74,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       } else if (profile) {
         try {
           const resp = await invokeCommand<string>('pico_send_serial_command', {
+            portName: selectedPort,
             port_name: selectedPort,
             command: `FLASH_SIZE ${profile.flash_size_mb}`,
           });
@@ -95,7 +103,16 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       }
       setAvailablePorts(allPorts);
 
-      const realPorts = allPorts.filter(p => !p.startsWith('MOCK') && !p.startsWith('BLE'));
+      // Exclude MOCK, BLE, and BOOTSEL-mode drives (Pico in BOOTSEL shows as USB mass storage,
+      // NOT as a COM port — it has VID:2E8A PID:0003 and label contains "BOOTSEL Mode").
+      // Attempting to open a BOOTSEL-mode port with serialport always fails.
+      const realPorts = allPorts.filter(
+        p =>
+          !p.startsWith('MOCK') &&
+          !p.startsWith('BLE') &&
+          !p.includes('BOOTSEL Mode') &&
+          !p.includes('PID:0003')
+      );
       if (realPorts.length > 0) {
         if (!selectedPort || selectedPort.startsWith('MOCK') || !allPorts.includes(selectedPort)) {
           setSelectedPort(realPorts[0]);
@@ -113,10 +130,12 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   }, [selectedPort]);
 
   const pollDeviceStatus = useCallback(async () => {
-    if (!selectedPort) return;
+    // Don't poll if a connection is already in progress (prevents "Acesso Negado" on concurrent open())
+    if (!selectedPort || isConnectingRef.current) return;
     setIsLoading(true);
     try {
       const status = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
+        portName: selectedPort,
         port_name: selectedPort,
       });
       setDeviceStatus(status);
@@ -131,6 +150,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     async (mode: ColdBreakinMode) => {
       try {
         const updated = await invokeCommand<PicoDeviceStatus>('pico_set_breakin_mode', {
+          portName: selectedPort,
           port_name: selectedPort,
           mode,
         });
@@ -149,6 +169,12 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       return;
     }
 
+    // Prevent double-connect race: serial port is exclusive, two concurrent open() → "Acesso Negado"
+    if (isConnectingRef.current) {
+      onLog?.('warn', 'HOST', 'Conexão já em andamento — aguarde antes de tentar novamente.');
+      return;
+    }
+
     if (deviceStatus?.connected) {
       // Disconnect
       try {
@@ -156,6 +182,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
           bleService.disconnect();
         } else {
           await invokeCommand<string>('pico_send_serial_command', {
+            portName: selectedPort,
             port_name: selectedPort,
             command: 'ISOLATE',
           }).catch(() => {});
@@ -176,6 +203,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
 
     // Connect
     setIsLoading(true);
+    isConnectingRef.current = true;
     onLog?.('info', 'HOST', `Estabelecendo conexão física com ${selectedPort} (115200 bps)...`);
 
     try {
@@ -204,7 +232,9 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         is_mock: boolean;
         message: string;
       }>('pico_connect_and_test', {
+        portName: selectedPort,
         port_name: selectedPort,
+        baudRate: 115200,
         baud_rate: 115200,
       });
 
@@ -245,6 +275,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       }));
     } finally {
       setIsLoading(false);
+      isConnectingRef.current = false;
     }
   }, [deviceStatus, selectedPort, onLog]);
 
@@ -259,12 +290,21 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     listenEvent<PicoDeviceStatus>('pico_telemetry', incoming => {
       if (!active) return;
       setDeviceStatus(prev => {
-        // Instantaneous Reactive Safety Guard: Voltage boundary verification (2.8V - 3.55V)
-        if (incoming.vdd_volts < 2.8 || incoming.vdd_volts > 3.55) {
+        // Instantaneous Reactive Safety Guard:
+        // When target is connected and powered, guard nominal 2.8V - 3.55V.
+        // If > 3.55V, ALWAYS trigger a critical overvoltage warning!
+        // If <= 0.2V, target is disconnected or powered off (normal quiescent state, no alarm spam).
+        if (incoming.vdd_volts > 3.55) {
+          onLog?.(
+            'error',
+            'PICO',
+            `PERIGO CRÍTICO: Sobretensão detectada em VDD (${incoming.vdd_volts.toFixed(2)}V > 3.55V)! Desconecte imediatamente!`
+          );
+        } else if (incoming.vdd_volts > 0.2 && incoming.vdd_volts < 2.8) {
           onLog?.(
             'warn',
             'PICO',
-            `ALERTA REATIVO: Tensão VDD fora da faixa nominal (2.8V-3.55V): ${incoming.vdd_volts.toFixed(2)}V`
+            `ALERTA REATIVO: Subtensão em VDD (${incoming.vdd_volts.toFixed(2)}V < 2.80V). Alvo pode estar instável.`
           );
         }
         return {

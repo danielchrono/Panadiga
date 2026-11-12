@@ -188,27 +188,77 @@ pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
         return Ok(gz_input);
     }
 
-    // Try relative to firmware_and_images directory
-    let candidate = Path::new("firmware_and_images").join(input);
-    if candidate.exists() {
-        return Ok(candidate);
-    }
-    let candidate_gz = Path::new("firmware_and_images").join(&gz_input);
-    if candidate_gz.exists() {
-        return Ok(candidate_gz);
+    let filename = input.file_name().unwrap_or(input.as_os_str());
+
+    let mut candidate_dirs = vec![
+        PathBuf::from("firmware_and_images"),
+        PathBuf::from("../firmware_and_images"),
+        PathBuf::from("../../firmware_and_images"),
+        PathBuf::from(".."),
+        PathBuf::from("../.."),
+        PathBuf::from("."),
+    ];
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            candidate_dirs.push(exe_dir.join("firmware_and_images"));
+            candidate_dirs.push(exe_dir.to_path_buf());
+            if let Some(parent) = exe_dir.parent() {
+                candidate_dirs.push(parent.join("firmware_and_images"));
+                candidate_dirs.push(parent.to_path_buf());
+            }
+        }
     }
 
-    // Try relative to parent directories if run from within subdirectories
-    let candidate_parent = Path::new("../../firmware_and_images").join(input);
-    if candidate_parent.exists() {
-        return Ok(candidate_parent);
-    }
-    let candidate_parent_gz = Path::new("../../firmware_and_images").join(&gz_input);
-    if candidate_parent_gz.exists() {
-        return Ok(candidate_parent_gz);
+    for dir in candidate_dirs {
+        let direct = dir.join(input);
+        if direct.exists() {
+            return Ok(direct);
+        }
+        let direct_gz = dir.join(&gz_input);
+        if direct_gz.exists() {
+            return Ok(direct_gz);
+        }
+        let by_name = dir.join(filename);
+        if by_name.exists() {
+            return Ok(by_name);
+        }
+        let by_name_gz = dir.join(format!("{}.gz", filename.to_string_lossy()));
+        if by_name_gz.exists() {
+            return Ok(by_name_gz);
+        }
     }
 
     bail!("Flash binary input file not found: {}", input.display())
+}
+
+/// Reads a resolved flash binary file into a byte vector.
+/// Shared by both `inspect_flash_nvram` (read-only) and `clean_flash_nvram` (read-write).
+fn read_flash_file(resolved_input: &Path) -> Result<Vec<u8>> {
+    let mut flash_bytes = Vec::with_capacity(SPANSION_FLASH_SIZE_BYTES);
+    let mut file = File::open(resolved_input)
+        .with_context(|| format!("Failed to open flash binary: {}", resolved_input.display()))?;
+    file.read_to_end(&mut flash_bytes)
+        .with_context(|| "Failed reading flash binary content")?;
+    Ok(flash_bytes)
+}
+
+/// Inspects a flash dump in a 100% read-only manner without any disk-write side effects.
+pub fn inspect_flash_nvram(input_path: &Path) -> Result<NvramCleanReport> {
+    let resolved_input = resolve_input_path(input_path)?;
+    let flash_bytes = read_flash_file(&resolved_input)?;
+
+    let dummy_output = resolved_input.with_file_name("flash_clean_preview.bin");
+    let dummy_backup = resolved_input.with_file_name("nvram_corrupt_backup.bin");
+
+    let pure_output = clean_flash_nvram_slice(
+        &flash_bytes,
+        &resolved_input.to_string_lossy(),
+        &dummy_output.to_string_lossy(),
+        &dummy_backup.to_string_lossy(),
+    )?;
+
+    Ok(pure_output.report)
 }
 
 /// Executes the complete NVRAM clean, backup, audit, and verification workflow.
@@ -263,11 +313,7 @@ pub fn clean_flash_nvram(
     log_println!("----------------------------------------------------------------------");
 
     // Read input binary
-    let mut flash_bytes = Vec::with_capacity(SPANSION_FLASH_SIZE_BYTES);
-    let mut file = File::open(&resolved_input)
-        .with_context(|| format!("Failed to open flash binary: {}", resolved_input.display()))?;
-    file.read_to_end(&mut flash_bytes)
-        .with_context(|| "Failed reading flash binary content")?;
+    let flash_bytes = read_flash_file(&resolved_input)?;
 
     // Execute pure functional transformation
     let pure_output = clean_flash_nvram_slice(
@@ -288,6 +334,14 @@ pub fn clean_flash_nvram(
     log_println!("  Original MD5 : {}", pure_output.report.original_md5);
     log_println!("  Orig SHA-256 : {}", pure_output.report.original_sha256);
     log_println!("----------------------------------------------------------------------");
+
+    // Ensure parent directories exist before extracting backup or writing clean binary
+    if let Some(parent) = backup_nvram_path.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
+    if let Some(parent) = resolved_output.parent() {
+        let _ = fs::create_dir_all(parent);
+    }
 
     // Extract raw NVRAM backup to disk
     fs::write(&backup_nvram_path, &pure_output.backup_nvram_bytes).with_context(|| {

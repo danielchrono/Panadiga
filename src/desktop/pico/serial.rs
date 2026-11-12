@@ -82,12 +82,21 @@ pub fn read_serial_response_complete(
 
 /// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
 /// and includes high-fidelity bench simulator options.
+/// NOTE: Pico in BOOTSEL mode (VID:2E8A PID:0003) appears as USB mass storage, NOT as a COM port.
+/// If the OS does register a COM entry for it, we exclude it here to prevent "Acesso Negado"
+/// when the connection dialog iterates all ports.
 pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
     let mut ports = Vec::new();
     if let Ok(available) = serialport::available_ports() {
         for p in available {
             let mut label = p.port_name.clone();
             if let SerialPortType::UsbPort(info) = &p.port_type {
+                // Skip BOOTSEL-mode entries: PID:0003 is the RP2040/RP2350 UF2 mass-storage bootloader.
+                // Opening a serial port on BOOTSEL drives always fails with "Access Denied"
+                // because the OS treats them as block devices, not CDC ACM.
+                if info.pid == crate::pico::platforms::PICO_BOOTSEL_PID {
+                    continue;
+                }
                 let (_plat, desc) =
                     crate::pico::classify_usb_device(info.vid, info.pid, info.product.as_deref());
                 label = format!(

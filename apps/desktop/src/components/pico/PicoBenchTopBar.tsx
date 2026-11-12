@@ -168,6 +168,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
               }
               try {
                 const msg = await invokeCommand<string>('pico_trigger_bootsel_reboot', {
+                  portName: selectedPort,
                   port_name: selectedPort,
                 });
                 showToast({

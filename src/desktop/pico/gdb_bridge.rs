@@ -130,10 +130,7 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
 
     // If hardware port, pre-validate serial accessibility
     if !clean_port.starts_with("MOCK") {
-        match serialport::new(&clean_port, 115200)
-            .timeout(Duration::from_millis(150))
-            .open()
-        {
+        match crate::pico::cdc::open_cdc(&clean_port, 115200, Duration::from_millis(150)) {
             Ok(_) => {}
             Err(e) => {
                 return Err(format!(
@@ -177,10 +174,7 @@ pub fn start_gdb_bridge(port_name: String, listen_addr: String) -> Result<GdbBri
 
         let mut maybe_serial: Option<Box<dyn serialport::SerialPort>> =
             if !thread_port.starts_with("MOCK") {
-                match serialport::new(&thread_port, 115200)
-                    .timeout(Duration::from_millis(120))
-                    .open()
-                {
+                match crate::pico::cdc::open_cdc(&thread_port, 115200, Duration::from_millis(120)) {
                     Ok(mut p) => {
                         let _ = p.write_all(b"\r\nGDB\r\n");
                         let _ = p.flush();

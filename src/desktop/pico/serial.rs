@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 use super::gdb_bridge::is_gdb_bridge_active;
 use super::types::{PicoDeviceStatusDto, PicoStatusResponse, extract_port_name};
+use crate::pico::cdc::parse_vdd_reply;
 
 /// Verifies that the serial port is not currently owned by the active GDB RSP bridge thread.
 pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
@@ -114,6 +115,42 @@ pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
     Ok(ports)
 }
 
+/// Sends one command line and collects the reply until `needle` (plus the remainder of its
+/// line) is seen or `max_wait` expires. Unlike `read_serial_response_complete`, it is immune to
+/// the firmware's interleaved `DWIRE32A>` prompts that would otherwise end the read prematurely.
+fn query_until(
+    port: &mut dyn serialport::SerialPort,
+    command: &str,
+    needle: &str,
+    max_wait: Duration,
+) -> String {
+    let _ = port.clear(serialport::ClearBuffer::Input);
+    if port
+        .write_all(format!("\r\n{}\r\n", command).as_bytes())
+        .is_err()
+    {
+        return String::new();
+    }
+    let _ = port.flush();
+    let _ = port.set_timeout(Duration::from_millis(120));
+
+    let deadline = Instant::now() + max_wait;
+    let mut out = String::new();
+    let mut buf = vec![0u8; 512];
+    while Instant::now() < deadline && !reply_line_complete(&out, needle) {
+        if let Ok(n) = port.read(&mut buf) {
+            out.push_str(&String::from_utf8_lossy(&buf[..n]));
+        }
+    }
+    out.trim().to_string()
+}
+
+/// True once `needle` appeared in `out` and its line has been terminated by a newline.
+fn reply_line_complete(out: &str, needle: &str) -> bool {
+    out.find(needle)
+        .is_some_and(|idx| out[idx..].contains('\n'))
+}
+
 /// Connects to a serial port (or initializes mock simulator) and retrieves device telemetry.
 pub fn pico_connect_and_test(
     port_name: String,
@@ -160,36 +197,26 @@ pub fn pico_connect_and_test(
 
     ensure_serial_port_unlocked(&clean)?;
 
-    let mut port = serialport::new(&clean, baud_rate)
-        .timeout(Duration::from_millis(1500))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(&clean, baud_rate, Duration::from_millis(1500))
         .map_err(|e| format!("Falha ao abrir porta serial {}: {}", clean, e))?;
 
-    let _ = port.write_all(b"\r\nPING\r\n");
-    let _ = port.flush();
-    let response_text =
-        read_serial_response_complete(&mut *port, Duration::from_millis(800)).unwrap_or_default();
+    let response_text = query_until(&mut *port, "PING", "PONG", Duration::from_millis(1500));
+    let vdd_text = query_until(&mut *port, "STATUS", "VDD:", Duration::from_millis(1500));
+    let vdd_reading = parse_vdd_reply(&vdd_text);
 
-    let _ = port.write_all(b"STATUS\r\n");
-    let _ = port.flush();
-    let vdd_text =
-        read_serial_response_complete(&mut *port, Duration::from_millis(800)).unwrap_or_default();
-
-    let mut vdd_volts = 0.0f32; // 0.0 = unknown / no reading yet
-    for token in vdd_text.split_whitespace() {
-        if let Ok(v) = token
-            .trim_end_matches('V')
-            .trim_end_matches('v')
-            .parse::<f32>()
-        {
-            vdd_volts = v;
-            break;
-        }
+    if response_text.is_empty() && vdd_reading.is_none() {
+        return Err(format!(
+            "O Pico em {} abriu a porta mas não respondeu a PING/STATUS (firmware DWire32A ausente ou DTR não aceito). \
+             Grave o firmware pelo botão \"Flash Pico (BOOTSEL)\" ou reconecte o cabo USB.",
+            clean
+        ));
     }
 
-    // Floating ADC ceiling: GP26 unloaded biases toward AVDD (3.3 V).
-    // Treat readings >= 3.08 V with no probe as "disconnected", NOT "powered".
-    const VDD_FLOATING_CEIL: f32 = 3.08;
+    let vdd_volts = vdd_reading.unwrap_or(0.0f32);
+
+    // Sanity ceiling: the firmware discriminates a floating GP26 actively (internal pull-down),
+    // so a legitimate ~3.24 V rail is a POWERED target and must never be treated as floating.
+    const VDD_FLOATING_CEIL: f32 = 3.45;
     const VDD_MIN_THRESHOLD: f32 = 2.8;
     let probe_floating = vdd_volts >= VDD_FLOATING_CEIL;
     let target_powered = !probe_floating && vdd_volts >= VDD_MIN_THRESHOLD;
@@ -363,9 +390,7 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
         set_ram_loader_injected(false);
     }
 
-    let mut port = serialport::new(&clean, 115_200)
-        .timeout(Duration::from_millis(2000))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(&clean, 115_200, Duration::from_millis(2000))
         .map_err(|e| format!("Falha ao abrir porta serial {}: {}", clean, e))?;
 
     let payload = format!("{}\r\n", trimmed);
@@ -424,9 +449,7 @@ pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String,
 
     ensure_serial_port_unlocked(&clean)?;
 
-    let mut port = serialport::new(&clean, 115200)
-        .timeout(Duration::from_millis(3000))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(&clean, 115200, Duration::from_millis(3000))
         .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean, e))?;
 
     let cmd = format!("BREAK_IN {}\r\n", mode);
@@ -446,9 +469,7 @@ pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
 
     ensure_serial_port_unlocked(&clean)?;
 
-    let mut port = serialport::new(&clean, 115200)
-        .timeout(Duration::from_millis(2000))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(&clean, 115200, Duration::from_millis(2000))
         .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean, e))?;
 
     port.write_all(b"GDB\r\n")

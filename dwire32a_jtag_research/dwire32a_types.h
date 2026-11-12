@@ -58,16 +58,18 @@ typedef enum dwire_adc_channel dwire_adc_channel_t;
 #define DWIRE_VDD_THRESHOLD_V     2.5f
 
 /**
- * @brief Upper boundary for a valid VDD reading when the probe IS connected.
+ * @brief Upper sanity boundary for a VDD reading (above any legitimate 3.3 V rail).
  *
- * The RP2040 ADC input (GP26) floats near AVDD (~3.3V) through internal ESD
- * diodes when no probe is attached, causing spurious readings in the range
- * 2.8V..3.3V.  Any reading at or above this ceiling with no AC variation is
- * treated as "probe disconnected / floating ADC" and is NOT classified as
- * "target powered".  Legitimate 3.3V rails always accompany DWire32A bus
- * activity that is verified separately.
+ * Floating-pin detection is performed ACTIVELY inside dwire_hw_read_vdd() by
+ * engaging the internal pull-down during the measurement: an unconnected GP26
+ * collapses to ~0 V while a real rail behind the 1 kOhm series resistor stays
+ * at ~3.2-3.3 V.  A legitimately powered target (e.g. 3.24 V) must therefore
+ * NEVER be classified as floating, so this ceiling sits above the ADC full scale.
  */
-#define DWIRE_VDD_FLOATING_CEIL_V 3.08f
+#define DWIRE_VDD_FLOATING_CEIL_V 3.45f
+
+/** Settling time (us) after engaging the GP26 pull-down before sampling the ADC. */
+#define DWIRE_ADC_PULLDOWN_SETTLE_US 300U
 
 /**
  * @brief Number of ADC samples averaged per VDD measurement.

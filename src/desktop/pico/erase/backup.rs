@@ -23,9 +23,7 @@ pub(crate) fn open_and_handshake_dwire(
     clean_port: &str,
 ) -> Result<(Box<dyn serialport::SerialPort>, String), String> {
     ensure_serial_port_unlocked(clean_port)?;
-    let mut port = serialport::new(clean_port, 115200)
-        .timeout(Duration::from_millis(10000))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(clean_port, 115200, Duration::from_millis(10000))
         .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean_port, e))?;
 
     port.write_all(b"HANDSHAKE\r\n")

@@ -74,6 +74,13 @@ void dwire_hw_extrg_set(bool level) {
 
 float dwire_hw_read_vdd(void) {
     adc_select_input(DWIRE_ADC_CH_VDD);
+    /* Active floating-pin discrimination: engage the internal pull-down (~50-80 kOhm)
+     * for the duration of the measurement.  An UNCONNECTED GP26 discharges to ~0 V,
+     * whereas a real 3.3 V rail behind the 1 kOhm series resistor stays above ~3.2 V
+     * (resistor divider 1k : 60k).  This lets a genuinely powered target read ~3.25 V
+     * without being mistaken for a floating input. */
+    gpio_pull_down(DWIRE_PIN_VDD_ADC);
+    sleep_us(DWIRE_ADC_PULLDOWN_SETTLE_US);
     /* Average DWIRE_ADC_SAMPLE_COUNT successive reads to suppress quantisation
      * noise and filter the RP2040 ESD-diode charge-share artefact that biases
      * a floating GP26 input toward AVDD.  At ~500 ns per SAR conversion the
@@ -82,6 +89,7 @@ float dwire_hw_read_vdd(void) {
     for (uint8_t i = 0U; i < DWIRE_ADC_SAMPLE_COUNT; ++i) {
         accumulator += (uint32_t)adc_read();
     }
+    gpio_disable_pulls(DWIRE_PIN_VDD_ADC);
     const float averaged = (float)accumulator / (float)DWIRE_ADC_SAMPLE_COUNT;
     return (averaged * DWIRE_ADC_VREF) / DWIRE_ADC_RESOLUTION;
 }

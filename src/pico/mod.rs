@@ -7,6 +7,7 @@
 //! Seeed XIAO, Adafruit, SparkFun, and Waveshare RP2-family controllers across Windows, Linux, and macOS.
 
 pub mod bridge;
+pub mod cdc;
 pub mod diagnostics;
 pub mod flasher;
 pub mod platforms;

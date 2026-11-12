@@ -185,8 +185,8 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
                 });
               }
             }}
-            disabled={isBle}
-            title="Reinicia o Pico em modo BOOTSEL usando a sequência 1200‑baud (sem botão físico)"
+            disabled={isBle || !/VID:2E8A|RP2040|RP2350|Pico|DWire32A/i.test(selectedPort ?? '')}
+            title="Reinicia o Pico em modo BOOTSEL usando a sequência 1200‑baud (sem botão físico). Só habilitado para portas do Pico (VID:2E8A)."
             className="px-3.5 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50"
           >
             <RefreshCw className="w-3.5 h-3.5" />

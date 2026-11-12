@@ -6,9 +6,7 @@ use anyhow::{Context, Result};
 
 /// Probes a serial port to test connection and query target 3.3V VDD rail telemetry
 pub fn ping_pico(port_name: &str, baud_rate: u32) -> Result<String> {
-    let mut port = serialport::new(port_name, baud_rate)
-        .timeout(Duration::from_millis(1500))
-        .open()
+    let mut port = crate::pico::cdc::open_cdc(port_name, baud_rate, Duration::from_millis(1500))
         .with_context(|| format!("Failed to open serial port '{}'", port_name))?;
 
     // Send newline and PING

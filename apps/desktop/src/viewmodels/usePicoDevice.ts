@@ -28,6 +28,19 @@ export const DEFAULT_DISCONNECTED_STATUS: PicoDeviceStatus = {
 };
 
 /**
+ * Returns true while the GDB RSP bridge owns the CDC serial port (exclusive access).
+ * Query failures are treated as "not running" so normal connection flow is never blocked.
+ */
+async function isGdbBridgeRunning(): Promise<boolean> {
+  try {
+    const status = await invokeCommand<{ running?: boolean }>('get_gdb_bridge_status_command');
+    return Boolean(status?.running);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Single Responsibility: Manages Pico USB hardware connection, port enumeration,
  * reactive telemetry streams, and break-in modes.
  */
@@ -145,6 +158,8 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   const pollDeviceStatus = useCallback(async () => {
     // Don't poll if a connection is already in progress (prevents "Acesso Negado" on concurrent open())
     if (!selectedPort || isConnectingRef.current) return;
+    // The GDB RSP bridge owns the CDC port exclusively; polling would only produce "porta ocupada" noise.
+    if (await isGdbBridgeRunning()) return;
     setIsLoading(true);
     try {
       const status = await invokeCommand<PicoDeviceStatus>('pico_get_status', {
@@ -211,6 +226,16 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         }));
         onLog?.('warn', 'HOST', `Desconectado da interface DWire32A (${selectedPort}). Pinos colocados em Hi-Z.`);
       }
+      return;
+    }
+
+    // The GDB RSP bridge holds the serial port exclusively: keep the existing link instead of failing.
+    if (await isGdbBridgeRunning()) {
+      onLog?.(
+        'warn',
+        'HOST',
+        `${selectedPort} está em uso pela Ponte GDB RSP (a sessão de depuração já usa o Pico). Pare a ponte para enviar comandos CDC diretos.`
+      );
       return;
     }
 

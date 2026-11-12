@@ -43,10 +43,9 @@ pub fn run_gdb_bridge(port_name: &str, baud_rate: u32, listen_addr: &str) -> Res
     log_println!("   TCP GDB Listener : {}", listen_addr);
     log_println!("====================================================================");
 
-    let mut serial_port = serialport::new(port_name, baud_rate)
-        .timeout(Duration::from_millis(100))
-        .open()
-        .with_context(|| format!("Failed to open serial port '{}'", port_name))?;
+    let mut serial_port =
+        crate::pico::cdc::open_cdc(port_name, baud_rate, Duration::from_millis(100))
+            .with_context(|| format!("Failed to open serial port '{}'", port_name))?;
 
     // Request firmware switch to GDB mode
     log_info!("[Bridge] Requesting controller firmware enter GDB RSP server mode...");

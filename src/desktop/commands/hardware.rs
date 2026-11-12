@@ -4,7 +4,7 @@
 //! communication, Cold Break-In sequencing, In-Circuit NVRAM erasure, GDB RSP
 //! bridge lifecycle, external tooling invocation, and Zero-Error RAG queries.
 
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use super::dto::{
     Am34RegisterState, DigaModelProfileDto, FirstContactBackupResult, GdbBridgeStatus,
@@ -159,43 +159,97 @@ pub fn get_gdb_telemetry_command() -> Result<Vec<GdbPacketTelemetryEvent>, Strin
     Ok(super::super::pico::get_gdb_telemetry())
 }
 
+/// Resolves the Panadiga workspace root (the directory that contains `tools/`),
+/// independent of the process working directory (e.g. when launched from `dist/`).
+fn resolve_workspace_root() -> std::path::PathBuf {
+    let tools_dir = super::dto::resolve_candidate(&["tools"], "tools");
+    let tools_abs = std::path::absolute(&tools_dir).unwrap_or_else(|_| tools_dir.into());
+    tools_abs
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+}
+
+/// Spawns a fully detached child process.
+///
+/// Windows GUI processes have no valid standard handles; inheriting them makes
+/// `CreateProcess` fail with `os error 50` ("Não há suporte para o pedido"),
+/// so all three stdio streams are explicitly redirected to NUL.
+fn spawn_detached(
+    program: &str,
+    args: &[&str],
+    cwd: &std::path::Path,
+) -> Result<(), std::io::Error> {
+    let mut cmd = Command::new(program);
+    cmd.args(args)
+        .current_dir(cwd)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.spawn().map(|_| ())
+}
+
+/// Opens a `.cmd` helper from `tools/` in its own console window.
+fn launch_tools_script(root: &std::path::Path, script: &str) -> Result<(), std::io::Error> {
+    let script_path = root.join("tools").join(script);
+    if !script_path.is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!("script não encontrado: {}", script_path.display()),
+        ));
+    }
+    let script_str = script_path.to_string_lossy().to_string();
+    spawn_detached("cmd", &["/c", "start", "", &script_str], root)
+}
+
 /// Launches external engineering tools (GDB Multiarch, OpenOCD, Ghidra scripts, HxD, PowerShell).
 #[tauri::command]
 pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
+    let root = resolve_workspace_root();
     match tool.to_lowercase().as_str() {
         "gdb" => {
-            Command::new("cmd")
-                .args(["/c", "start", "tools\\conectar_gdb_multiarch.cmd"])
-                .spawn()
+            launch_tools_script(&root, "conectar_gdb_multiarch.cmd")
                 .map_err(|e| format!("Falha ao iniciar GDB Multiarch: {}", e))?;
             Ok("Sessão interativa do GDB iniciada em novo terminal.".to_string())
         }
         "openocd" => {
-            Command::new("cmd")
-                .args(["/c", "start", "tools\\executar_openocd.cmd"])
-                .spawn()
+            launch_tools_script(&root, "executar_openocd.cmd")
                 .map_err(|e| format!("Falha ao iniciar OpenOCD: {}", e))?;
             Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
         }
         "ghidra_scripts" | "ghidra" => {
-            Command::new("explorer")
-                .arg("tools")
-                .spawn()
+            let tools_str = root.join("tools").to_string_lossy().to_string();
+            spawn_detached("explorer", &[&tools_str], &root)
                 .map_err(|e| format!("Falha ao abrir pasta de scripts do Ghidra: {}", e))?;
             Ok("Pasta de scripts do Ghidra (tools/) aberta no Explorer.".to_string())
         }
         "hxd" => {
-            Command::new("cmd")
-                .args(["/c", "start", "tools\\Abrir_HxD.cmd"])
-                .spawn()
+            launch_tools_script(&root, "Abrir_HxD.cmd")
                 .map_err(|e| format!("Falha ao abrir HxD: {}", e))?;
             Ok("HxD Hex Editor iniciado com o dump de memória.".to_string())
         }
         "terminal" => {
-            Command::new("cmd")
-                .args(["/c", "start", "powershell"])
-                .spawn()
-                .map_err(|e| format!("Falha ao abrir terminal: {}", e))?;
+            let location = format!("Set-Location -LiteralPath '{}'", root.display());
+            spawn_detached(
+                "cmd",
+                &[
+                    "/c",
+                    "start",
+                    "",
+                    "powershell",
+                    "-NoExit",
+                    "-Command",
+                    &location,
+                ],
+                &root,
+            )
+            .map_err(|e| format!("Falha ao abrir terminal: {}", e))?;
             Ok("Terminal PowerShell iniciado no workspace.".to_string())
         }
         other => Err(format!(
@@ -210,4 +264,20 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
 pub fn query_rag_engine(query: String) -> Result<crate::rag::models::RagQueryResultDto, String> {
     let answer = crate::rag::query(&query);
     Ok(answer.to_query_result())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn workspace_root_contains_tools_dir() {
+        assert!(resolve_workspace_root().join("tools").is_dir());
+    }
+
+    #[test]
+    fn unknown_external_tool_is_rejected() {
+        let err = launch_external_tool_command("nope".to_string()).unwrap_err();
+        assert!(err.contains("não suportada"));
+    }
 }

@@ -39,6 +39,8 @@ export const PicoBenchMetrics: React.FC<PicoBenchMetricsProps> = ({ deviceStatus
         badge={
           deviceStatus?.core_state === 'HALTED' ? (
             <StatusBadge variant="info" label="OCD ACTIVE" />
+          ) : deviceStatus?.core_state === 'RUNNING' ? (
+            <StatusBadge variant="success" label="PRONTO (3.3V)" />
           ) : (
             <StatusBadge variant="neutral" label="STANDBY" />
           )

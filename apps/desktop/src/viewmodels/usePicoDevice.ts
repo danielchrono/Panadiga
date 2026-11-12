@@ -41,16 +41,27 @@ async function isGdbBridgeRunning(): Promise<boolean> {
 }
 
 /**
+ * Session-scoped snapshot that survives view unmount/remount. The hook lives inside the lazily
+ * loaded Pico Bench view; without this, leaving the view and coming back reset the link to
+ * "DISCONNECTED" (and broadcast that to the Header/Sidebar) although the Pico was still attached.
+ */
+const sessionSnapshot: { status: PicoDeviceStatus | null; port: string; model: string } = {
+  status: DEFAULT_DISCONNECTED_STATUS,
+  port: '',
+  model: 'AUTO',
+};
+
+/**
  * Single Responsibility: Manages Pico USB hardware connection, port enumeration,
  * reactive telemetry streams, and break-in modes.
  */
 export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
-  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(DEFAULT_DISCONNECTED_STATUS);
+  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(sessionSnapshot.status);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string>('');
+  const [selectedPort, setSelectedPort] = useState<string>(sessionSnapshot.port);
   const [modelCatalog, setModelCatalog] = useState<DigaModelProfile[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('AUTO');
+  const [selectedModel, setSelectedModel] = useState<string>(sessionSnapshot.model);
 
   /**
    * Mutex ref: prevents concurrent pico_connect_and_test calls on different ports.
@@ -366,11 +377,29 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   }, [refreshPorts, refreshModelCatalog, onLog]);
 
   // Broadcast device status changes to top-level subscribers (Header, Sidebar)
+  // and persist the snapshot so remounting the view keeps the real link state.
   useEffect(() => {
+    sessionSnapshot.status = deviceStatus;
     if (deviceStatus) {
       emitLocalEvent('pico_telemetry', deviceStatus);
     }
   }, [deviceStatus]);
+
+  useEffect(() => {
+    sessionSnapshot.port = selectedPort;
+  }, [selectedPort]);
+
+  useEffect(() => {
+    sessionSnapshot.model = selectedModel;
+  }, [selectedModel]);
+
+  // Revalidate a restored "connected" snapshot once on mount (cable may have been pulled meanwhile).
+  useEffect(() => {
+    if (sessionSnapshot.status?.connected && sessionSnapshot.port) {
+      void pollDeviceStatus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Derived Instantaneous Safety State
   const isVoltageSafe = deviceStatus

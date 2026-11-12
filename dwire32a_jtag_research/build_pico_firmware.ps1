@@ -117,7 +117,7 @@ function Build-TargetBoard([string]$targetBoard) {
     }
 
     Write-Host "`n>>> [1/2] Configuring CMake for Board $targetBoard in $targetBuildDir..." -ForegroundColor Cyan
-    & cmake -B $targetBuildDir -G $generator -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=$targetBoard
+    & cmake -B $targetBuildDir -G $generator -DCMAKE_BUILD_TYPE=Release "-DPICO_BOARD=$targetBoard"
     if ($LASTEXITCODE -ne 0) {
         Write-Error "CMake configuration failed for board $targetBoard."
     }

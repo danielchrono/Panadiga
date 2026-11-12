@@ -335,9 +335,11 @@ pub fn pico_get_device_status_dto(
         core_state: if !status.connected {
             "DISCONNECTED".to_string()
         } else if !status.target_powered {
-            "DISCONNECTED".to_string()
-        } else {
+            "RESET".to_string()
+        } else if is_ram_loader_injected() {
             "HALTED".to_string()
+        } else {
+            "RUNNING".to_string()
         },
         bus_freq_hz: 1_000_000,
         firmware_version: firmware_ver,

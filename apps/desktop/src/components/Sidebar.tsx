@@ -179,7 +179,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Activity className="w-3.5 h-3.5 text-cyan-400" />
               <span>Target Rail</span>
             </span>
-            <span className="text-slate-200 font-bold">{vddVolts.toFixed(2)} V</span>
+            <span className="text-slate-200 font-bold">
+              {vddVolts > 0.2 ? `${vddVolts.toFixed(2)} V` : '0.00 V (Sem Alimentação)'}
+            </span>
           </div>
 
           <div className="flex items-center justify-between text-slate-400">
@@ -188,10 +190,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={
                 vddVolts >= 2.8
                   ? 'text-emerald-400 font-semibold'
-                  : 'text-slate-500 font-semibold'
+                  : 'text-amber-400 font-semibold'
               }
             >
-              {vddVolts >= 2.8 ? 'HALTED (OCD)' : 'DISCONNECTED'}
+              {vddVolts >= 2.8 ? 'HALTED (OCD)' : 'STANDBY (0V)'}
             </span>
           </div>
 

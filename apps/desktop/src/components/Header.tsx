@@ -57,9 +57,16 @@ export const Header: React.FC<HeaderProps> = ({
           <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
           <span className="text-slate-400">DWire32A:</span>
           {hardwareConnected ? (
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              ONLINE <span className="text-[10px] text-slate-500">({vddVolts.toFixed(2)}V)</span>
-            </span>
+            vddVolts >= 2.8 ? (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                ONLINE <span className="text-[10px] text-slate-500">({vddVolts.toFixed(2)}V)</span>
+              </span>
+            ) : (
+              <span className="text-amber-400 font-semibold flex items-center gap-1">
+                PICO CONECTADO{' '}
+                <span className="text-[10px] text-slate-500">({vddVolts > 0.2 ? `${vddVolts.toFixed(2)}V` : 'Alvo 0V - Desligado'})</span>
+              </span>
+            )
           ) : (
             <span className="text-rose-400 font-semibold">OFFLINE</span>
           )}

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { PicoDeviceStatus, ColdBreakinMode, DigaModelProfile } from '@/models';
-import { invokeCommand, listenEvent } from '@/services/ipc';
+import { invokeCommand, listenEvent, emitLocalEvent } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
 import { logger } from '@/utils/logger';
 
@@ -339,6 +339,13 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       unlisten?.();
     };
   }, [refreshPorts, refreshModelCatalog, onLog]);
+
+  // Broadcast device status changes to top-level subscribers (Header, Sidebar)
+  useEffect(() => {
+    if (deviceStatus) {
+      emitLocalEvent('pico_telemetry', deviceStatus);
+    }
+  }, [deviceStatus]);
 
   // Derived Instantaneous Safety State
   const isVoltageSafe = deviceStatus

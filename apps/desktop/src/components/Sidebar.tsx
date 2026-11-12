@@ -26,6 +26,7 @@ interface SidebarProps {
   currentView: ViewKey;
   onSelectView: (view: ViewKey) => void;
   vddVolts?: number;
+  hardwareConnected?: boolean;
   nvramCleaned?: boolean;
 }
 
@@ -33,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentView,
   onSelectView,
   vddVolts = 0.0,
+  hardwareConnected = false,
   nvramCleaned = false,
 }) => {
   const navItems: Array<{
@@ -188,12 +190,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>AM34 Core</span>
             <span
               className={
-                vddVolts >= 2.8
+                hardwareConnected && vddVolts >= 2.8
                   ? 'text-emerald-400 font-semibold'
                   : 'text-amber-400 font-semibold'
               }
             >
-              {vddVolts >= 2.8 ? 'HALTED (OCD)' : 'STANDBY (0V)'}
+              {hardwareConnected && vddVolts >= 2.8 ? 'HALTED (OCD)' : 'STANDBY (0V)'}
             </span>
           </div>
 

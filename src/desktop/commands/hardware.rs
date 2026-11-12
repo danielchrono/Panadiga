@@ -224,10 +224,9 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
             Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
         }
         "ghidra_scripts" | "ghidra" => {
-            let tools_str = root.join("tools").to_string_lossy().to_string();
-            spawn_detached("explorer", &[&tools_str], &root)
-                .map_err(|e| format!("Falha ao abrir pasta de scripts do Ghidra: {}", e))?;
-            Ok("Pasta de scripts do Ghidra (tools/) aberta no Explorer.".to_string())
+            launch_tools_script(&root, "iniciar_ghidra.cmd")
+                .map_err(|e| format!("Falha ao iniciar Ghidra: {}", e))?;
+            Ok("Inicializador do Ghidra disparado.".to_string())
         }
         "hxd" => {
             launch_tools_script(&root, "Abrir_HxD.cmd")

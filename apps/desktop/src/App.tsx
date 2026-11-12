@@ -121,6 +121,7 @@ export const App: React.FC = () => {
           currentView={currentView}
           onSelectView={setCurrentView}
           vddVolts={hardwareStatus.vdd_volts}
+          hardwareConnected={hardwareStatus.connected}
           nvramCleaned={false}
         />
 

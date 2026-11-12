@@ -38,11 +38,17 @@ function Build-Desktop {
     Write-Host "[OK] Bundle otimizado gerado em apps\desktop\dist\" -ForegroundColor Green
 
     Write-Host "`n[2/4] Exportando scripts Ghidra diretamente do Rust SSOT..." -ForegroundColor Yellow
-    cargo run --release -p panadiga -- ghidra export-all --dir "tools" 2>$null
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    cmd /c "cargo run --release -p panadiga -- ghidra export-all --dir tools"
     Write-Host "[OK] Scripts Ghidra sincronizados em tools\" -ForegroundColor Green
 
     Write-Host "`n[3/4] Compilando Binário Unificado Panadiga em modo Release..." -ForegroundColor Yellow
-    cargo build --release -p panadiga
+    cmd /c "cargo build --release -p panadiga"
+    if ($LASTEXITCODE -ne 0) {
+        throw "Falha na compilação do release Rust (cargo build exit code $LASTEXITCODE)"
+    }
+    $ErrorActionPreference = $prevEap
     Write-Host "[OK] Binário unificado gerado: target\release\panadiga.exe" -ForegroundColor Green
 
     Write-Host "`n[4/4] Empacotando distribuição para dist\..." -ForegroundColor Yellow

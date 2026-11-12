@@ -328,62 +328,35 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     }
   }, [deviceStatus, selectedPort, onLog]);
 
-  // Reactive Push-Based Event Stream Subscription
+  // Initialize port list and DIGA model catalog on mount
   useEffect(() => {
     refreshPorts();
     refreshModelCatalog();
-
-    let unlisten: (() => void) | undefined;
-    let active = true;
-
-    listenEvent<PicoDeviceStatus>('pico_telemetry', incoming => {
-      if (!active) return;
-      setDeviceStatus(prev => {
-        // Instantaneous Reactive Safety Guard:
-        // When target is connected and powered, guard nominal 2.8V - 3.55V.
-        // If > 3.55V, ALWAYS trigger a critical overvoltage warning!
-        // If <= 0.2V, target is disconnected or powered off (normal quiescent state, no alarm spam).
-        if (incoming.vdd_volts > 3.55) {
-          onLog?.(
-            'error',
-            'PICO',
-            `PERIGO CRÍTICO: Sobretensão detectada em VDD (${incoming.vdd_volts.toFixed(2)}V > 3.55V)! Desconecte imediatamente!`
-          );
-        } else if (incoming.vdd_volts > 0.2 && incoming.vdd_volts < 2.8) {
-          onLog?.(
-            'warn',
-            'PICO',
-            `ALERTA REATIVO: Subtensão em VDD (${incoming.vdd_volts.toFixed(2)}V < 2.80V). Alvo pode estar instável.`
-          );
-        }
-        return {
-          ...incoming,
-          // Preserve client-side state flags if not populated by event
-          ram_loader_injected: prev?.ram_loader_injected ?? incoming.ram_loader_injected,
-        };
-      });
-    }).then(cleanup => {
-      if (active) {
-        unlisten = cleanup;
-      } else {
-        cleanup();
-      }
-    });
-
-    return () => {
-      active = false;
-      unlisten?.();
-    };
-  }, [refreshPorts, refreshModelCatalog, onLog]);
+  }, [refreshPorts, refreshModelCatalog]);
 
   // Broadcast device status changes to top-level subscribers (Header, Sidebar)
   // and persist the snapshot so remounting the view keeps the real link state.
   useEffect(() => {
     sessionSnapshot.status = deviceStatus;
     if (deviceStatus) {
+      // Instantaneous Reactive Safety Guard:
+      // When target is connected and powered, guard nominal 2.8V - 3.55V.
+      if (deviceStatus.vdd_volts > 3.55) {
+        onLog?.(
+          'error',
+          'PICO',
+          `PERIGO CRÍTICO: Sobretensão detectada em VDD (${deviceStatus.vdd_volts.toFixed(2)}V > 3.55V)! Desconecte imediatamente!`
+        );
+      } else if (deviceStatus.vdd_volts > 0.2 && deviceStatus.vdd_volts < 2.8) {
+        onLog?.(
+          'warn',
+          'PICO',
+          `ALERTA REATIVO: Subtensão em VDD (${deviceStatus.vdd_volts.toFixed(2)}V < 2.80V). Alvo pode estar instável.`
+        );
+      }
       emitLocalEvent('pico_telemetry', deviceStatus);
     }
-  }, [deviceStatus]);
+  }, [deviceStatus, onLog]);
 
   useEffect(() => {
     sessionSnapshot.port = selectedPort;

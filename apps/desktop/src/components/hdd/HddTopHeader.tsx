@@ -1,5 +1,6 @@
 import React from 'react';
 import { HardDrive, Download, FolderOpen } from 'lucide-react';
+import { Button } from '@/components/ui';
 import { StatusBadge } from '@/components/StatusBadge';
 import { useTranslation } from '@/i18n/useTranslation';
 import { HddAnalysisReport } from '@/models';
@@ -56,20 +57,21 @@ export const HddTopHeader: React.FC<HddTopHeaderProps> = ({
 
       <div className="flex items-center gap-3 shrink-0 flex-wrap">
         {onSelectImage && (
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={onSelectImage}
-            className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center gap-2 border border-slate-700 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="font-bold text-xs gap-2"
           >
             <FolderOpen className="w-4 h-4 text-cyan-400" />
             <span>{t('hdd.openImage', 'Abrir Imagem')}</span>
-          </button>
+          </Button>
         )}
 
-        <button
+        <Button
           onClick={onExtractPartitions}
           disabled={extracting || !report}
-          className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-2 shadow-xl shadow-cyan-950/50 transition-all focus:outline-none focus:ring-2 focus:ring-cyan-300 disabled:opacity-50"
+          className="px-5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-2 shadow-xl shadow-cyan-950/50"
         >
           {extracting ? (
             <span>{t('hdd.extracting', 'Extraindo Partições...')}</span>
@@ -79,7 +81,7 @@ export const HddTopHeader: React.FC<HddTopHeaderProps> = ({
               <span>{t('hdd.extractButton', 'Extrair Partições (SHA256SUMS)')}</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

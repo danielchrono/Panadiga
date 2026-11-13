@@ -2405,27 +2405,77 @@ dependencies = [
 ]
 
 [[package]]
-name = "panadiga"
+name = "panadiga-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "hex",
+ "panadiga-core",
+ "panadiga-mcp",
+ "panadiga-rag",
+ "serde",
+ "serde_json",
+ "serialport",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "panadiga-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "byteorder",
- "clap",
  "flate2",
  "hex",
  "lopdf",
  "md-5 0.10.6",
  "memmap2",
- "regex",
  "serde",
  "serde_json",
  "serialport",
  "sha2 0.10.9",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "panadiga-desktop"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "panadiga-core",
+ "panadiga-rag",
+ "serde",
+ "serde_json",
+ "serialport",
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
- "thiserror 2.0.21",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "panadiga-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "panadiga-core",
+ "panadiga-rag",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "panadiga-rag"
+version = "0.1.0"
+dependencies = [
+ "lopdf",
+ "panadiga-core",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

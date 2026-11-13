@@ -14,10 +14,10 @@
 > **Classification:** Forensic Engineering / Unified Recovery & Tooling Platform
 > **Primary Target Device:** Digital DVD/HDD Video Recorder **Panasonic DMR-EH55** (DIGA Chassis / Main Board `VEP79138`)
 > **Ecosystem Compatibility:** Panasonic DIGA Lineup (**DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-BW Series**)
-> **Core Architecture:** Matsushita UniPhier `MN2DS0016` / `MN2DS0018` / `MN103S` (32-bit RISC `AM34` / `MN10300`)
+> **Core Architecture:** Matsushita `AM34` / `MN103S` (32-bit RISC `MN10300` / UniPhier)
 > **Flash Memory Range:** 2 MB (16 Mbit) to 16 MB (128 Mbit) TSOP-48 / TSOP-56 Parallel NOR Flash
 > **Storage Subsystem:** PATA/IDE and SATA Hard Disk Drives with proprietary **MEIHDFS** partition tables
-> **Hardware Interface:** Proprietary synchronous serial bus **Matsushita DWire32A / On-Chip Debug (OCD)** on connector `P7501` (`CN55001`)
+> **Hardware Interface:** Asynchronous **P7501 UART (`115200 8N1`) + Discrete `SW_UART` / `XRESET` / `NSW5V` Sense** (with legacy `pico-p7501` PIO fallback)
 
 ---
 
@@ -27,7 +27,7 @@ The **Panasonic DIGA** series represents the pinnacle of Japanese consumer elect
 
 While the primary laboratory focus of this project is the widely deployed **DMR-EH55**, the engineering discoveries, algorithms, and tools within Panadiga span the **entire Panasonic DIGA recorder ecosystem**:
 
-1. **Two-Stage Hybrid Bootloader Architecture:** The onboard Spansion NOR Flash (`IC55007`, 2 MB to 16 MB depending on generation) stores only the Initial Program Loader (*IPL*). The primary operating system, OSD graphics acceleration drivers, optical drive servo microcodes, and codecs reside entirely in reserved sectors within the first 100 MB of the internal hard drive.
+1. **Two-Stage Hybrid Bootloader Architecture:** The onboard Spansion NOR Flash (`IC5001` on DMR-EH55 `VEP79138`, 2 MB to 16 MB depending on generation) stores only the Initial Program Loader (*IPL*). The primary operating system, OSD graphics acceleration drivers, optical drive servo microcodes, and codecs reside entirely in reserved sectors within the internal hard drive and optical update containers.
 2. **Proprietary MEIHDFS Storage System:** The internal hard drive does not use standard PC MBR partition tables or FAT/ext filesystems. The storage layout is structured around **MEIHDFS** (*Matsushita Electric Industrial HDD File System*), featuring an ASCII `"SH"` magic superblock at LBA 0, a redundant security mirror at LBA 57,344 (28 MB), a 10-block transactional journal, and encrypted firmware partitions.
 3. **Cryptography & Intellectual Property Protection:** The optical distribution container (`PANA_DVD.FRM`) and the executable HDD partitions are protected with proprietary 64-bit symmetric block ciphers operating in ECB mode, tied to CPRM (*Content Protection for Recordable Media*) and DivX DRM engines.
 4. **The Critical `U99` Error Vulnerability:** Channel presets, HDD volume mount states, and operating parameters are saved into the final 64 KB sector of the Flash memory, which emulates EEPROM wear-leveling (`EEMUL`). Cell degradation, unexpected power loss during disk write operations, or corrupted status words trigger startup validation panics. Consequently, the Matsushita kernel halts permanently with the fatal code **`U99`** on the front VFD vacuum fluorescent display, ignoring remote commands and deadlocking the optical tray mechanism.
@@ -49,14 +49,14 @@ flowchart TD
         CLI["panadiga Core · Rust 1.85+"]
         GUI <--> |"IPC"| CLI
 
-        DW_HAL["DWire32A HAL<br/>115200 · PIO"]
+        P7501_HAL["P7501 UART HAL<br/>115200 8N1 · PIO"]
         GDB_SRV["GDB RSP<br/>:3333"]
         MEIHDFS["MEIHDFS Parser<br/>Storage Forensics"]
         CRYPTO["Cryptanalysis<br/>ECB · KPA"]
         NVRAM["NVRAM Sanitizer<br/>64 / 128 KB"]
         RAG["RAG Zero-Error<br/>6 shields"]
 
-        CLI <--> DW_HAL
+        CLI <--> P7501_HAL
         CLI <--> GDB_SRV
         CLI <--> MEIHDFS
         CLI <--> CRYPTO
@@ -74,9 +74,9 @@ flowchart TD
 
     subgraph TARGET_HARDWARE["3 · Panasonic DIGA"]
         direction LR
-        P7501{{"P7501 · JST ZR-6 · VDD·nRESET·SDATA·GND·SCLK·EXTRG"}}
-        AM34{{"MN2DS0016 · AM34 · 108 / 162 MHz"}}
-        FLASH[("NOR Flash 2–16 MB · IPL · EEMUL")]
+        P7501{{"P7501 · JST B6B-ZR-3R4 · SW_UART·XRESET·UARTM2P_T·GND·NSW5V·UARTP2M_T"}}
+        AM34{{"Matsushita AM34 · MN103S · VEP79138"}}
+        FLASH[("NOR Flash 2–16 MB · IC5001 · EEMUL")]
         HDD[("PATA · SATA HDD · LBA 0 'SH'")]
         P7501 <--> AM34
         AM34 <--> FLASH
@@ -88,7 +88,7 @@ flowchart TD
     GUI <--> |"uses"| USB
     BLE <--> |"radio"| PICO
     USB <--> |"cable"| PICO
-    PICO <--> |"DWire32A"| P7501
+    PICO <--> |"115200 8N1"| P7501
 
     classDef lab       fill:#21262d,stroke:#58a6ff,color:#e6edf3,stroke-width:2px
     classDef transport fill:#21262d,stroke:#d29922,color:#e6edf3,stroke-width:2px
@@ -99,7 +99,7 @@ flowchart TD
 
     class USER lab
     class GUI,CLI sw
-    class DW_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG swc
+    class P7501_HAL,GDB_SRV,MEIHDFS,CRYPTO,NVRAM,RAG swc
     class BLE,USB transport
     class PICO probe
     class P7501,AM34,FLASH,HDD tgt
@@ -131,7 +131,7 @@ Panadiga/
 │   └── desktop/                                      <-- Tauri 2.0 Native Rust Commands & GDB Bridge
 ├── apps/desktop/                                     <-- Zero-Latency Modern Desktop UI (React 19 + Vite)
 │   ├── src/                                          <-- Strict MVVM Components & ViewModels
-│   │   ├── components/                               <-- Pure UI Panels (GDB, DWire32A, HexViewer)
+│   │   ├── components/                               <-- Pure UI Panels (GDB, P7501 UART, HexViewer)
 │   │   ├── services/                                 <-- Typed Tauri IPC Transport & Native Bridges
 │   │   └── viewmodels/                               <-- Algebraic State Machines (Pure FP Logic)
 │   ├── package.json                                  <-- Node.js Dependencies & Build Scripts
@@ -155,19 +155,22 @@ Panadiga/
 │   ├── dmr-e85h/                                     <-- DMR-E85H 4MB Flash Pioneer HDD/DVD Manual
 │   ├── dmr-e500h/                                    <-- DMR-E500H Massive Storage HDD User Manual
 │   └── dmr-ex98v/                                    <-- DMR-EX98V DVB-T/HDMI Service Manual Vol 1
-├── tools/                                            <-- Lab Automation, Ghidra Scripts & Utilities
-│   ├── Abrir_HxD.cmd                                 <-- Fast HxD Hex Editor Benchmark Launcher
-│   ├── conectar_gdb_multiarch.cmd                    <-- GDB Multiarch Target Connection Script
-│   ├── executar_openocd.cmd                          <-- OpenOCD Daemon Launcher for AM34
-│   ├── iniciar_ponte_gdb.cmd                         <-- GDB RSP Server TCP Forwarder (:3333)
-│   ├── panadiga_cli.py                               <-- Python Typer Forensic Companion CLI
-│   ├── panadiga_mcp_server.py                        <-- Model Context Protocol (MCP) Lab Server
-│   └── ghidra_am34_memory_map.py                     <-- Ghidra AM34 Memory Map & Symbol Loader
-└── dwire32a_jtag_research/                           <-- RP2040/RP2350 C11 Firmware & PIO State Machines
-    ├── dwire32a.pio                                  <-- 1.0 MHz Half-Duplex PIO Synchronous Engine
-    ├── dwire32a_hw.c                                 <-- Hardware Driver & Timing Control (100% C11)
-    ├── gdb_rsp.c                                     <-- Deterministic GDB RSP Protocol Parser
-    └── build_pico_firmware.cmd                       <-- RP2040/RP2350 Bare-Metal Compilation Pipeline
+├── tools/                                            <-- Lab Utilities, Ghidra Scripts & Windows Launchers
+│   ├── Abrir_HxD.cmd                                 <-- Fast HxD Hex Editor Benchmark Launcher (Windows)
+│   ├── conectar_gdb_multiarch.cmd                    <-- GDB Multiarch Target Connection Script (Windows)
+│   ├── iniciar_ponte_gdb.cmd                         <-- GDB RSP Server TCP Forwarder (:3333, Windows)
+│   ├── iniciar_ghidra.cmd                            <-- Ghidra Workspace Launcher (Windows)
+│   └── ghidra/                                       <-- Ghidra AM34/MN103S Scripts (Generated from Rust SSOT)
+├── scripts/                                          <-- Cross-Platform Build & 9-Gate Validation Suite
+│   ├── build.py                                      <-- Unified Desktop, Android APK & Pico UF2 Builder
+│   └── validate.py                                   <-- 9 Mandatory Quality Gates Runner
+└── firmware/
+    └── pico-p7501/                                   <-- RP2040/RP2350 C11 Modular P7501 UART & Legacy OCD Firmware
+        ├── p7501_uart.pio                            <-- PIO UART 115200 8N1 / Half-Duplex State Machine
+        ├── p7501_pico_main.c                         <-- Entrypoint & Serial Diagnostic Console (PANADIGA>)
+        ├── hal/                                      <-- Open-Drain, NSW5V Safety & Timing HAL
+        ├── gdb/                                      <-- Deterministic GDB RSP Protocol Codec & Handlers
+        └── CMakeLists.txt                            <-- Dual-Target Bare-Metal CMake Pipeline
 ```
 
 ---
@@ -303,24 +306,24 @@ panadiga rag query --question "What is the canonical ground pin of P7501?" --jso
 
 ---
 
-## 5. Electrical Specification & DWire32A Interface (`P7501`)
+## 5. Electrical Specification & `P7501` Async UART Interface (`115200 8N1`)
 
-### 5.1. Canonical Pinout, Bench Wiring & Universal RP2040 Connection
+### 5.1. Canonical Pinout, Bench Wiring & Universal RP2040 / RP2350 Connection
 
-On the digital board `VEP79138` (and related `VEP79xxx` family boards across the DMR-EH series), the debugging header (labeled on the official Panasonic schematic as **`P7501 [B6B-ZR-3R4]`**, designated *"TO WRITE JIGU"*) is physically located along the top edge of the board, positioned between the 10-conductor flat flex cable (`FP50003`) on the left and the 8-conductor flat flex cable (`FP50004`) on the right.
+On the digital/main board `VEP79138` (Panasonic DMR-EH55 schematic `TO JIGU`), the service header **`P7501 [B6B-ZR-3R4]`** is an **asynchronous 115200 8N1 UART + discrete boot/reset control interface**, physically positioned on the top edge between the 10-conductor flat flex cable (`FP50003`) on the left and the 8-conductor flat flex cable (`FP50004`) on the right.
 
 > [!CAUTION]
-> **ELECTRICAL SAFETY INVARIANT — MANDATORY CHASSIS GROUND (`GND`) VALIDATION:**
+> **ELECTRICAL SAFETY INVARIANTS — `GND` CONTINUITY & `NSW5V` (`GP3`) Hi-Z PROTECTION:**
 >
-> * **According to the official Panasonic Service Manual (Connector P7501 Schematic):** **`GND` IS STRICTLY PIN 4**.
-> * **Pin 1 (VDD Sense) is positioned adjacent to the 8-conductor flat cable (`FP50004`).**
-> * **Pin 6 (EXTRG) is positioned adjacent to the 10-conductor flat cable (`FP50003`), marked by a square pad on the PCB silkscreen.**
-> * **NEVER connect ground to Pin 1 or Pin 6** (which would short the 3.3V power plane or clamp the CPU interrupt trigger gate). Before powering the Raspberry Pi Pico or any bench instrument, **always verify with a digital multimeter a continuous $0.0\,\Omega$ resistance beep between Pin 4 and the bare metal chassis!**
+> * **Canonical Ground:** Per the official Panasonic Service Manual (`P7501`), **`GND` IS STRICTLY PIN 4**. Always measure **$0.0\,\Omega$ continuity** between Pin 4 and bare chassis ground with a multimeter before connecting any bench wire.
+> * **`NSW5V` (`Pin 5`, `X_SW_5R2V` -> `GP3`):** Driven from `IC1506` (`~5.15V` upstream) through `D7510` (resting ~`3.29V` on bench) to bias pull-up resistors `R7570`/`R7572` (`10 kΩ`) and `IC7501` VDD. **`GP3` MUST ALWAYS remain `Hi-Z Input` with NO internal pulls — NEVER drive push-pull LOW or HIGH!**
+> * **No Back-Powering:** NEVER power the Raspberry Pi Pico from `P7501`; keep USB/VSYS as the sole supply.
+> * **`Q7510`/`Q7514` Interlock:** Driving `SW_UART` (Pin 1) LOW activates `XFWE` serial boot mode and cuts off `Q7514`, disconnecting `UARTM2P_T` (Pin 3) from AM34 RX. Keep `SW_UART` in `Hi-Z` (~`3.25V`) when transmitting UART bytes from Pico `GP4` into AM34!
 
 <p align="center">
   <img src="docs/en-US/images/panasonic_dmr_eh55_pcb_p7501_orientation.png" alt="Physical Topography and P7501 Orientation on PCB VEP79138" width="720" />
   <br/>
-  <em>Figure 5.1: Physical topography of the digital PCB VEP79138 showing connector P7501 between flat cables FP50003 (10-pin) and FP50004 (8-pin).</em>
+  <em>Figure 5.1: Physical topography of PCB VEP79138 showing connector P7501 between flat cables FP50003 (10-pin) and FP50004 (8-pin).</em>
 </p>
 
 ```text
@@ -329,74 +332,67 @@ On the digital board `VEP79138` (and related `VEP79xxx` family boards across the
    
        10-Pin Flat Cable (FP50003)                                         8-Pin Flat Cable (FP50004)
        [On the Left]                                                                     [On the Right]
-            ┌────────────────────────────────────────────────────────────────────────┐
-      Pin 6 │ ■ EXTRG   [Square Pad]   External OCD Break / Halt Trigger             │
-      Pin 5 │ ● SCLK    [Round Pad]    Synchronous Clock DWire32A (Master 1.0 MHz)   │
-      Pin 4 │ ● GND     [Round Pad]    Canonical Chassis Ground (0.0Ω Continuous!)   │
-      Pin 3 │ ● SDATA   [Round Pad]    Half-Duplex Data (Pull-up 4.7kΩ to 3.3V)      │
-      Pin 2 │ ● nRESET  [Round Pad]    Master Reset Control (Strict Open-Drain)      │
-      Pin 1 │ ● VDD     [Round Pad]    Target Power Sense (+3.3V Reference)          │
-            └────────────────────────────────────────────────────────────────────────┘
+            ┌──────────────────────────────────────────────────────────────────────────────────┐
+      Pin 6 │ ■ UARTP2M_T [Square Pad] MAX TXD: AM34 TX -> Pico RX GP2 (115200 8N1, R7572 10k) │
+      Pin 5 │ ● NSW5V     [Round Pad]  X_SW_5R2V via D7510 (~5.15V up / ~3.29V) GP3 Hi-Z ONLY! │
+      Pin 4 │ ● GND       [Round Pad]  Canonical Chassis Ground (0.0Ω Continuous!)              │
+      Pin 3 │ ● UARTM2P_T [Round Pad]  MAX RXD: Pico TX GP4 -> AM34 RX (via Q7514, R7570 10k)  │
+      Pin 2 │ ● XRESET    [Round Pad]  Master Reset Control (Strict Open-Drain GP5)            │
+      Pin 1 │ ● SW_UART   [Round Pad]  Serial Boot / Q7510 Interlock (GP26 / ADC0, ~3.25V)     │
+            └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 <p align="center">
-  <img src="docs/en-US/images/schematic_p7501_panasonic_official.png" alt="Official Panasonic DMR-EH55 P7501 Schematic" width="460" />
+  <img src="docs/assets/images/schematic_p7501_panasonic_official.png" alt="Official Panasonic DMR-EH55 P7501 Schematic" width="460" />
   <br/>
-  <em>Figure 5.2: Excerpt from official Panasonic DMR-EH55 schematic (VEP79138) detailing header P7501 [B6B-ZR-3R4] "TO WRITE JIGU".</em>
+  <em>Figure 5.2: Excerpt from official Panasonic DMR-EH55 schematic (VEP79138) detailing header P7501 [B6B-ZR-3R4] "TO JIGU".</em>
 </p>
 
 > [!NOTE]
-> **RP2040 / RP2350 Hardware Compatibility:** Any board powered by an **RP2040** (Pico, Pico W) or **RP2350** (Pico 2) is 100% compatible. Nanosecond bus timing for DWire32A is handled directly in silicon via **PIO0** state machines.
+> **RP2040 / RP2350 Hardware Compatibility:** Any board powered by an **RP2040** (Pico, Pico W) or **RP2350** (Pico 2) is 100% compatible. Standard `115200 8N1` UART framing (`p7501_uart.pio`) and deterministic `XRESET`/`SW_UART` open-drain timing are executed directly by the RP2040/RP2350 hardware.
 
-| P7501 Pin (Canonical) | Matsushita Signal |     RP2040 / Pico Pin     |                 Conditioning Component                 |         Signal Type         | Bench Function & Safety Directive                                                                                                        |
-| :-------------------: | :---------------: | :------------------------: | :-----------------------------------------------------: | :-------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------- |
-|    **Pin 1**    |   `VDD Sense`   |  `GP26 / ADC0` (Pin 31)  |    $1.0	ext{ k}\Omega$ Series Resistor (Optional)    |        Analog Input        | Senses the presence of $+3.3	ext{V}$ from the target board. **Do NOT power the Pico from this pin ($I < 10	ext{ mA}$).**       |
-|    **Pin 2**    |    `nRESET`    |      `GP5` (Pin 7)      |             $100\,\Omega$ Series Resistor             | **Strict Open-Drain** | Master CPU reset line (`XRST` / `D_RESET`). **Drain to 0V to assert reset; float to Hi-Z to run. Never drive 3.3V Push-Pull!** |
-|    **Pin 3**    |     `SDATA`     |      `GP4` (Pin 6)      | $100\,\Omega$ + $4.7	ext{ k}\Omega$ Pull-up to 3.3V |     Bidirectional Sync     | Half-duplex DWire32A data line. Pull-up ensures rapid rise time on extended test leads.                                                  |
-|    **Pin 4**    | **`GND`** | **Pin 38 (`GND`)** |           **Direct low-impedance bond**           |   **0V Reference**   | **Mandatory equipotential bond: verify $0.0\,\Omega$ continuity to bare metal recorder chassis!**                                |
-|    **Pin 5**    |     `SCLK`     |      `GP3` (Pin 5)      |             $100\,\Omega$ Series Resistor             |     Master Clock Output     | Synchronous serial master clock generated by Pico PIO (Operating frequency: $1.0	ext{ MHz}$).                                          |
-|    **Pin 6**    |     `EXTRG`     |      `GP2` (Pin 4)      |             $100\,\Omega$ Series Resistor             |   Digital Trigger Output   | External trigger forcing CPU execution halt (*Halt Request*) on the AM34 core during Cold Break-In.                                    |
+| P7501 Pin (Canonical) | Matsushita Signal |     RP2040 / Pico Pin     |              Conditioning / Board Network              |        Signal Type        | Bench Function & Safety Directive                                                                                                                |
+| :-------------------: | :---------------: | :-----------------------: | :----------------------------------------------------: | :-----------------------: | :----------------------------------------------------------------------------------------------------------------------------------------------- |
+|    **Pin 1**    | `SW_UART` `(D)` | `GP26 / ADC0` (Pin 31) | $1.0\text{ k}\Omega$ ADC series resistor; Q7510/R7562/R7559 | Analog Sense / Open-Drain | Reads `~3.25V` Hi-Z (`~2.69V` Pull-Down via `Q7510`). Driving LOW forces `XFWE` serial boot and disables `Q7514` RX path (`I < 10 mA`). |
+|    **Pin 2**    |    `XRESET`    |      `GP5` (Pin 7)      |          Optional $100\,\Omega$ series resistor          | **Strict Open-Drain** | Master system reset. **Drain to 0V (`LOW`) to assert reset; release to `Hi-Z` (~20 µs rise) to run. Never drive 3.3V Push-Pull!** |
+|    **Pin 3**    | `UARTM2P_T` (`MAX RXD`) | `GP4` (Pin 6) | Board `R7570 10 kΩ` pull-up to `NSW5V` + `Q7514` gate | **UART TX (Pico -> AM34)** | Asynchronous `115200 8N1` command input to AM34. Requires `SW_UART` in `Hi-Z` so `Q7514` conducts. **Do NOT add external 3.3V pull-up.** |
+|    **Pin 4**    | **`GND`** | **Pin 38 (`GND`)** |         **Direct low-impedance bond**         |   **0V Reference**   | **Mandatory equipotential bond: verify $0.0\,\Omega$ continuity to bare metal recorder chassis!**                                        |
+|    **Pin 5**    | `NSW5V` (`X_SW_5R2V`) | `GP3` (Pin 5) |    High-impedance sense via board `IC1506` / `D7510`    | **Static Sense ONLY** | Upstream ~5.15V via `D7510` (`~3.29V` resting). **MUST remain `Hi-Z Input` with NO pulls — NEVER configure as push-pull output!** |
+|    **Pin 6**    | `UARTP2M_T` (`MAX TXD`) | `GP2` (Pin 4) |   Board `R7572 10 kΩ`; optional $100\,\Omega$ series   | **UART RX (AM34 -> Pico)** | Asynchronous `115200 8N1` console output from AM34 (`<00>DDR CHECK: OK`, `CD diag boot mode`, `X(...)`). Square PCB pad. |
 
 <p align="center">
-  <img src="docs/en-US/images/dwire32a_pico_probe_assembly_schematic.png" alt="Standardized Electrical Schematic of DWire32A Pico Probe" width="760" />
+  <img src="docs/en-US/images/p7501_pico_probe_assembly_schematic.png" alt="Standardized Electrical Schematic of P7501 UART Pico Probe" width="760" />
   <br/>
-  <em>Figure 5.3: Standardized electrical schematic (IEEE Std 315 / IEC 60617) for building the laboratory bench probe linking Raspberry Pi Pico to header P7501.</em>
+  <em>Figure 5.3: Standardized electrical schematic (IEEE Std 315 / IEC 60617) for building the P7501 async UART bench probe linking Raspberry Pi Pico to header P7501.</em>
 </p>
 
 ---
 
 ### 5.2. Critical Engineering Rules & Damage Prevention
 
-1. **Rule 1 (Strict 3.3V LVCMOS Logic):** The MN2DS0016 SoC pins tolerate a maximum absolute rating of $+3.6	ext{V}$. Connecting 5.0V TTL probes (such as classic CH341A or standard Arduino AVR) directly destroys the I/O pads.
-2. **Rule 2 (Open-Drain Emulation on `nRESET`):** Driving `nRESET` with active 3.3V push-pull logic burns out the onboard reset supervisor circuit (`IC55005`). Driving to ground resets the system; floating to Hi-Z allows operation.
+1. **Rule 1 (`NSW5V` Strict `Hi-Z` Protection):** `P7501` Pin 5 (`NSW5V`) is NOT a synchronous clock (`SCLK`). It links through `D7510` to the `~5.15V` auxiliary rail (`IC1506`). Configure `GP3` strictly as `Hi-Z Input` with pulls disabled; never sink or source current into Pin 5.
+2. **Rule 2 (Open-Drain Emulation on `XRESET`):** Driving `XRESET` with active 3.3V push-pull logic contends against the onboard reset supervisor. Always sink to `0V` to assert reset and float to `Hi-Z` to release execution.
 3. **Rule 3 (Mandatory Ground Verification):** Ensure $0.0\,\Omega$ continuity between Pin 4 and chassis ground before mating any other signals.
-4. **Rule 4 (No Desoldering Required):** Connect directly to header P7501 using a 1.5mm pitch JST ZR female connector. Removing the TSOP-48 flash chip from the multilayer PCB carries high delamination risks.
-5. **Rule 5 (Cold Break-In Sequence):** To gain CPU control before the IPL watchdog expires, assert `EXTRG` high and pulse `nRESET` low for $10	ext{ ms}$, entering OCD debug mode at clock cycle zero.
+4. **Rule 4 (No External Pull-Up on `UARTM2P_T` & No Desoldering Required):** `VEP79138` already pulls `UARTM2P_T` via `R7570` (`10 kΩ`) to `NSW5V`; connect a 1.5mm pitch JST ZR female socket (`B6B-ZR-3R4`) cleanly without removing the TSOP-48 Flash (`IC5001`).
+5. **Rule 5 (`SW_UART` / `Q7514` Interlock Awareness):** Pulse `SW_UART` low together with `XRESET` only to latch `XFWE` serial/JIG boot mode, then release `SW_UART` to `Hi-Z` before sending `115200 8N1` commands over `GP4` (`UARTM2P_T`).
 
 ---
 
-### 5.3. DWire32A Timing & Signal Diagram
+### 5.3. Asynchronous `P7501` UART (`115200 8N1`) & Boot Mode Sequencing
 
 ```text
-Clock Cycle:       1     2     3     4     5     6     7     8
-                 _____       _____       _____       _____
-SCLK   _________/     \_____/     \_____/     \_____/     \_____  (1.0 MHz Master)
-   
-SDATA  ===< CMD[7] >< CMD[6] >< CMD[5] >...========[ Hi-Z Turnaround ]===> DATA[7] >
-                 ^           ^
-                 |           |-- Data sampled on SCLK rising edge
-                 |-------------- Data driven on SCLK falling edge
+UART Frame (GP2 RX <- UARTP2M_T | GP4 TX -> UARTM2P_T @ 115200 baud, 8N1):
+IDLE (HIGH) ──\ START (0) /─ B0 ─ B1 ─ B2 ─ B3 ─ B4 ─ B5 ─ B6 ─ B7 ─\ STOP (1) ──  (8.68 µs/bit)
 
-Timing Constraints:
-  * t_CLK_PERIOD = 1000 ns (1.0 MHz)
-  * t_SETUP      = 250 ns minimum before SCLK rising edge
-  * t_HOLD       = 250 ns minimum after SCLK rising edge
-  * t_TURNAROUND = 2 full SCLK cycles (2000 ns) for bus direction handoff
+Verified DMR-EH55 Bench Boot Sequence (CDDIAG Trap via P7501):
+  1. XRESET (GP5) = LOW (10 ms Open-Drain) -> Release Hi-Z (~20 µs rise)
+  2. SW_UART (GP26) = LOW during reset window for JIG / CDDIAG sampling -> Release Hi-Z for Q7514 TX
+  3. UARTP2M_T (GP2) emits <00>DDR CHECK: OK -> CD diag boot mode -> X(80020401)59..X(80040904)0
 ```
 
 ---
 
-## 6. Physical Memory Map of Matsushita AM34 (`MN2DS0016`)
+## 6. Physical Memory Map of Matsushita AM34 (`MN103S` / `VEP79138`)
 
 ```text
 +-------------------+-------------------+----------------------+--------------------------------------------+
@@ -415,11 +411,11 @@ Timing Constraints:
 
 ### 6.1. JEDEC Golden Rule for Injected RAM Loader
 
-When loading executable payloads directly into DDR-SDRAM via DWire32A OCD commands:
+When loading executable payloads into DDR-SDRAM or querying target registers over the P7501/GDB bridge:
 
 * **Target Load Address:** `0x04010000` (safe DDR buffer offset avoiding zero-page exception vectors).
 * **Stack Pointer Initializer:** `SP = 0x0040FFF0` (within high-speed on-chip SRAM).
-* **Watchdog Disable:** Write `0x00000000` to MMIO register `0x1F000104` within $100	ext{ ms}$ of cold boot.
+* **Watchdog Disable:** Write `0x00000000` to MMIO register `0x1F000104` within $100\text{ ms}$ of cold boot.
 
 ---
 
@@ -475,24 +471,23 @@ The LBA 0 superblock stores partition geometry inverted with bitwise NOT (`XOR 0
                 +-------------------------+-------------------------+
                 |                         |                         |
                 v                         v                         v
-     [ROUTE A: HARDWARE LAB]   [ROUTE B: IN-CIRCUIT OCD]   [ROUTE C: FORENSIC CLONE]
+     [ROUTE A: HARDWARE LAB]   [ROUTE B: IN-CIRCUIT UART]  [ROUTE C: FORENSIC CLONE]
      Desolder TSOP-48 Flash    Connect RP2040 to P7501     Direct raw clone of HDD
-     Program via T48 / SVOD4   Run DWire32A RAM Loader     Zero sector 0x7F0000
-     Direct Clean 0x7F0000     Surgical In-Memory Wipe     Preserve 100 MB System Area
+     Program via T48 / SVOD4   115200 8N1 / CDDIAG Trap    Zero sector 0x7F0000
+     Direct Clean 0x7F0000     Live NVRAM Capture / GDB    Preserve 100 MB System Area
 ```
 
 ### Route A: External Flash Programmer (TSOP-48 via T48 / SVOD4)
 
-* Desolder `IC55007` (Spansion S29JL064H70TFI00).
+* Desolder `IC5001` (Spansion S29JL064H70TFI00).
 * Read full 8 MB dump and save backup.
 * Use `panadiga nvram clean --input dump.bin --output fixed.bin`.
 * Flash `fixed.bin` back to chip and resolder.
 
-### Route B: In-Circuit via DWire32A OCD (Raspberry Pi Pico + RP2040)
+### Route B: In-Circuit via `P7501` Async UART & GDB Bridge (Raspberry Pi Pico / RP2040 / RP2350)
 
-* Connect 6-wire probe from Pico to header `P7501` (confirm Pin 4 GND).
-* Run `panadiga pico flash --unbrick`.
-* Pico halts AM34 core, injects RAM loader, and resets NVRAM sector to `0xFF`.
+* Connect the 6-wire JST ZR bench probe from Pico to header `P7501` (confirm Pin 4 `GND` = $0.0\,\Omega$ and keep `GP3` / `NSW5V` strictly `Hi-Z`).
+* Execute `panadiga pico uart-probe` / `panadiga gdb-bridge` to capture live boot telemetry (`CD diag boot mode`) and service commands over `115200 8N1`.
 
 ### Route C: Hard Drive Cloning & Sector Sanitization (Preserving MEIHDFS)
 
@@ -506,18 +501,18 @@ The LBA 0 superblock stores partition geometry inverted with bitwise NOT (`XOR 0
 
 The following matrix formally specifies the architecture, silicon variants, Flash geometries, NVRAM locations, and unbricking compatibility across the 5 generations of the Panasonic DIGA lineup:
 
-| Device Lineup & Models                                                                                          | Generation / Era                             | SoC Processor & Architecture                                              | NOR Flash Size & Chip                                   | NVRAM / EEMUL Offset Range              | Storage System & Interface                     | DWire32A / OCD Debug Header                                                              | U99 Root Cause & Panadiga Unbrick Method                                                                                |
+| Device Lineup & Models                                                                                          | Generation / Era                             | SoC Processor & Architecture                                              | NOR Flash Size & Chip                                   | NVRAM / EEMUL Offset Range              | Storage System & Interface                     | Service / Debug Header (`P7501` & Lineup)                                                              | U99 Root Cause & Panadiga Unbrick Method                                                                                |
 | :-------------------------------------------------------------------------------------------------------------- | :------------------------------------------- | :------------------------------------------------------------------------ | :------------------------------------------------------ | :-------------------------------------- | :--------------------------------------------- | :--------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| **DMR-E20, DMR-E30, DMR-E50, DMR-E55, DMR-E60**                                                           | **Gen 1** (2001–2003)                 | Matsushita MN10300 (16/32-bit AM32 / AM33)                                | **2 MB** (16 Mbit) TSOP-48 (Am29LV160)            | `0x001F0000..0x001FFFFF` (Last 64 KB) | Optical DVD-RAM / DVD-R (Direct UDF 1.5)       | 5-pin / 6-pin OCD connector (3.3V)                                                       | Flash wear-leveling corruption. Fixed via `panadiga nvram clean` (auto-detected 2 MB).                                |
-| **DMR-E80H, DMR-E85H, DMR-E95H, DMR-E100H, DMR-E500H, DMR-ES20**                                          | **Gen 2** (2003–2004)                 | Matsushita MN103S / Early UniPhier                                        | **4 MB** (32 Mbit) TSOP-48 (Am29LV320)            | `0x003F0000..0x003FFFFF` (Last 64 KB) | PATA/IDE HDD (40–160 GB) + MEIHDFS-V1         | 6-pin OCD header (3.3V LVCMOS)                                                           | Pioneer generation of the `U99` panic. Fixed via `panadiga nvram clean` (auto-detected 4 MB).                       |
-| **DMR-EH50, DMR-EH52, DMR-EH55, DMR-EH56, DMR-EH60, DMR-EH65, DMR-EH75V, DMR-EH80V, DMR-ES10, DMR-ES30V** | **Gen 3** (2005–2007) [Core Platform] | Matsushita UniPhier `MN2DS0016` (32-bit RISC AM34)                      | **8 MB** (64 Mbit) TSOP-48 (Spansion S29JL064H)   | `0x007F0000..0x007FFFFF` (Last 64 KB) | PATA/IDE HDD (80–250 GB) + MEIHDFS-V2         | Canonical **`P7501`** (JST ZR 1.5mm 6-pin: VDD, nRESET, SDATA, GND, SCLK, EXTRG) | Classical `U99` panic due to EEMUL ring desync. Fixed via `panadiga nvram clean` or in-circuit via RP2040 DWire32A. |
-| **DMR-EX75, DMR-EX85, DMR-EX95V, DMR-EX98V, DMR-EH67, DMR-EH68**                                          | **Gen 4** (2006–2008)                 | Matsushita UniPhier Gen 2 (`MN2DS0018` / `MN2DS0022` / `MN2DS0024`) | **16 MB** (128 Mbit) TSOP-56 (Spansion S29GL128N) | `0x00FF0000..0x00FFFFFF` (Last 64 KB) | SATA / PATA HDD (160–320 GB) + MEIHDFS-V2+    | 6-pin DWire32A header (JST ZR 1.5mm)                                                     | Digital DVB-T channel table desync triggering U99. Fixed via `panadiga nvram clean` (auto-detected 16 MB).            |
-| **DMR-BW500, DMR-BR500, DMR-BW700, DMR-BW800, DMR-BWT700**                                                | **Gen 5** (2008–2011)                 | Matsushita UniPhier Dual-Core (`MN2WS0040` / `MN2WS0050`)             | **32 MB -- 64 MB** NOR/NAND Flash                 | Dynamic allocation per volume           | SATA 3.5" HDD (250 GB -- 1 TB) + BD-RE Optical | JTAG / DWire hybrid debug header                                                         | Blu-ray generation. MEIHDFS-V3 with AES encryption. Partition extraction via `panadiga hdd extract`.                  |
+| **DMR-E20, DMR-E30, DMR-E50, DMR-E55, DMR-E60**                                                           | **Gen 1** (2001–2003)                 | Matsushita MN10300 (16/32-bit AM32 / AM33)                                | **2 MB** (16 Mbit) TSOP-48 (Am29LV160)            | `0x001F0000..0x001FFFFF` (Last 64 KB) | Optical DVD-RAM / DVD-R (Direct UDF 1.5)       | 5-pin / 6-pin factory UART / service header (3.3V)                                                       | Flash wear-leveling corruption. Fixed via `panadiga nvram clean` (auto-detected 2 MB).                                |
+| **DMR-E80H, DMR-E85H, DMR-E95H, DMR-E100H, DMR-E500H, DMR-ES20**                                          | **Gen 2** (2003–2004)                 | Matsushita MN103S / Early UniPhier                                        | **4 MB** (32 Mbit) TSOP-48 (Am29LV320)            | `0x003F0000..0x003FFFFF` (Last 64 KB) | PATA/IDE HDD (40–160 GB) + MEIHDFS-V1         | 6-pin service UART header (3.3V LVTTL)                                                           | Pioneer generation of the `U99` panic. Fixed via `panadiga nvram clean` (auto-detected 4 MB).                       |
+| **DMR-EH50, DMR-EH52, DMR-EH55, DMR-EH56, DMR-EH60, DMR-EH65, DMR-EH75V, DMR-EH80V, DMR-ES10, DMR-ES30V** | **Gen 3** (2005–2007) [Core Platform] | Matsushita `AM34` / `MN103S` (`VEP79138` Main / Syscon `IC7501`)                      | **8 MB** (64 Mbit) TSOP-48 (`IC5001` Spansion S29JL064H)   | `0x007F0000..0x007FFFFF` (Last 64 KB) | PATA/IDE HDD (80–250 GB) + MEIHDFS-V2         | Canonical **`P7501`** (JST B6B-ZR-3R4: `SW_UART`, `XRESET`, `UARTM2P_T`, `GND`, `NSW5V`, `UARTP2M_T`) | Classical `U99` panic due to EEMUL ring desync. Fixed via `panadiga nvram clean` or in-circuit UART telemetry (`P7501`). |
+| **DMR-EX75, DMR-EX85, DMR-EX95V, DMR-EX98V, DMR-EH67, DMR-EH68**                                          | **Gen 4** (2006–2008)                 | Matsushita `MN103S` / `AM34` Gen 2 | **16 MB** (128 Mbit) TSOP-56 (Spansion S29GL128N) | `0x00FF0000..0x00FFFFFF` (Last 64 KB) | SATA / PATA HDD (160–320 GB) + MEIHDFS-V2+    | 6-pin JST ZR `115200 8N1` UART / service header                                                     | Digital DVB-T channel table desync triggering U99. Fixed via `panadiga nvram clean` (auto-detected 16 MB).            |
+| **DMR-BW500, DMR-BR500, DMR-BW700, DMR-BW800, DMR-BWT700**                                                | **Gen 5** (2008–2011)                 | Matsushita UniPhier Dual-Core (`MN103S` / ARM hybrid)             | **32 MB -- 64 MB** NOR/NAND Flash                 | Dynamic allocation per volume           | SATA 3.5" HDD (250 GB -- 1 TB) + BD-RE Optical | Service UART / JTAG debug header                                                         | Blu-ray generation. MEIHDFS-V3 with AES encryption. Partition extraction via `panadiga hdd extract`.                  |
 
 ### 9.1. Why Panadiga Operates Universally Across Generations ("Why It Works")
 
-1. **Mathematical Invariant of Flash Sizing (`len - 64 KB`):**Matsushita firmware engineers strictly allocated the circular EEPROM emulation ring buffer (`EEMUL`) in the highest 64 KB physical sector of the primary NOR Flash across all generations. Instead of hardcoding static offsets, `panadiga nvram clean` dynamically evaluates `offset = len - 65536`. Thus, whether an engineer feeds a 2 MB dump (`0x1F0000`), 4 MB dump (`0x3F0000`), 8 MB dump (`0x7F0000`), or 16 MB dump (`0xFF0000`), the tool safely targets the exact wear-leveling sector without touching IPL code.
-2. **DWire32A Bus Protocol Invariance:**The On-Chip Debug (OCD) interface built into the Matsushita AM3x/MN103 core family adheres to a uniform synchronous serial state machine: $1.0	ext{ MHz}$ master clock (`SCLK`), 250 ns setup time, 500 ns hold time, half-duplex open-drain `SDATA` with $4.7	ext{ k}\Omega$ pull-up, and active-LOW open-drain `nRESET`. The RP2040 PIO state machine (`dwire32a.pio`) interacts seamlessly with all models featuring this interface.
+1. **Mathematical Invariant of Flash Sizing (`len - 64 KB`):** Matsushita firmware engineers strictly allocated the circular EEPROM emulation ring buffer (`EEMUL`) in the highest 64 KB physical sector of the primary NOR Flash across all generations. Instead of hardcoding static offsets, `panadiga nvram clean` dynamically evaluates `offset = len - 65536`. Thus, whether an engineer feeds a 2 MB dump (`0x1F0000`), 4 MB dump (`0x3F0000`), 8 MB dump (`0x7F0000`), or 16 MB dump (`0xFF0000`), the tool safely targets the exact wear-leveling sector without touching IPL code.
+2. **Service UART & Discrete Control Invariance (`115200 8N1`):** Across `VEP79xxx` service headers (`P7501`), console telemetry runs over asynchronous `115200 8N1` UART paired with open-drain reset (`XRESET`) and high-impedance rail sensing (`NSW5V`). The `p7501_uart.pio` + C11 HAL interacts deterministically with these headers while enforcing zero push-pull contention.
 3. **Storage Superblock Invariance (MEIHDFS-V1 through V2+):**
    The ASCII `"SH"` magic byte sequence and 28 MB backup mirror geometry were preserved from early HDD models (DMR-E85H) through mature digital units (DMR-EH55, DMR-EX98V).
 
@@ -570,7 +565,7 @@ All official documentation is cataloged and hierarchically structured in `manual
 
 ## 11. Direct Links to Specialized Technical Dossiers (`docs/`)
 
-The full repository of 13 bilingual engineering dossiers is maintained in `docs/en-US/` (with Portuguese mirrors in `docs/pt-BR/` and portal index at `docs/INDEX.md`):
+The full repository of 14 bilingual engineering dossiers listed below is maintained in `docs/en-US/` (with Portuguese mirrors in `docs/pt-BR/` and full portal index at `docs/INDEX.md`):
 
 * 🏛️ **[Systems Architecture &amp; Engineering Blueprint](docs/en-US/SYSTEM_ARCHITECTURE_AND_ENGINEERING_BLUEPRINT.md)** ([Portuguese Mirror](docs/pt-BR/ARQUITETURA_E_BLUEPRINT_DE_ENGENHARIA.md))*Master specification: modular decomposition, Pure FP domain, strict MVVM, GDB ring buffer, and silicon invariants.*
 * 📱 **[Android APK &amp; Bluetooth Architecture](docs/en-US/ANDROID_APK_AND_BLUETOOTH_ARCHITECTURE.md)** ([Portuguese Mirror](docs/pt-BR/ARQUITETURA_MOBILE_ANDROID_E_BLUETOOTH.md))*Android APK build, Native Rust HAL (BLE NUS / USB-C OTG), and P7501 power safety rules.*
@@ -586,6 +581,8 @@ The full repository of 13 bilingual engineering dossiers is maintained in `docs/
 * 💡 **[Semiconductor Theory &amp; Practical U99 Unbricking](docs/en-US/THEORY_AND_PRACTICE_U99_UNBRICK_MATSUSHITA_CRYPTO.md)** ([Portuguese Mirror](docs/pt-BR/TEORIA_E_PRATICA_UNBRICK_U99_E_CRIPTOGRAFIA_MATSUSHITA.md))*Semiconductor physics of NOR Flash, EEMUL circular wear-leveling, and 64 KB NVRAM sanitization.*
 * 🛡️ **[Zero-Error RAG Engine &amp; Physical Safety Invariants](docs/en-US/ZERO_ERROR_RAG_ENGINE_AND_PHYSICAL_SAFETY.md)** ([Portuguese Mirror](docs/pt-BR/ZERO_ERROR_RAG_ENGINE_E_SEGURANCA_FISICA.md))
   *6-layer defense system (QueryGuard, CRAG, GroundedSynthesis, FactCritic, InvariantShield).*
+* 🔬 **[Deep Reverse Engineering Dossier: MN103S Bootloader, Optical Drive &amp; Live Telemetry](docs/en-US/REVERSE_ENGINEERING_BOOTLOADER_AND_OPTICAL_DRIVE_MN103S.md)** ([Portuguese Mirror](docs/pt-BR/DOSSIE_ENGENHARIA_REVERSA_BOOTLOADER_E_DRIVE_MN103S.md))
+  *Live `DMR-EH55` bench telemetry (`P7501`/`CDDIAG`), MN103S disassembly of `BOOT.BIN` & `DRV_decomp.bin`, 74 ATAPI opcodes, 62 factory CLI commands, and the full 431-entry Shift-JIS error dictionary (`0x83A7`).*
 
 ---
 
@@ -593,7 +590,7 @@ The full repository of 13 bilingual engineering dossiers is maintained in `docs/
 
 * **Microcontroller Probe:** Raspberry Pi Pico (RP2040) or Raspberry Pi Pico 2 (RP2350).
 * **Mating Connector:** JST ZR female 6-pin socket, 1.5mm pitch (`B6B-ZR-3R4` compatible).
-* **Passive Protection:** Four $100\,\Omega$ $0.25	ext{W}$ resistors, one $4.7	ext{ k}\Omega$ pull-up resistor, one $1.0	ext{ k}\Omega$ ADC isolation resistor.
+* **Passive Protection:** Optional $100\,\Omega$ $0.25\text{W}$ series current-limiting resistors (`GP2`, `GP4`, `GP5`), one $1.0\text{ k}\Omega$ ADC series isolation resistor (`GP26` / `SW_UART`). No external pull-up required (`VEP79138` integrates `R7570` / `R7572` `10 kΩ`).
 * **Instrumentation:** Digital Multimeter (continuity testing), 2-channel 100 MHz Oscilloscope or 24 MHz USB Logic Analyzer.
 * **Storage Forensics:** PATA/IDE to USB 3.0 bridge adapter with independent 12V/5V Molex power supply.
 
@@ -638,22 +635,25 @@ python scripts/validate.py
 
 ### 14.1. Dedicated Specialist Subagents (`.agents/agents/`)
 
-The project configures 5 specialized subagents for autonomous engineering assistance:
+The project configures 6 specialized subagents for autonomous engineering assistance:
 
-* **`panasonic-hardware-engineer`:** Schematics, PCB layout, voltages, and DWire32A signal integrity.
-* **`panasonic-crypto-analyst`:** Block cipher analysis, ECB codebooks, and CPRM/DivX forensics.
-* **`panasonic-storage-architect`:** MEIHDFS partition geometry, MBR repair, and filesystem forensics.
-* **`panasonic-desktop-architect`:** Tauri 2.0 desktop frontend, React 19, and typed IPC bindings.
-* **`panasonic-rag-evaluator`:** Zero-Error RAG engine, factual grounding, and physical safety guards.
+* **`panadiga-architect`:** Cross-stack orchestration across Rust, C11, TypeScript, Python, and bench tooling.
+* **`panadiga-hardware-embedded`:** Schematics, PCB layout, voltages, RP2040/RP2350 PIO C11 firmware, `P7501` Async UART (`115200 8N1`), and `NSW5V` Hi-Z signal integrity.
+* **`panadiga-firmware-re`:** Matsushita AM34/MN103S firmware reverse engineering, Ghidra scripts, CPRM/C2 cryptanalysis, and entropy analysis.
+* **`panadiga-storage-forensics`:** MEIHFS partition geometry, MBR `"SH"` repair, and filesystem forensics.
+* **`panadiga-desktop-ui`:** Tauri 2.0 desktop/mobile frontend, React 18, TypeScript, Tailwind CSS, Vitest, and Playwright E2E.
+* **`panadiga-qa-auditor`:** Strict 9 Quality Gates compliance, invariant verification, zero duplication (`jscpd`), and FMEA safety.
 
-### 14.2. Model Context Protocol (MCP) Server (`tools/panadiga_mcp_server.py`)
+### 14.2. Native Rust Model Context Protocol (MCP) Server (`panadiga mcp`)
 
-A standardized JSON-RPC 2.0 MCP server exposes native tools for AI agents:
+A standardized JSON-RPC 2.0 MCP stdio server (`panadiga mcp`) exposes native tools for AI agents:
 
-* `panadiga_rag_query`: Queries local RAG knowledge base with factual grounding.
-* `panadiga_manuals_search`: Searches the 30 PDF technical manuals and datasheets with page citations.
-* `panadiga_inspect_hdd`: Inspects partition boundaries and validates the MEIHDFS superblock.
-* `panadiga_analyze_frm`: Analyzes optical update containers and extracts module TOCs.
+* `panadiga_memory_map`: Returns the official physical memory map of the Matsushita AM34 / MN103S (`VEP79138`) architecture.
+* `panadiga_safety_check`: Validates bench voltages (`<= 3.3V` LVTTL / `3.35V` ceiling) and memory write ranges.
+* `panadiga_inspect_hdd`: Inspects partition boundaries and validates the MEIHFS `"SH"` MBR and mirror sectors.
+* `panadiga_clean_nvram`: Analyzes or sanitizes the 64 KB NVRAM/EEMUL region (`0x807F0000..0x807FFFFF`) on 8 MB Flash dumps.
+* `panadiga_search_manuals`: Searches the official technical manuals and schematics catalog under `manuals_and_schematics/`.
+* `panadiga_rag_query`: Queries the native Rust 6-layer Zero-Error RAG engine with factual grounding.
 
 ### 14.3. Unified Logging Subsystem (`src/logger.rs`)
 

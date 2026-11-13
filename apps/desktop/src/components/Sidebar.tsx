@@ -1,6 +1,8 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { useTranslation } from '@/i18n/useTranslation';
+import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
+import { isTargetPowered } from '@/utils/formatters';
 import {
   LayoutDashboard,
   Cpu,
@@ -28,22 +30,32 @@ interface SidebarProps {
   vddVolts?: number;
   hardwareConnected?: boolean;
   nvramCleaned?: boolean;
+  indexedManualsCount?: number;
+  flashSizeMb?: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
+interface SidebarContentProps extends SidebarProps {
+  onAfterSelect?: () => void;
+}
+
+const SidebarContent: React.FC<SidebarContentProps> = ({
   currentView,
   onSelectView,
   vddVolts = 0.0,
   hardwareConnected = false,
   nvramCleaned = false,
+  indexedManualsCount = DEFAULT_HARDWARE_SSOT_SPEC.indexed_manuals_count,
+  flashSizeMb = 8,
+  onAfterSelect,
 }) => {
+  const powered = isTargetPowered(vddVolts);
   const navItems: Array<{
     key: ViewKey;
     label: string;
     sublabel: string;
     icon: React.ReactNode;
     badge?: string;
-    badgeColor?: string;
+    badgeVariant?: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'outline';
   }> = [
     {
       key: 'dashboard',
@@ -57,7 +69,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Spansion SA134..SA141 U99',
       icon: <Cpu className="w-4 h-4" />,
       badge: nvramCleaned ? 'LIMPO' : 'U99',
-      badgeColor: nvramCleaned ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400',
+      badgeVariant: nvramCleaned ? 'success' : 'destructive',
     },
     {
       key: 'hdd',
@@ -65,15 +77,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'MEIHDFS 100MB & Partições',
       icon: <HardDrive className="w-4 h-4" />,
       badge: '100 MB',
-      badgeColor: 'bg-cyan-500/20 text-cyan-400',
+      badgeVariant: 'default',
     },
     {
       key: 'picobench',
       label: 'Bancada PicoBench',
-      sublabel: 'RP2040 DWire32A & RAM Loader',
+      sublabel: 'RP2040/RP2350 P7501 UART',
       icon: <Radio className="w-4 h-4" />,
       badge: `${vddVolts.toFixed(1)}V`,
-      badgeColor: 'bg-emerald-500/20 text-emerald-400',
+      badgeVariant: powered ? 'success' : 'warning',
     },
     {
       key: 'frmcrypto',
@@ -81,15 +93,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Dissecador PANA_DVD & ECB',
       icon: <Lock className="w-4 h-4" />,
       badge: '7.999b',
-      badgeColor: 'bg-purple-500/20 text-purple-400',
+      badgeVariant: 'secondary',
     },
     {
       key: 'manuals',
       label: 'Manuais & Esquemas',
-      sublabel: '15 PDFs & Indexação Rápida',
+      sublabel: `${indexedManualsCount} PDFs & Indexação Rápida`,
       icon: <BookOpen className="w-4 h-4" />,
-      badge: '15',
-      badgeColor: 'bg-slate-700 text-slate-300',
+      badge: `${indexedManualsCount}`,
+      badgeVariant: 'secondary',
     },
     {
       key: 'hexinspector',
@@ -100,13 +112,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 bg-bench-950 border-r border-slate-800 flex flex-col justify-between shrink-0 select-none">
-      {/* Top Logo / System Title */}
+    <div className="flex flex-col justify-between h-full">
       <div>
         <div className="p-4 border-b border-slate-800/80 bg-bench-900/40">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-950 text-slate-950 font-black">
-              <Layers className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-950 text-white font-black">
+              <Layers className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight text-slate-100 font-mono">
@@ -119,36 +130,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Navigation Items */}
         <nav className="p-3 space-y-1" aria-label="Navegação Principal do Sistema">
           {navItems.length === 0 ? (
-            <div className="p-4 text-center text-xs text-slate-500 font-mono">
-              Nenhum módulo de bancada disponível
-            </div>
+            <p className="text-xs text-slate-500 px-3 py-2">Nenhum módulo disponível.</p>
           ) : (
             navItems.map(item => {
               const isActive = currentView === item.key;
               return (
-                <button
+                <Button
                   key={item.key}
+                  type="button"
+                  variant="ghost"
                   data-testid={`nav-${item.key}`}
-                  onClick={() => onSelectView(item.key)}
+                  onClick={() => {
+                    onSelectView(item.key);
+                    onAfterSelect?.();
+                  }}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400',
+                    'w-full h-auto justify-between px-3 py-2.5 rounded-xl text-left border',
                     isActive
-                      ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 shadow-md shadow-cyan-950/20'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border border-transparent'
+                      ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/15 hover:text-cyan-300 shadow-md shadow-cyan-950/20'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent'
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={cn(
-                        isActive ? 'text-cyan-400' : 'text-slate-500'
-                      )}
-                    >
+                    <span className={cn(isActive ? 'text-cyan-400' : 'text-slate-500')}>
                       {item.icon}
-                    </div>
+                    </span>
                     <div className="truncate">
                       <div className="text-xs font-semibold leading-tight font-mono">
                         {item.label}
@@ -160,20 +169,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
 
                   {item.badge && (
-                    <span
-                      className={`ml-2 text-[10px] font-mono px-1.5 py-0.5 rounded font-medium ${item.badgeColor}`}
-                    >
+                    <Badge variant={item.badgeVariant} className="ml-2 text-[10px] px-1.5 py-0.5">
                       {item.badge}
-                    </span>
+                    </Badge>
                   )}
-                </button>
+                </Button>
               );
             })
           )}
         </nav>
       </div>
 
-      {/* Footer Bench Telemetry */}
       <div className="p-3 border-t border-slate-800/80 bg-bench-900/50">
         <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800/80 space-y-1.5 font-mono text-[11px]">
           <div className="flex items-center justify-between text-slate-400">
@@ -190,21 +196,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span>AM34 Core</span>
             <span
               className={
-                hardwareConnected && vddVolts >= 2.8
+                hardwareConnected && powered
                   ? 'text-emerald-400 font-semibold'
                   : 'text-amber-400 font-semibold'
               }
             >
-              {hardwareConnected && vddVolts >= 2.8 ? 'HALTED (OCD)' : 'STANDBY (0V)'}
+              {hardwareConnected && powered ? 'HALTED (OCD)' : 'STANDBY (0V)'}
             </span>
           </div>
 
           <div className="flex items-center justify-between text-slate-400">
             <span>Spansion NOR</span>
-            <span className="text-slate-200">8 MB (TSOP48)</span>
+            <span className="text-slate-200">{flashSizeMb} MB (TSOP48)</span>
           </div>
         </div>
       </div>
-    </aside>
+    </div>
   );
 };
+
+export const Sidebar: React.FC<SidebarProps> = props => (
+  <aside className="hidden lg:flex w-64 bg-bench-950 border-r border-slate-800 flex-col justify-between shrink-0 select-none">
+    <SidebarContent {...props} />
+  </aside>
+);
+
+export interface MobileSidebarDrawerProps extends SidebarProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const MobileSidebarDrawer: React.FC<MobileSidebarDrawerProps> = ({
+  open,
+  onOpenChange,
+  ...props
+}) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="left-0 top-0 translate-x-0 translate-y-0 h-full w-72 max-w-[85vw] p-0 bg-bench-950 border-r border-slate-800 rounded-none flex flex-col">
+      <DialogHeader className="sr-only">
+        <DialogTitle>Menu de Módulos Panadiga</DialogTitle>
+      </DialogHeader>
+      <div className="flex-1 overflow-y-auto pt-2">
+        <SidebarContent {...props} onAfterSelect={() => onOpenChange(false)} />
+      </div>
+    </DialogContent>
+  </Dialog>
+);

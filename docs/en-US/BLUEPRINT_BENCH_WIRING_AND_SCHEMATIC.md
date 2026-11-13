@@ -1,38 +1,38 @@
 # HARDWARE ENGINEERING BLUEPRINT & BENCH CIRCUITS
-## In-Circuit DWire32A (RP2040) & External Spansion S29JL064H (TSOP-48) Programming
-### Panasonic DMR-EH55 Digital Recorder — Main Digital Board (PCB: VEP79138)
+## In-Circuit `P7501` Async UART (`115200 8N1`) & External Spansion S29JL064H (TSOP-48) Programming
+### Panasonic DMR-EH55 Digital Recorder — Main Board (`VEP79138`)
 
 ---
 
 ## 1. System Overview & Engineering Scope
 
-This document serves as the official **Hardware Engineering Blueprint and Bench Wiring Guide** for silicon-level diagnostics, recovery, in-circuit debugging, and firmware programming of the **Panasonic DMR-EH55** (DIGA Chassis) DVD/HDD recorder.
+This document serves as the official **Hardware Engineering Blueprint and Bench Wiring Guide** for silicon-level diagnostics, live boot/UART capture, recovery, and firmware programming of the **Panasonic DMR-EH55** (DIGA Chassis) DVD/HDD recorder.
 
 ```text
                       PANASONIC DMR-EH55 HARDWARE ARCHITECTURE
    ┌─────────────────────────────────────────────────────────────────────────────┐
-   │                        MAIN DIGITAL BOARD (VEP79138)                        │
+   │                           MAIN BOARD (VEP79138)                             │
    │                                                                             │
    │   ┌───────────────────────────┐             ┌───────────────────────────┐   │
    │   │   Matsushita / Panasonic  │             │   Spansion S29JL064H      │   │
-   │   │        MN2DS0016          │   16-Bit    │      (IC55007)            │   │
-   │   │   (UniPhier / AM34 Core)  │◄───────────►│   64 Mbit / 8 MByte NOR   │   │
-   │   │  RISC 32-bit @ 108/162MHz │    Bus      │     TSOP-48 Package       │   │
+   │   │      AM34 / MN103S        │   16-Bit    │       (IC5001)            │   │
+   │   │   + Syscon IC7501         │◄───────────►│   64 Mbit / 8 MByte NOR   │   │
+   │   │  RISC 32-bit Core         │    Bus      │     TSOP-48 Package       │   │
    │   └─────────────┬─────────────┘             └─────────────┬─────────────┘   │
    │                 │                                         │                 │
-   │                 │ Matsushita DWire32A                     │ WP#/ACC         │
-   │                 │ On-Chip Debug (OCD)                     │ (Pin 14 Unlock) │
+   │                 │ P7501 UART 115200 8N1                   │ WP#/ACC         │
+   │                 │ + Q7510/Q7514 Control                   │ (Pin 14 Unlock) │
    │                 ▼                                         ▼                 │
-   │        [ CN55001 / P7501 ]                       [ Square SMD Pad ]         │
-   │         6-Pin Debug Port                          Hardware Unlock           │
+   │           [ P7501 Header ]                       [ Square SMD Pad ]         │
+   │         6-Pin TO JIGU Port                        Hardware Unlock           │
    └─────────────────┬───────────────────────────────────────────────────────────┘
                      │
                      │ Shielded Harness / Bench Test Leads (< 15 cm)
                      ▼
    ┌──────────────────────────────────┐        OR       ┌────────────────────────┐
    │    INTERFACE 1: IN-CIRCUIT       │                 │ INTERFACE 2: EXTERNAL  │
-   │     Raspberry Pi Pico (RP2040)   │                 │  Universal Programmer  │
-   │  DWire32A PIO Engine @ 1.0 MHz   │                 │   SVOD 4 / XGecu T48   │
+   │   Raspberry Pi Pico (RP2040/2350)│                 │  Universal Programmer  │
+   │  P7501 UART Engine @ 115200 8N1  │                 │   SVOD 4 / XGecu T48   │
    │    (Non-Destructive In-Circuit)  │                 │ (TSOP-48 ZIF Socket)   │
    └──────────────────────────────────┘                 └────────────────────────┘
 ```
@@ -40,71 +40,70 @@ This document serves as the official **Hardware Engineering Blueprint and Bench 
 ### Critical Failure Mode & Hardware Mission
 * **Root Cause Failure:** Continuous reboot loop with front-panel error code **`U99`** (*Drive Communication / Parameter Timeout*), triggered by corrupted non-volatile calibration parameters emulated in Flash (`EEMUL` / NVRAM) residing in the top 64 KB of the NOR Flash (`0x7F0000` to `0x7FFFFF`, sectors `SA134` to `SA141`).
 * **Engineering Objectives:**
-  1. **In-Circuit DWire32A Interface:** Interface a **Raspberry Pi Pico (RP2040 / RP2350)** directly to the test port **`CN55001 / P7501`** on board `VEP79138`, utilizing a custom PIO state machine for synchronous half-duplex communication, proper signal conditioning, reflection damping, and open-drain master reset control.
-  2. **Direct TSOP-48 Programmer Interface:** Provide complete pin-to-pin mapping for the **Spansion `S29JL064H70TFI00` (`IC55007`)**, thermal hot-air rework runbook with Sn63/Pb37 alloy, ZIF socket insertion, and configuration profiles for **SVOD 4** and **XGecu T48** programmers.
+  1. **In-Circuit `P7501` Async UART Interface:** Interface a **Raspberry Pi Pico (RP2040 / RP2350)** directly to the service port **`P7501`** on board `VEP79138` (`115200 8N1`), with strict Hi-Z protection on Pin 5 (`NSW5V` / `GP3`), open-drain reset control (`XRESET` / `GP5`), and `Q7510`/`Q7514`-aware `SW_UART` handling (`GP26`).
+  2. **Direct TSOP-48 Programmer Interface:** Provide complete pin-to-pin mapping for the **Spansion `S29JL064H70TFI00` (`IC5001`)**, thermal hot-air rework runbook with Sn63/Pb37 alloy, ZIF socket insertion, and configuration profiles for **SVOD 4** and **XGecu T48** programmers.
 
 ---
 
-## 2. Detailed Bench Electrical Schematic: RP2040 $\leftrightarrow$ P7501
+## 2. Detailed Bench Electrical Schematic: RP2040 / RP2350 $\leftrightarrow$ P7501
 
-The physical link between the **Raspberry Pi Pico (RP2040)** and the **`P7501`** test port on board `VEP79138` requires strict conditioning. Because the DWire32A protocol uses synchronous communication with rapid bus turnarounds on `SDATA`, excessive parasitic capacitance or improper terminations will cause signal ringing, false clock transitions, and trigger Panasonic's hardware watchdog.
+The physical link between the **Raspberry Pi Pico (RP2040 / RP2350)** and the **`P7501`** header on board `VEP79138` uses asynchronous **`115200 8N1` UART** over an onboard transistor buffer (`Q7510`/`Q7514`) plus discrete reset and rail-sense lines.
 
 ### 2.0 Connector Standard (JST ZR 1.5mm - B6B-ZR-3R4) & Microcontroller Compatibility
 
-* **Physical Header Standard:** 6-pin **JST ZR connector with 1.5mm pitch**, Panasonic OEM part number **`B6B-ZR-3R4`** (top-entry through-hole header labeled *"TO WRITE JIGU"* in official service manuals).
+* **Physical Header Standard:** 6-pin **JST ZR connector with 1.5mm pitch**, Panasonic OEM part number **`B6B-ZR-3R4`** (labeled *"TO JIGU"* on schematic `VEP79138`).
 * **Commercial Pre-Assembled Wiring Harness:** Search commercially for **JST ZR 1.5mm 6-pin Female to Dupont 2.54mm cable** (housing `ZHR-6` with crimp pins `SZH-002T-P0.5`). This allows direct plug-and-play connection to the Raspberry Pi Pico header pins without soldering onto the recorder PCB.
 * **Incompatible Connectors (Do NOT Force):** Do not confuse with **JST SH (1.0mm - too small)**, **JST PH (2.0mm)**, or **JST XH (2.54mm - too large)**.
-* **RP2040 vs. RP2350 Compatibility:** Both Raspberry Pi Pico (RP2040) and Pico 2 (RP2350) are 100% natively supported. The RP2350's 520 KB SRAM allows caching entire 64 KB Spansion Flash sectors directly in local RAM.
-* **Protocol Alert (DWire32A vs. Classic JTAG):** Connector P7501 **does not have TDI/TDO/TMS pins**. The protocol is Matsushita DWire32A using a single bidirectional half-duplex line (`SDATA`) synchronized by `SCLK`. Standard JTAG firmwares (e.g., DirtyJTAG) are incompatible and will cause bus contention.
+* **RP2040 vs. RP2350 Compatibility:** Both Raspberry Pi Pico (RP2040) and Pico 2 (RP2350) are 100% natively supported. The RP2350's 520 KB SRAM allows buffering extensive UART telemetry and memory inspection frames.
+* **Protocol Alert (`P7501` Async UART vs. Legacy DWire32A/JTAG):** Official DMR-EH55 schematics prove that `P7501` is **NOT** synchronous `DWire32A` (`SDATA`/`SCLK`) or JTAG (`TDI`/`TDO`/`TMS`). Pin 6 (`UARTP2M_T`) is `115200 8N1` AM34 TX, Pin 3 (`UARTM2P_T`) is `115200 8N1` RX (when `SW_UART` is Hi-Z), and Pin 5 (`NSW5V`) is a `~5.15V` switched supply node via `D7510` that must NEVER be driven by the Pico.
 
 ### 2.1 Complete Bench Electrical Schematic (Official Panasonic Service Manual Reference)
 
 > [!IMPORTANT]
 > ### Assembly Disclaimer: Bench Prototype vs. Production Fixture (Resistors)
-> * **PROTOTYPE BENCH MODE (Direct Jumper Wire / Resistors Absolutely Unnecessary):**  
->   For rapid bench testing, firmware recovery, and diagnostics using short wires (**$L \le 15\text{ cm}$**), all series damping resistors ($R_1 \dots R_4$) and the ADC protection resistor ($R_{\text{prot}}$) are **ABSOLUTELY UNNECESSARY**. Both the Raspberry Pi Pico (RP2040/RP2350) and the Panasonic UniPhier SoC operate at native $3.3\text{V}$ LVTTL logic levels. Furthermore, the RP2040 firmware enables the internal pull-up on `SDATA` via software (`gpio_pull_up`), allowing immediate plug-and-play operation with direct jumper wires and zero discrete components.
-> * **FINISHED PRODUCT / PERMANENT BENCH FIXTURE MODE (Resistors Strongly Recommended):**  
->   For permanent laboratory test jigs, long harnesses ($L > 15\text{ cm}$), or commercial probes, discrete resistors are **STRONGLY RECOMMENDED**:
->   - **$R_1 \dots R_4 = 47\,\Omega \dots 100\,\Omega$:** Dampen reflections (*ringing*) caused by harness wire inductance and prevent overcurrent during half-duplex bus turnaround contention.
->   - **$R_{\text{pu}} = 4.7\text{ k}\Omega$:** Tied to Pin 1 ($+3.3\text{V}$ VDD) to guarantee sharp rise times ($t_r < 200\text{ ns}$) overcoming cable capacitance.
->   - **$R_{\text{prot}} = 1.0\text{ k}\Omega$:** Isolates the RP2040 ADC0 analog input from supply spikes and ESD transients.
+> * **PROTOTYPE BENCH MODE (Direct Jumper Wire / Optional Series Protection):**  
+>   For rapid bench UART diagnostics using short leads (**$L \le 15\text{ cm}$**), `VEP79138` already includes onboard pull-up networks `R7570` (`10 kΩ`) and `R7572` (`10 kΩ`) tied to `NSW5V`, plus base biasing `R7562` (`4.7 kΩ`) and `R7559` (`10 kΩ`). **Do NOT attach any external $4.7\text{ k}\Omega$ pull-up to 3.3V** on `UARTM2P_T` (Pin 3). Ensure `GP3` (`NSW5V`) stays permanently `Hi-Z Input` with pulls disabled.
+> * **FINISHED PRODUCT / PERMANENT BENCH FIXTURE MODE (Series Current-Limiting Resistors Recommended):**  
+>   For permanent test jigs or harnesses ($L > 15\text{ cm}$):
+>   - **$R_{\text{ser}} = 100\,\Omega$:** Optional inline damping/current-limiting on `GP2` (`UARTP2M_T`), `GP4` (`UARTM2P_T`), and `GP5` (`XRESET`).
+>   - **$R_{\text{prot}} = 1.0\text{ k}\Omega$:** Series isolation on `GP26 / ADC0` (`SW_UART`) against ESD transients.
 
 ```text
-       RASPBERRY PI PICO (RP2040)                                   DIGITAL BOARD VEP79138
+       RASPBERRY PI PICO (RP2040 / RP2350)                           MAIN BOARD VEP79138
              BENCH CONTROLLER                                         CONNECTOR P7501 (CANONICAL)
-    ┌───────────────────────────────┐                             ┌────────────────────────┐
-    │                               │                             │                        │
-    │  Pin 31 (GP26 / ADC0) ────────┤◄──[ R_PROT1: 1.0kΩ ]─┬──────├───◄ Pin 1: VDD Sense   │
-    │  (3.3V Voltage Sense)         │     1.0kΩ 1% (ADC)   │      │     (+3.3V Target Ref) │
-    │                               │                      │      │                        │
-    │  Pin 7  (GP5 / nRESET) ───────┤───[ R_DAMP4: 100Ω ]──│──────├───► Pin 2: nRESET      │
-    │  (Emulated Open-Drain)        │     100Ω 5%          │      │     (Master XRST, 0V)  │
-    │                               │                [R_PU: 4.7k] │                        │
-    │  Pin 6  (GP4 / PIO SDATA) ────┤◄──[ R_DAMP3: 100Ω ]──┴──────├───► Pin 3: SDATA       │
-    │  (PIO SM0 Data I/O)           │     100Ω 5%                 │     (Bidirectional)    │
-    │                               │                             │                        │
-    │  Pin 38 (GND / Ground 0V) ────┤═════════════════════════════╞════ Pin 4: GND Common   │
-    │  (0V Chassis Reference)       │   DIRECT 0.0Ω GROUND BUS    │     (0.0Ω to Chassis!) │
-    │                               │                             │                        │
-    │  Pin 5  (GP3 / PIO SCLK) ─────┤───[ R_DAMP2: 47Ω..100Ω ]────├───► Pin 5: SCLK        │
-    │  (PIO Side-Set Clock Out)     │     Master Clock 1.0 MHz    │     (Synchronous Clock)│
-    │                               │                             │                        │
-    │  Pin 4  (GP2 / EXTRG) ────────┤───[ R_DAMP1: 100Ω ]─────────├───► Pin 6: EXTRG       │
-    │  (External OCD Trigger)       │     100Ω 5%                 │     (Trigger / Halt)   │
-    │                               │                             │                        │
-    └───────────────────────────────┘                             └────────────────────────┘
+    ┌───────────────────────────────┐                             ┌──────────────────────────────┐
+    │                               │                             │                              │
+    │  Pin 31 (GP26 / ADC0) ────────┤◄──[ R_PROT: 1.0kΩ ]─────────├───◄ Pin 1: SW_UART (D)       │
+    │  (Boot Latch / ~3.25V Sense)  │     Q7510/R7562/R7559       │     (LOW->XFWE; Hi-Z->TX)    │
+    │                               │                             │                              │
+    │  Pin 7  (GP5 / XRESET) ───────┤───[ R_SER: 100Ω (opt) ]─────├───► Pin 2: XRESET            │
+    │  (Strict Open-Drain)          │     LOW=Reset / Hi-Z=Run    │     (QR7503, ~20µs Hi-Z rise)│
+    │                               │                             │                              │
+    │  Pin 6  (GP4 / UART TX) ──────┤───[ R_SER: 100Ω (opt) ]─────├───► Pin 3: UARTM2P_T         │
+    │  (115200 8N1 -> AM34 RX)      │     Onboard R7570 10kΩ      │     (MAX RXD via Q7514)      │
+    │                               │                             │                              │
+    │  Pin 38 (GND / Ground 0V) ────┤═════════════════════════════╞════ Pin 4: GND Common        │
+    │  (0V Chassis Reference)       │   DIRECT 0.0Ω GROUND BUS    │     (0.0Ω to Chassis!)       │
+    │                               │                             │                              │
+    │  Pin 5  (GP3 / NSW5V Sense) ──┤◄──[ Hi-Z Input / NO PULLS ]─├───◄ Pin 5: NSW5V (X_SW_5R2V) │
+    │  (NEVER Drive Push-Pull!)     │     D7510 / IC1506 ~5.15V   │     (~3.29V resting)         │
+    │                               │                             │                              │
+    │  Pin 4  (GP2 / UART RX) ──────┤◄──[ R_SER: 100Ω (opt) ]─────├───◄ Pin 6: UARTP2M_T         │
+    │  (115200 8N1 <- AM34 TX)      │     Onboard R7572 10kΩ      │     (MAX TXD, Square Pad)    │
+    │                               │                             │                              │
+    └───────────────────────────────┘                             └──────────────────────────────┘
 ```
 
-### 2.2 Canonical Pinout Table (Panasonic Service Manual p.62 Reference)
+### 2.2 Canonical Pinout Table (Panasonic Service Manual `VEP79138` Reference)
 
-| Canonical Pin | Manual Net Name | UniPhier SoC Signal | Logic Level | RP2040 Terminal | Functional Role in Recovery |
-| :---: | :---: | :---: | :---: | :---: | :--- |
-| **1** | `VDD_SENSE` | `VDD_3.3V` | +3.3V LVTTL | Pin 31 (GP26 / ADC0) | Target Power Monitor. Invariant: halts execution if $V < 3.0\text{V}$ or $V > 3.6\text{V}$. |
-| **2** | `nRESET` | `XRST` | 0V / 3.3V | Pin 7 (GP5) | Master System Reset. Active LOW (0V). Driven as Open-Drain. |
-| **3** | `SDATA` | `OCD_SDATA` | 3.3V LVTTL | Pin 6 (GP4) | Bidirectional Half-Duplex Data bus. Turnaround in 1 clock cycle. |
-| **4** | `GND` | `GND_DIGITAL` | 0.0V Chassis | Pin 38 (GND) | Equipotential Common Ground. Direct $0.0\,\Omega$ bond to metal chassis. |
-| **5** | `SCLK` | `OCD_SCLK` | 3.3V LVTTL | Pin 5 (GP3) | Synchronous Master Clock generated by RP2040 PIO (1.0 MHz nominal). |
-| **6** | `EXTRG` | `OCD_EXTRG` | 3.3V LVTTL | Pin 4 (GP2) | Hardware Break/Trigger line. Identifiable on PCB by **Square Solder Pad**. |
+| Canonical Pin | Schematic Net | Circuit / SoC Role | Electrical Behavior | RP2040 Terminal | Functional Role in Recovery |
+| :---: | :---: | :---: | :--- | :---: | :--- |
+| **1** | `SW_UART` | `Q7510` / `IC7501` Pin 80 | `~3.25V` Hi-Z / `~2.69V` PD | Pin 31 (`GP26 / ADC0`) | Forces `XFWE` serial/JIG boot when driven LOW (cuts off `Q7514`); keep Hi-Z to enable `UARTM2P_T` TX. |
+| **2** | `XRESET` | `QR7503` / Reset Line | Strict Open-Drain (0V/Hi-Z) | Pin 7 (`GP5`) | Master System Reset. Active LOW (0V); releases via pull-up in `~20 µs`. Never drive push-pull! |
+| **3** | `UARTM2P_T` | `MAX RXD` (`Q7514` -> `UARTM2P`) | 3.3V `115200 8N1` (`R7570 10kΩ`) | Pin 6 (`GP4`, TX) | Async UART TX from Pico to AM34 RX (requires `SW_UART` = Hi-Z). No external pull-up. |
+| **4** | `GND` | `GND_DIGITAL` | `0.0V` Chassis | Pin 38 (`GND`) | Equipotential Common Ground. Direct $0.0\,\Omega$ bond to metal chassis. |
+| **5** | `NSW5V` | `X_SW_5R2V` (`IC1506` -> `D7510`) | `~5.15V` up / `~3.29V` resting | Pin 5 (`GP3`) | **Static rail sense ONLY.** Feeds `R7570`/`R7572`/`IC7501`. MUST remain `Hi-Z Input` without pulls! |
+| **6** | `UARTP2M_T` | `MAX TXD` (`R7535` -> `R7572`) | 3.3V `115200 8N1` | Pin 4 (`GP2`, RX) | Async UART RX from AM34 (`<00>DDR CHECK: OK`, `CD diag boot mode`). Square Solder Pad. |
 
 ---
 
@@ -116,18 +115,17 @@ Below are the official laboratory CAD drawings and electrical schematics generat
 ![Physical Topography and P7501 Orientation](images/panasonic_dmr_eh55_pcb_p7501_orientation.png)
 
 ### 3.2 Official Panasonic Schematic Excerpt
-![Official Panasonic P7501 Schematic](images/schematic_p7501_panasonic_official.png)
+![Official Panasonic P7501 Schematic](../assets/images/schematic_p7501_panasonic_official.png)
 
 ### 3.3 Laboratory Bench Electrical Schematic
-![Pico Probe Assembly Electrical Schematic](images/dwire32a_pico_probe_assembly_schematic.png)
+![Pico Probe Assembly Electrical Schematic](images/p7501_pico_probe_assembly_schematic.png)
 
 ---
 
-## 4. DWire32A Protocol Timings & PIO Engine
+## 4. `P7501` Asynchronous UART Timings & PIO Engine
 
-The PIO state machine in `dwire32a.pio` runs a 32-bit synchronous cycle:
-1. **Clock Frequency:** $1.0\text{ MHz}$ ($T_{\text{clk}} = 1000\text{ ns}$).
-2. **Clock High / Low:** $500\text{ ns}$ high, $500\text{ ns}$ low.
-3. **Data Setup:** Data valid on `SDATA` at least $120\text{ ns}$ before the rising edge of `SCLK`.
-4. **Data Hold:** Maintained for at least $80\text{ ns}$ after the rising edge of `SCLK`.
-5. **Bus Turnaround (Tristate Handover):** Exactly 1 full SCLK cycle idle period before direction change.
+The PIO UART engine in `p7501_uart.pio` operates on deterministic asynchronous framing:
+1. **Baud Rate:** `115200 bps` ($T_{\text{bit}} = 8.68\,\mu\text{s}$), **8 data bits, No parity, 1 stop bit (`8N1`)**.
+2. **XRESET Open-Drain Rise Verification:** releasing `GP5` from LOW to Hi-Z measures pull-up rise time (`XRESET Release Rise Time (Hi-Z) : ~20 us`).
+3. **`NSW5V` Safety Guardrail:** `GP3` stays initialized as `GPIO_IN` with `gpio_disable_pulls(3)` throughout boot, capture, and `ISOLATE` states.
+4. **`SW_UART` Interlock Window:** Asserting `GP26` LOW with `XRESET` traps `CD diag boot mode` / `SDDIAG`; restoring `GP26` to Hi-Z restores `Q7514` bias for interactive `GP4` UART transmission.

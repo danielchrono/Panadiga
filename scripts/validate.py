@@ -3,56 +3,42 @@
 from __future__ import annotations
 
 import os
+import sys
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path = [os.path.dirname(_SCRIPT_DIR), *(p for p in sys.path if os.path.abspath(p or ".") != _SCRIPT_DIR)]
+
+from pathlib import Path
 import shutil
 import subprocess
-import sys
-import tempfile
 import time
-from pathlib import Path
 from typing import Final, Mapping
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR.parent) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR.parent))
-
-from scripts.panadiga_ops import ROOT, build_env, print_banner, print_status, run_step
+from scripts.panadiga_ops import ROOT, build_env, load_msvc_env, print_banner, print_status, run_step
 
 DESKTOP_DIR: Final[Path] = ROOT / "apps" / "desktop"
 C11_HOST_SOURCES: Final[tuple[str, ...]] = (
-    "dwire32a_jtag_research/gdb/gdb_rsp_codec.c",
-    "dwire32a_jtag_research/gdb/gdb_rsp_memory.c",
-    "dwire32a_jtag_research/gdb/gdb_rsp_cpu.c",
-    "dwire32a_jtag_research/tests/test_gdb_rsp_host.c",
+    "firmware/pico-p7501/gdb/gdb_rsp_codec.c",
+    "firmware/pico-p7501/gdb/gdb_rsp_memory.c",
+    "firmware/pico-p7501/gdb/gdb_rsp_cpu.c",
+    "firmware/pico-p7501/tests/test_gdb_rsp_host.c",
 )
 PYTHON_COMPILE_TARGETS: Final[tuple[str, ...]] = (
-    "tools/ghidra_am34_memory_map.py",
-    "tools/ghidra_import_symbols_panadiga.py",
-    "tools/ghidra_connect_debugger.py",
+    "tools/ghidra/ghidra_am34_memory_map.py",
+    "tools/ghidra/ghidra_import_symbols_panadiga.py",
+    "tools/ghidra/ghidra_connect_debugger.py",
     "scripts/panadiga_ops.py",
     "scripts/build.py",
     "scripts/validate.py",
+    "scripts/dev/generate_schematics_and_cad.py",
+    "scripts/re/__init__.py",
+    "scripts/re/mn10300.py",
+    "scripts/re/pana_frm.py",
+    "scripts/bench/__init__.py",
+    "scripts/bench/protocol.py",
+    "scripts/bench/decoders.py",
+    "scripts/bench/runner.py",
 )
-
-
-def _find_msvc_vcvars64() -> Path | None:
-    """Locate MSVC vcvars64.bat via Visual Studio Locator on Windows."""
-    if sys.platform != "win32":
-        return None
-    program_files_x86 = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
-    vswhere = program_files_x86 / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
-    if not vswhere.is_file():
-        return None
-    proc = subprocess.run(
-        [str(vswhere), "-latest", "-products", "*", "-find", "**\\vcvars64.bat"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    for line in proc.stdout.splitlines():
-        cand = Path(line.strip())
-        if cand.is_file():
-            return cand
-    return None
 
 
 def _compile_c11_host_test(exe_path: Path, env: Mapping[str, str]) -> None:
@@ -67,7 +53,7 @@ def _compile_c11_host_test(exe_path: Path, env: Mapping[str, str]) -> None:
                 "-Werror",
                 "-DPICO_HOST_TEST=1",
                 "-I",
-                "dwire32a_jtag_research",
+                "firmware/pico-p7501",
                 *C11_HOST_SOURCES,
                 "-o",
                 str(exe_path),
@@ -75,25 +61,26 @@ def _compile_c11_host_test(exe_path: Path, env: Mapping[str, str]) -> None:
             run_step(cmd, cwd=ROOT, env=env)
             return
 
-    vcvars = _find_msvc_vcvars64()
-    if vcvars is not None:
-        sources_win = " ".join(src.replace("/", "\\") for src in C11_HOST_SOURCES)
-        batch_lines = (
-            f'@echo off\n'
-            f'call "{vcvars}"\n'
-            f'if errorlevel 1 exit /b 1\n'
-            f'cd /d "{ROOT}"\n'
-            f'cl /nologo /std:c11 /W4 /WX /DPICO_HOST_TEST=1 /D_CRT_SECURE_NO_WARNINGS '
-            f'/Idwire32a_jtag_research {sources_win} /Fe"{exe_path}"\n'
-        )
-        with tempfile.NamedTemporaryFile("w", suffix=".cmd", delete=False, encoding="utf-8") as tmp:
-            tmp.write(batch_lines)
-            tmp_path = Path(tmp.name)
-        try:
-            subprocess.run(["cmd.exe", "/d", "/c", str(tmp_path)], cwd=str(ROOT), env=dict(env), check=True)
-        finally:
-            tmp_path.unlink(missing_ok=True)
-        return
+    if sys.platform == "win32":
+        msvc_env = load_msvc_env(env)
+        if shutil.which("cl", path=msvc_env.get("PATH")):
+            run_step(
+                [
+                    "cl",
+                    "/nologo",
+                    "/std:c11",
+                    "/W4",
+                    "/WX",
+                    "/DPICO_HOST_TEST=1",
+                    "/D_CRT_SECURE_NO_WARNINGS",
+                    "/Ifirmware/pico-p7501",
+                    *C11_HOST_SOURCES,
+                    f"/Fe:{exe_path}",
+                ],
+                cwd=ROOT,
+                env=msvc_env,
+            )
+            return
 
     raise RuntimeError("No C11 compiler (gcc, clang, or MSVC cl) found for Pico firmware host tests.")
 
@@ -138,7 +125,7 @@ def _gate_playwright(env: Mapping[str, str]) -> None:
 
 def _gate_ghidra(env: Mapping[str, str]) -> None:
     print_banner("7/9. Validating Ghidra Native Generator (panadiga ghidra)")
-    run_step(["cargo", "run", "--", "ghidra", "export-all", "--dir", str(ROOT / "tools")], cwd=ROOT, env=env)
+    run_step(["cargo", "run", "-p", "panadiga-cli", "--", "ghidra", "export-all", "--dir", str(ROOT / "tools" / "ghidra")], cwd=ROOT, env=env)
     print_status("PASS", "Ghidra scripts generated directly from native Rust SSOT!", "32")
 
 
@@ -158,15 +145,11 @@ def _gate_c11_host(env: Mapping[str, str]) -> None:
 
 
 def _gate_python(env: Mapping[str, str]) -> None:
-    print_banner("9/9. Verifying Python Typer CLI, Mypy Strict & Pytest Suite")
+    print_banner("9/9. Verifying Build Scripts, Ghidra Jython Syntax, Mypy Strict & Pytest")
     run_step([sys.executable, "-m", "py_compile", *PYTHON_COMPILE_TARGETS], cwd=ROOT, env=env)
-    run_step(
-        [sys.executable, "-m", "mypy", "--strict", "tools/panadiga_cli.py", "tools/rag_engine", "scripts"],
-        cwd=ROOT,
-        env=env,
-    )
-    run_step([sys.executable, "-m", "pytest", "tools/tests", "tools/rag_engine/tests"], cwd=ROOT, env=env)
-    print_status("PASS", "Python syntax, mypy --strict, and pytest suites all passed!", "32")
+    run_step([sys.executable, "-m", "mypy", "--strict", "scripts"], cwd=ROOT, env=env)
+    run_step([sys.executable, "-m", "pytest", "scripts/tests"], cwd=ROOT, env=env)
+    print_status("PASS", "Python build scripts, Ghidra syntax, mypy --strict, and pytest passed!", "32")
 
 
 def main() -> int:

@@ -1,0 +1,25 @@
+[package]
+name = "panadiga-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core forensic, hardware SSOT, cryptography, MEIHFS storage, and Pico protocol library for Panasonic DIGA systems"
+
+[lib]
+name = "panadiga_core"
+crate-type = ["rlib"]
+
+[dependencies]
+anyhow = { workspace = true }
+byteorder = { workspace = true }
+flate2 = { workspace = true }
+hex = { workspace = true }
+lopdf = { workspace = true }
+md-5 = { workspace = true }
+memmap2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serialport = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }

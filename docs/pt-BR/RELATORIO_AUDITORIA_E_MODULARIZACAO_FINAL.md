@@ -150,7 +150,7 @@ As tabelas JSON contêm chaves estruturadas por namespace de aplicação:
 * `hdd.*`: Forense MEIHFS, partições de 32MB/64MB, LBA 0 "SH", espelho de 28MB, journal e diálogo de extração.
 * `frmcrypto.*`: Inspeção de contêiner óptico FRM, entropia de Shannon, tabela de TOC e vazamentos ECB.
 * `nvram.*`: Cirurgia de parâmetros EEMUL, micro-setores Spansion e unbrick cirúrgico.
-* `pico.*`: Barramento Matsushita DWire32A, temporização de Cold Break-In e console serial.
+* `pico.*`: Interface UART assíncrona `P7501` (`115200 8N1`), proteção `NSW5V` (`Hi-Z`), comandos de sondagem e console serial.
 * `manuals.*`: Catálogo dos 15 manuais de serviço e busca semântica em diagramas esquemáticos.
 * `rag.*`: Assistente de inteligência artificial com verificação de segurança física e citações.
 * `hexinspector.*`: Visualizador hexadecimal de setores LBA e endereçamento dual.
@@ -254,7 +254,7 @@ Abaixo está o mapeamento exato de todos os novos módulos e estruturas incorpor
 | **Rust Crypto** | `src/crypto/toc.rs` | Parser da tabela de conteúdos de 48 bytes do contêiner FRM |
 | **Rust Crypto** | `src/crypto/codebook.rs` | Análise de frequência de blocos ECB de 64 bits e vazamento |
 | **Rust Pico** | `src/pico/mod.rs` | Fachada de controle e despacho de comandos da bancada RP2040 |
-| **Rust Pico** | `src/pico/platforms.rs` | Definição de pinagem do conector CN55001 e telemetria mock |
+| **Rust Pico** | `crates/panadiga-core/src/pico/platforms.rs` | Definição de pinagem verificada do conector `P7501` e telemetria real |
 | **Rust Pico** | `src/pico/diagnostics.rs` | Interpretador de erros e códigos de diagnóstico Matsushita |
 | **Rust Pico** | `src/pico/bridge.rs` | Ponte serial USB CDC com o firmware C11 do RP2040 |
 | **Frontend i18n** | `apps/desktop/src/locales/en-US.json` | Tabela canônica de traduções em Inglês (i18next) |

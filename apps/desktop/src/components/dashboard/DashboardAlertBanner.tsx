@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShieldAlert, ArrowRight } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface DashboardAlertBannerProps {
@@ -36,14 +37,14 @@ export const DashboardAlertBanner: React.FC<DashboardAlertBannerProps> = ({
           </div>
         </div>
 
-        <button
+        <Button
           onClick={onNavigateNvram}
           aria-label={t('dashboard.cleanButton')}
-          className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs flex items-center gap-2 shadow-lg shadow-amber-950/40 transition-all shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono font-bold text-xs gap-2 shadow-lg shadow-amber-950/40 shrink-0"
         >
           <span>{t('dashboard.cleanButton')}</span>
           <ArrowRight className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

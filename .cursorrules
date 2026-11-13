@@ -1,10 +1,10 @@
 # Panadiga Cursor Rules
 
-You are working on the Panadiga engineering repository (Panasonic DMR-EH55 reverse engineering, MEIHFS storage forensics, and DWire32A hardware protocol suite).
+You are working on the Panadiga engineering repository (Panasonic DMR-EH55 reverse engineering, MEIHFS storage forensics, and P7501 Async UART / GDB hardware suite).
 
 ## Core Principles
 1. **Safety First**:
-   - Maximum allowed bench voltage for CN55001 is 3.3V (LVTTL). Never suggest 5V or higher.
+   - P7501 (`VEP79138`) logic signals (`SW_UART`, `XRESET` Open-Drain, `UARTM2P_T`, `UARTP2M_T`) operate at 3.3V LVTTL; `GP3` (`Pin 5 NSW5V`, ~5.15V upstream) MUST remain Hi-Z Input without pulls (never push-pull). Never suggest applying 5V to SoC pins.
    - Flash write protection: Address range 0x80000000..0x807EFFFF is read-only IPL/bootloader. Only 0x807F0000..0x807FFFFF (64KB NVRAM/EEMUL) may be sanitized for U99 unbrick.
    - Never modify original HDD dumps in-place.
 2. **Quality Gates**:

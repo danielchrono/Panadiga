@@ -16,7 +16,7 @@
     "hdd": "HDD Storage",
     "hdd.sub": "MEIHDFS Partitions & MBR",
     "picobench": "Pico Bench",
-    "picobench.sub": "DWire32A & GDB Server",
+    "picobench.sub": "P7501 Async UART",
     "frmcrypto": "PANA_DVD Crypto",
     "frmcrypto.sub": "ECB Codebook & Entropy",
     "manuals": "Service Manuals",
@@ -37,8 +37,8 @@
     "metricFrm": "PANA_DVD.FRM Entropy",
     "metricFrmSub": "ECB Feistel 64-bit KPA Cipher",
     "metricFrmBadge": "3 CPUs TOC",
-    "metricDwire": "DWire32A Interface",
-    "metricDwireSub": "RP2040 Synchronous OCD Master",
+    "metricDwire": "P7501 UART Interface",
+    "metricDwireSub": "RP2040/RP2350 Async UART 115200 8N1",
     "metricDwireBadge": "3.28V LVTTL OK",
     "loading": "Loading DMR-EH55 bench telemetry and system health..."
   },
@@ -156,7 +156,7 @@
     "bookmarks": "Quick Bookmarks:"
   },
   "pico": {
-    "title": "Raspberry Pi Pico Bench & DWire32A OCD Master",
+    "title": "Raspberry Pi Pico Bench — P7501 Async UART (115200 8N1)",
     "port": "Serial COM Port",
     "connect": "Connect",
     "disconnect": "Disconnect",
@@ -175,7 +175,6 @@
     "gdbClientActive": "CLIENT ACTIVE",
     "extTools": "Ecosystem & External Tools:",
     "launchGdb": "GDB Multiarch",
-    "launchOpenocd": "OpenOCD AM34",
     "launchGhidra": "Ghidra Scripts",
     "launchHxd": "HxD Editor",
     "launchTerminal": "PowerShell"
@@ -191,13 +190,13 @@
   },
   "manuals": {
     "header": {
-      "title": "Technical Library & Circuit Schematics (15 Service Manuals)",
+      "title": "Technical Library & Circuit Schematics (30 Service Manuals)",
       "badge": "LOCAL RAPID INDEXING",
       "subtitle": "Instant lookup for ICs, test pins, self-check routines, and bench error codes",
       "size": "62.1 MB of Indexed Technical Documentation"
     },
     "search": {
-      "placeholder": "Search by part/error code (U99, S29JL064, CN55001, IC5001)...",
+      "placeholder": "Search by part/error code (U99, S29JL064, P7501, IC5001)...",
       "emptyQuery": "Please enter a search keyword or part code.",
       "button": "Search Manuals"
     },
@@ -244,7 +243,7 @@
     "emptyPrompt": "Ask any low-level hardware, firmware, or storage question. The RAG engine enforces zero extrapolation."
   },
   "terminal": {
-    "title": "DWire32A Bus Monitor / OCD CDC Console",
+    "title": "P7501 Async UART Monitor / CDC Console",
     "events": "{{count}} events",
     "clear": "Clear",
     "empty": "No events registered on the serial channel. Awaiting bus activity...",

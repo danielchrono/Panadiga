@@ -67,22 +67,17 @@ describe('GdbExternalToolLaunchers Component (SRP Decomposition)', () => {
     render(<GdbExternalToolLaunchers onLaunchTool={onLaunchTool} />);
 
     const gdbButton = screen.getByRole('button', { name: /GDB Multiarch/i });
-    const openocdButton = screen.getByRole('button', { name: /OpenOCD AM34/i });
     const ghidraButton = screen.getByRole('button', { name: /Scripts Ghidra/i });
-    const hxdButton = screen.getByRole('button', { name: /HxD Editor/i });
-    const terminalButton = screen.getByRole('button', { name: /PowerShell/i });
+    const hxdButton = screen.getByRole('button', { name: /Editor Hexadecimal/i });
+    const terminalButton = screen.getByRole('button', { name: /Terminal Host/i });
 
     expect(gdbButton).toBeDefined();
-    expect(openocdButton).toBeDefined();
     expect(ghidraButton).toBeDefined();
     expect(hxdButton).toBeDefined();
     expect(terminalButton).toBeDefined();
 
     fireEvent.click(gdbButton);
     expect(onLaunchTool).toHaveBeenCalledWith('gdb');
-
-    fireEvent.click(openocdButton);
-    expect(onLaunchTool).toHaveBeenCalledWith('openocd');
 
     fireEvent.click(ghidraButton);
     expect(onLaunchTool).toHaveBeenCalledWith('ghidra');

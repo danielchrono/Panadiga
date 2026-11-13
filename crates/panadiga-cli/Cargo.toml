@@ -1,0 +1,27 @@
+[package]
+name = "panadiga-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unified CLI, interactive TUI, MCP server host, and cross-platform launcher for Panadiga"
+
+[lib]
+name = "panadiga_cli"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "panadiga"
+path = "src/main.rs"
+
+[dependencies]
+panadiga-core = { path = "../panadiga-core" }
+panadiga-rag = { path = "../panadiga-rag" }
+panadiga-mcp = { path = "../panadiga-mcp" }
+anyhow = { workspace = true }
+clap = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serialport = { workspace = true }
+sha2 = { workspace = true }

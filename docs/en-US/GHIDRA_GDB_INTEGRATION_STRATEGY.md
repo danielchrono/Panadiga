@@ -23,7 +23,7 @@ flowchart TD
     end
 
     subgraph CoreBridge ["Communication & Protocol Layer (C11 & Rust)"]
-        CDC["Pico CDC Serial Firmware (dwire32a_pico)"]
+        CDC["Pico CDC Serial Firmware (pico-p7501)"]
         RSP["GDB Remote Serial Protocol (RSP) Engine"]
         PANAPICO["Panadiga CLI / Desktop Bridge (Rust Core)"]
         PICO <--> CDC

@@ -7,7 +7,6 @@
     "**/node_modules/**",
     "**/target/**",
     "**/dist/**",
-    "**/dist_bin/**",
     "**/manuals_and_schematics/**",
     "**/firmware_and_images/**",
     "**/.git/**",
@@ -31,8 +30,9 @@
   ],
   "path": [
     "apps/desktop/src",
-    "src",
-    "dwire32a_jtag_research",
+    "apps/desktop/src-tauri/src",
+    "crates",
+    "firmware/pico-p7501",
     "tools",
     "scripts"
   ]

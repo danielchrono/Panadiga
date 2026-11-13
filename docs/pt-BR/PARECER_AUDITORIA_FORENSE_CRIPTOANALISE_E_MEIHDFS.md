@@ -19,7 +19,7 @@
 
 ## 1. Validação da Criptoanálise do `.FRM` e Salvaguardas de Padding
 
-1. **Quebra Estrutural vs. Recuperação de Chave:** O vazamento ECB combinado ao KPA quebra a ofuscação estrutural do contêiner óptico, mas não recupera a chave simétrica sobre $2^{64}$ blocos. A decriptação integral deve extrair a rotina em texto-plano do IPL da Flash NOR (`0x80000000..0x807EFFFF`) ou capturar a imagem decifrada na SDRAM (`0x40000000`) via porta DWire32A (`P7501`).
+1. **Quebra Estrutural vs. Recuperação de Chave:** O vazamento ECB combinado ao KPA quebra a ofuscação estrutural do contêiner óptico, mas não recupera a chave simétrica sobre $2^{64}$ blocos. A decriptação integral deve extrair a rotina em texto-plano do IPL da Flash NOR (`0x80000000..0x807EFFFF`) a partir de um dump físico do chip `IC5001` ou via interface serial `P7501` (`115200 8N1` / modo JIG/loader).
 2. **Proibição de Despadding PKCS#7:** O firmware Matsushita utiliza padding por blocos constantes (`0xFF * 8` e `0x00 * 8`), sem PKCS#7. O recorte obedece a limites estritos de comprimento de carga útil.
 
 ---
@@ -43,7 +43,7 @@
 
 ## 4. Veredito Final de Viabilidade de Bancada & Protocolo "What's Next"
 
-1. **Camada DWire32A:** O On-Chip Debug (OCD) Matsushita AM34 opera a nível físico síncrono e **não exige desafio-resposta criptográfico**. O handshake e parada da CPU (`DCSR = 0x00000001`) ocorrem via controle síncrono de pinos e `nRESET` em Open-Drain.
+1. **Camada Física P7501 & Controle Discreto:** Os esquemáticos oficiais do DMR-EH55 comprovam que o conector `P7501` implementa **UART assíncrona `115200 8N1`** com controle discreto em `SW_UART` (Pin 1) e `XRESET` em Open-Drain (Pin 2), mantendo `NSW5V` (Pin 5) estritamente como entrada `Hi-Z` — sem interface síncrona proprietária DWire32A/JTAG exposta nesse conector.
 2. **Cura do U99:** A sanitização por apagamento dos micro-setores de NVRAM (últimos 64 KB em 2/4/8 MB e 128 KB em 16 MB) é suficiente e segura contra brick, pois o IPL (`0x80000000..0x807EFFFF`) é protegido contra escrita (`E05`).
 3. **Descriptografia Integral:** Os módulos do firmware e do HD estão cifrados em Feistel/ECB de 64 bits. O desbloqueio dos 100% será efetuado a partir da chave simétrica extraída do IPL em texto-plano capturado no **First-Contact Backup**.
 4. **Prontidão de Bancada:** Todos os 9 Quality Gates foram validados e o sistema está aprovado para operação física com a sonda RP2040/RP2350.

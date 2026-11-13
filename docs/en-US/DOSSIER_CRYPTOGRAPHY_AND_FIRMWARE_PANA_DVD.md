@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary & Cryptanalytic Specification
 
-The **Panasonic DMR-EH55** digital DVD/HDD recorder (Matsushita UniPhier `MN2DS0016` SoC / 32-bit `AM34` RISC core) employs industrial-grade copy protection, DRM, and firmware encryption mechanisms:
+The **Panasonic DMR-EH55** digital DVD/HDD recorder (Matsushita `AM34` / `MN103S` SoC on `VEP79138`) employs industrial-grade copy protection, DRM, and firmware encryption mechanisms:
 
 1. **CPRM (Content Protection for Recordable Media):** C-BSA stream/block cipher and hardware binding to the physical optical drive (`Drive ID` and `Media Key Block`) for DVD-RAM and HDD recordings.
 2. **Integrated DivX DRM:** Hardware DRM subsystem utilizing an 8-byte unique device key for media authentication.
@@ -49,7 +49,7 @@ Forensic examination of the binary artifacts establishes the following reality:
 
 **Tactical Engineering Conclusion:** Attempting brute-force decryption of `PANA_DVD.FRM` without keys is mathematically intractable. However, **the Panasonic DMR-EH55 physical hardware possesses no on-the-fly bus decryption engine between the AM34 SoC and the external memory bus**. For the AM34 processor to boot upon de-assertion of the reset pin, the on-board **Spansion S29JL064H (8 MB NOR Flash)** **MUST CONTAIN NATIVE UNENCRYPTED MN103S MACHINE CODE IN ITS INITIAL SECTORS**.
 
-By dumping the physical Flash directly via an external programmer (**SVOD 4 / XGecu T48**) or via the in-circuit debug probe (**DWire32A / OCD**), engineers obtain the exact uncompressed bootloader containing the decryption routines, MMIO addresses, and master cryptographic keys.
+By dumping the physical Flash directly via an external programmer (**SVOD 4 / XGecu T48**) or inspecting live system behavior via the in-circuit **`P7501` Async UART (`115200 8N1`)** and GDB RSP bridge, engineers obtain the uncompressed bootloader containing the decryption routines, MMIO addresses, and master cryptographic keys.
 
 ---
 

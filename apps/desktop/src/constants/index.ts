@@ -98,17 +98,20 @@ export const FRM_CONTAINER_MAGIC_ASCII = "PANA_DVD_ROM";
 /** Nominal 3.3V power supply rail for Spansion and Panasonic digital logic */
 export const PICO_NOMINAL_VDD_VOLTS = 3.30;
 
-/** Minimum acceptable VDD threshold before signaling power rail brownout */
-export const PICO_MIN_VDD_THRESHOLD_VOLTS = 3.10;
+/** Minimum acceptable VDD threshold before signaling target powered / brownout (matches p7501_types.h 2.50V) */
+export const PICO_MIN_VDD_THRESHOLD_VOLTS = 2.50;
 
-/** Maximum safe VDD threshold (3.45V) to protect Spansion I/O pins */
-export const PICO_MAX_VDD_THRESHOLD_VOLTS = 3.45;
+/** Safe nominal LVTTL operating minimum rail (3.00V) */
+export const PICO_SAFE_OPERATING_MIN_VOLTS = 3.00;
+
+/** Maximum safe VDD ceiling (3.45V) to protect Spansion I/O pins (matches p7501_types.h 3.45V) */
+export const PICO_MAX_VDD_CEILING_VOLTS = 3.45;
+
+/** Alias kept for backwards compatibility */
+export const PICO_MAX_VDD_THRESHOLD_VOLTS = PICO_MAX_VDD_CEILING_VOLTS;
 
 /** Default serial baud rate for USB CDC UART bridge */
 export const PICO_DEFAULT_BAUD_RATE = 115200;
-
-/** Nominal DWire32A clock speed in Hertz (1 MHz) */
-export const DWIRE_NOMINAL_CLOCK_HZ = 1_000_000;
 
 /** GDB Remote Serial Protocol TCP default listening port */
 export const GDB_DEFAULT_TCP_PORT = 3333;
@@ -122,11 +125,23 @@ export const RASPBERRY_PI_VID = 0x2e8a;
 /** RP2040 CDC Serial Product ID (PID) */
 export const PICO_RP2040_CDC_PID = 0x000a;
 
+/** RP2040 W CYW43 CDC Serial Product ID (PID) */
+export const PICO_RP2040_W_CDC_PID = 0x0014;
+
 /** RP2350 (Pico 2) CDC Serial Product ID (PID) */
-export const PICO_RP2350_CDC_PID = 0x0009;
+export const PICO_RP2350_CDC_PID = 0x000f;
+
+/** RP2350 W (Pico 2W) CDC Serial Product ID (PID) */
+export const PICO_RP2350_W_CDC_PID = 0x001f;
+
+/** RP2350 RISC-V Hazard3 CDC Serial Product ID (PID) */
+export const PICO_RP2350_RISCV_CDC_PID = 0x000e;
 
 /** RP2040 / RP2350 USB BOOTSEL Mass Storage PID */
 export const PICO_BOOTSEL_PID = 0x0003;
+
+export { DEFAULT_HARDWARE_SSOT_SPEC } from './ssotFallback';
+export { DIGA_HEX_BOOKMARKS } from './hexBookmarks';
 
 /* =========================================================================
  * 6. UI Interaction & Polling Timing Constants

@@ -19,7 +19,7 @@
 
 ## 1. Cryptanalysis Validation & Padding Safeguards
 
-1. **Structural Breakthrough vs. Full Key Recovery:** The ECB leak combined with KPA breaks optical container obfuscation but does not recover the PRP key across $2^{64}$ states. Complete plaintext is obtained by extracting the NOR Flash IPL routines (`0x80000000..0x807EFFFF`) or capturing decrypted payload from SDRAM (`0x40000000`) via DWire32A probe (`P7501`).
+1. **Structural Breakthrough vs. Full Key Recovery:** The ECB leak combined with KPA breaks optical container obfuscation but does not recover the PRP key across $2^{64}$ states. Complete plaintext is obtained by extracting the NOR Flash IPL routines (`0x80000000..0x807EFFFF`) or capturing decrypted payload from SDRAM (`0x40000000`) via the in-circuit **`P7501` Async UART / GDB probe**.
 2. **Strict Prohibition of PKCS#7 Unpadding:** Matsushita firmware utilizes constant-block padding without PKCS#7. Slicing must strictly respect payload descriptors.
 
 ---

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { GdbBridgeStatus } from '@/models';
+import type { GdbBridgeStatus } from '@/models';
+import { CLIPBOARD_FEEDBACK_MS, GDB_DEFAULT_LISTEN_ADDR } from '@/constants';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui';
 import { Server, Play, RefreshCw, Copy, Check } from 'lucide-react';
 
 export interface GdbServerControlsProps {
@@ -17,12 +19,13 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
   onStop,
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
-  const connectionCommand = `target remote ${gdbStatus?.listen_addr || '127.0.0.1:3333'}`;
+  const listenAddr = gdbStatus?.listen_addr || GDB_DEFAULT_LISTEN_ADDR;
+  const connectionCommand = `target remote ${listenAddr}`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(connectionCommand);
+    navigator.clipboard?.writeText(connectionCommand);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), CLIPBOARD_FEEDBACK_MS);
   };
 
   return (
@@ -32,7 +35,7 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
           <Server className="w-5 h-5" />
         </div>
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h3 className="text-sm font-bold text-slate-100">
               Servidor GDB Remote RSP (Porta TCP 3333)
             </h3>
@@ -49,8 +52,9 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
               <StatusBadge variant="neutral" label="OFFLINE" />
             )}
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Conecte ferramentas de engenharia reversa (Ghidra Debugger, IDA Pro, gdb-multiarch) ao vivo no AM34.
+          <p className="text-xs text-slate-400 mt-0.5 font-sans">
+            Socket TCP binário GDB RSP (não abre como link HTTP no navegador). Conecte gdb-multiarch ou Ghidra Debugger em{' '}
+            <code className="text-purple-300 font-mono">{listenAddr}</code>.
           </p>
         </div>
       </div>
@@ -59,6 +63,7 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-300">
           <code>(gdb) {connectionCommand}</code>
           <button
+            type="button"
             onClick={handleCopy}
             className="text-slate-400 hover:text-cyan-400 p-1 transition-colors"
             title="Copiar comando GDB"
@@ -72,17 +77,23 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
         </div>
 
         {gdbStatus?.running ? (
-          <button
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
             onClick={() => onStop()}
-            className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-lg transition-colors"
+            className="font-bold text-xs"
           >
             Parar GDB
-          </button>
+          </Button>
         ) : (
-          <button
-            onClick={() => onStart()}
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            onClick={() => onStart(listenAddr)}
             disabled={isStarting}
-            className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-purple-950/50 transition-all disabled:opacity-50"
+            className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs gap-2 shadow-lg shadow-purple-950/50"
           >
             {isStarting ? (
               <>
@@ -95,7 +106,7 @@ export const GdbServerControls: React.FC<GdbServerControlsProps> = ({
                 <span>Iniciar Servidor GDB</span>
               </>
             )}
-          </button>
+          </Button>
         )}
       </div>
     </div>

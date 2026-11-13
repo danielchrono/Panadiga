@@ -13,7 +13,7 @@ interface TerminalViewProps {
 export const TerminalView: React.FC<TerminalViewProps> = ({
   logs,
   onClear,
-  title = 'DWire32A Bus Monitor / OCD CDC Console',
+  title = 'P7501 Async UART Monitor / CDC Console',
   autoScroll = true,
   containerRef,
 }) => {
@@ -84,7 +84,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
         role="log"
         aria-live="polite"
         tabIndex={0}
-        aria-label="Console de telemetria serial DWire32A"
+        aria-label="Console de telemetria serial P7501 UART / OCD"
         className="flex-1 p-3 overflow-y-auto space-y-1 text-xs select-text scrollbar-thin scrollbar-thumb-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-700"
       >
         {logs.length === 0 ? (
@@ -113,7 +113,7 @@ export const TerminalView: React.FC<TerminalViewProps> = ({
 
       {/* Terminal Footer Indicator */}
       <div className="px-3 py-1 bg-bench-950 border-t border-slate-900 flex items-center justify-between text-[10px] text-slate-500">
-        <span>Baud: 115200 8N1 | PIO0 Half-Duplex | Open-Drain Reset</span>
+        <span>Baud: 115200 8N1 | P7501 UART + Legacy PIO0 | Open-Drain XRESET</span>
         <span className="flex items-center gap-1 text-emerald-400">
           <ArrowDown className="w-3 h-3 animate-bounce" /> Auto-Scroll Ativo
         </span>

@@ -1,0 +1,48 @@
+.program p7501_uart_rx
+
+; =========================================================================
+; Panasonic P7501 Asynchronous 115200 8N1 UART Receiver (Passive Input Only)
+; Oversampling: 8 SM cycles per bit (921,600 Hz @ 115200 baud)
+;
+; Pin mapping:
+;   IN / JMP pin: GP2 (P7501 Pin 6 UARTP2M_T, MAX TXD -> Pico RX)
+;   GP3 (P7501 Pin 5 NSW5V) is NEVER touched by PIO and stays High-Z Input.
+; =========================================================================
+
+.wrap_target
+start:
+    wait 0 pin 0            ; Wait for falling edge of Start bit (GP2 == 0)
+    set x, 7        [10]    ; 8 data bits; wait 1.5 bit periods (12 cycles total to bit 0 center)
+bitloop:
+    in pins, 1              ; Shift LSB-first data bit into ISR
+    jmp x--, bitloop [6]    ; Loop every 8 cycles (1 + 7 cycles)
+    jmp pin, good_stop      ; Verify Stop bit is HIGH
+    irq 4 rel               ; Framing error signaled on IRQ 4
+    wait 1 pin 0            ; Wait for idle HIGH recovery
+    jmp start
+good_stop:
+    push block              ; Deliver MSB-aligned byte in upper 8 bits of RX FIFO word
+.wrap
+
+% c-sdk {
+#include "hardware/clocks.h"
+#include "p7501_types.h"
+
+static inline void p7501_uart_rx_program_init(PIO pio, uint sm, uint offset, uint pin_rx, uint baud) {
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_rx, 1, false);
+    pio_gpio_init(pio, pin_rx);
+    gpio_pull_up(pin_rx);
+
+    pio_sm_config c = p7501_uart_rx_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin_rx);
+    sm_config_set_jmp_pin(&c, pin_rx);
+    sm_config_set_in_shift(&c, true, false, 32);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+    float div = (float)clock_get_hz(clk_sys) / ((float)P7501_PIO_UART_CYCLES_PER_BIT * (float)baud);
+    sm_config_set_clkdiv(&c, div);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}

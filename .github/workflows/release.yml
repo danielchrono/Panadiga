@@ -32,19 +32,22 @@ jobs:
           - name: windows-x86_64
             os: windows-latest
             target: x86_64-pc-windows-msvc
-            bin: target/x86_64-pc-windows-msvc/release/panadiga.exe
+            bin_cli: target/x86_64-pc-windows-msvc/release/panadiga.exe
+            bin_desktop: target/x86_64-pc-windows-msvc/release/panadiga-desktop.exe
             archive_ext: zip
             archive_name: panadiga-windows-x86_64.zip
           - name: linux-x86_64
             os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-            bin: target/x86_64-unknown-linux-gnu/release/panadiga
+            bin_cli: target/x86_64-unknown-linux-gnu/release/panadiga
+            bin_desktop: target/x86_64-unknown-linux-gnu/release/panadiga-desktop
             archive_ext: tar.gz
             archive_name: panadiga-linux-x86_64.tar.gz
           - name: macos-aarch64
             os: macos-latest
             target: aarch64-apple-darwin
-            bin: target/aarch64-apple-darwin/release/panadiga
+            bin_cli: target/aarch64-apple-darwin/release/panadiga
+            bin_desktop: target/aarch64-apple-darwin/release/panadiga-desktop
             archive_ext: tar.gz
             archive_name: panadiga-macos-aarch64.tar.gz
 
@@ -88,8 +91,8 @@ jobs:
       - name: Run Rust Workspace Tests
         run: cargo test --workspace
 
-      - name: Compile Unified Panadiga Binary
-        run: cargo build --release --target ${{ matrix.platform.target }} -p panadiga
+      - name: Compile Unified Panadiga Binaries
+        run: cargo build --release --target ${{ matrix.platform.target }} -p panadiga-cli -p panadiga-desktop
 
       - name: Package Windows Artifacts
         if: runner.os == 'Windows'
@@ -97,18 +100,25 @@ jobs:
         run: |
           $staging = "staging_release"
           New-Item -ItemType Directory -Path $staging | Out-Null
-          Copy-Item "${{ matrix.platform.bin }}" -Destination "$staging\panadiga.exe"
-          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2") {
-              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_rp2040.uf2" -Destination "$staging\panasonic_dwire32a_rp2040.uf2"
+          Copy-Item "${{ matrix.platform.bin_cli }}" -Destination "$staging\panadiga.exe"
+          Copy-Item "${{ matrix.platform.bin_desktop }}" -Destination "$staging\panadiga-desktop.exe"
+          if (Test-Path "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2040.uf2") {
+              Copy-Item "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2040.uf2" -Destination "$staging\panasonic_p7501_uart_rp2040.uf2"
           }
-          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2") {
-              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_rp2350.uf2" -Destination "$staging\panasonic_dwire32a_rp2350.uf2"
+          if (Test-Path "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2350.uf2") {
+              Copy-Item "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2350.uf2" -Destination "$staging\panasonic_p7501_uart_rp2350.uf2"
           }
-          if (Test-Path "src/pico/firmware_bins/panasonic_dwire32a_unified.uf2") {
-              Copy-Item "src/pico/firmware_bins/panasonic_dwire32a_unified.uf2" -Destination "$staging\panasonic_dwire32a_unified.uf2"
+          if (Test-Path "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_unified.uf2") {
+              Copy-Item "crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_unified.uf2" -Destination "$staging\panasonic_p7501_uart_unified.uf2"
           }
-          Copy-Item "tools" -Destination "$staging\tools" -Recurse
-          Copy-Item "README.md" -Destination "$staging\README.md"
+          New-Item -ItemType Directory -Path "$staging\tools" | Out-Null
+          if (Test-Path "tools\ghidra") {
+              Copy-Item "tools\ghidra" -Destination "$staging\tools\ghidra" -Recurse
+          }
+          Get-ChildItem -Path "tools" -Filter "*.cmd" -ErrorAction SilentlyContinue | Copy-Item -Destination "$staging\tools\"
+          if (Test-Path "tools\README.md") {
+              Copy-Item "tools\README.md" -Destination "$staging\tools\README.md"
+          }
           Copy-Item "LICENSE" -Destination "$staging\LICENSE"
           
           Compress-Archive -Path "$staging\*" -DestinationPath "${{ matrix.platform.archive_name }}" -CompressionLevel Optimal
@@ -118,12 +128,13 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           staging="staging_release"
-          mkdir -p "$staging"
-          cp "${{ matrix.platform.bin }}" "$staging/panadiga"
-          if [ -d "tools" ]; then cp -r tools "$staging/tools"; fi
-          cp README.md "$staging/README.md"
+          mkdir -p "$staging/tools"
+          cp "${{ matrix.platform.bin_cli }}" "$staging/panadiga"
+          cp "${{ matrix.platform.bin_desktop }}" "$staging/panadiga-desktop"
+          if [ -d "tools/ghidra" ]; then cp -r tools/ghidra "$staging/tools/ghidra"; fi
+          if [ -f "tools/README.md" ]; then cp tools/README.md "$staging/tools/README.md"; fi
           cp LICENSE "$staging/LICENSE"
-          chmod +x "$staging/panadiga"
+          chmod +x "$staging/panadiga" "$staging/panadiga-desktop"
 
           tar -czvf "${{ matrix.platform.archive_name }}" -C "$staging" .
           shasum -a 256 "${{ matrix.platform.archive_name }}" > "${{ matrix.platform.archive_name }}.sha256"
@@ -133,10 +144,12 @@ jobs:
             deb_dir="panadiga_deb_pkg"
             mkdir -p "$deb_dir/DEBIAN"
             mkdir -p "$deb_dir/usr/bin"
-            mkdir -p "$deb_dir/usr/share/panadiga"
-            cp "${{ matrix.platform.bin }}" "$deb_dir/usr/bin/panadiga"
-            chmod 755 "$deb_dir/usr/bin/panadiga"
-            if [ -d "tools" ]; then cp -r tools "$deb_dir/usr/share/panadiga/tools"; fi
+            mkdir -p "$deb_dir/usr/share/panadiga/tools"
+            cp "${{ matrix.platform.bin_cli }}" "$deb_dir/usr/bin/panadiga"
+            cp "${{ matrix.platform.bin_desktop }}" "$deb_dir/usr/bin/panadiga-desktop"
+            chmod 755 "$deb_dir/usr/bin/panadiga" "$deb_dir/usr/bin/panadiga-desktop"
+            if [ -d "tools/ghidra" ]; then cp -r tools/ghidra "$deb_dir/usr/share/panadiga/tools/ghidra"; fi
+            if [ -f "tools/README.md" ]; then cp tools/README.md "$deb_dir/usr/share/panadiga/tools/README.md"; fi
             printf "Package: panadiga\nVersion: 0.1.0\nSection: utils\nPriority: optional\nArchitecture: amd64\nMaintainer: OrgChrono Engineering <support@orgchrono.com>\nDepends: libc6, libwebkit2gtk-4.1-0, libayatana-appindicator3-1\nDescription: Panasonic DIGA DMR-EH55 Forensic, NVRAM and Reverse Engineering Suite\n" > "$deb_dir/DEBIAN/control"
             dpkg-deb --build "$deb_dir" "panadiga-linux-amd64.deb"
             shasum -a 256 "panadiga-linux-amd64.deb" > "panadiga-linux-amd64.deb.sha256"
@@ -195,6 +208,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
 
+      - name: Set up stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Clone Raspberry Pi Pico SDK
         run: |
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
@@ -209,11 +228,11 @@ jobs:
         run: |
           export CMAKE_POLICY_VERSION_MINIMUM=3.5
           export CXXFLAGS="-include cstdint"
-          cd dwire32a_jtag_research
-          cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build_pico --config Release
-          cp build_pico/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2040.uf2
-          sha256sum panasonic_dwire32a_rp2040.uf2 > panasonic_dwire32a_rp2040.uf2.sha256
+          mkdir -p target/pico-build/out
+          cmake -S firmware/pico-p7501 -B target/pico-build/pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build target/pico-build/pico --config Release
+          cp target/pico-build/pico/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 > target/pico-build/out/panasonic_p7501_uart_rp2040.uf2.sha256
 
       - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
         env:
@@ -223,28 +242,26 @@ jobs:
         run: |
           export CMAKE_POLICY_VERSION_MINIMUM=3.5
           export CXXFLAGS="-include cstdint"
-          cd dwire32a_jtag_research
-          cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build_pico2 --config Release
-          cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
-          sha256sum panasonic_dwire32a_rp2350.uf2 > panasonic_dwire32a_rp2350.uf2.sha256
+          cmake -S firmware/pico-p7501 -B target/pico-build/pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build target/pico-build/pico2 --config Release
+          cp target/pico-build/pico2/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2350.uf2 > target/pico-build/out/panasonic_p7501_uart_rp2350.uf2.sha256
 
-      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350)
+      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350) via Native Rust CLI
         run: |
-          cd dwire32a_jtag_research
-          python3 merge_unified_uf2.py \
-            --rp2040 panasonic_dwire32a_rp2040.uf2 \
-            --rp2350 panasonic_dwire32a_rp2350.uf2 \
-            --out panasonic_dwire32a_unified.uf2
-          sha256sum panasonic_dwire32a_unified.uf2 > panasonic_dwire32a_unified.uf2.sha256
+          cargo run -p panadiga-cli -- pico merge-uf2 \
+            --rp2040 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 \
+            --rp2350 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2 \
+            --out target/pico-build/out/panasonic_p7501_uart_unified.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_unified.uf2 > target/pico-build/out/panasonic_p7501_uart_unified.uf2.sha256
 
       - name: Upload Firmware Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: panasonic_dwire32a_firmware_binaries
+          name: panasonic_p7501_uart_firmware_binaries
           path: |
-            dwire32a_jtag_research/*.uf2
-            dwire32a_jtag_research/*.uf2.sha256
+            target/pico-build/out/*.uf2
+            target/pico-build/out/*.uf2.sha256
           retention-days: 30
 
       - name: Publish Firmware to GitHub Release
@@ -252,12 +269,12 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2
-            dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2.sha256
-            dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
-            dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2.sha256
-            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2
-            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2.sha256
+            target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
+            target/pico-build/out/panasonic_p7501_uart_rp2040.uf2.sha256
+            target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+            target/pico-build/out/panasonic_p7501_uart_rp2350.uf2.sha256
+            target/pico-build/out/panasonic_p7501_uart_unified.uf2
+            target/pico-build/out/panasonic_p7501_uart_unified.uf2.sha256
           generate_release_notes: true
 
   # ==========================================================================
@@ -307,16 +324,18 @@ jobs:
           npm ci
           npm run build
 
+      - name: Verify Android Rust Target Compilation
+        run: cargo check -p panadiga-core -p panadiga-desktop --lib --target aarch64-linux-android
+
       - name: Build Android Release APK
-        env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/26.1.10909125
         run: |
           export ANDROID_NDK_ROOT=$NDK_HOME
-          sed -i 's/crate-type = \["rlib"\]/crate-type = \["staticlib", "cdylib", "rlib"\]/g' Cargo.toml
+          cd apps/desktop
           npx @tauri-apps/cli android init --ci --skip-targets-install || true
           npx @tauri-apps/cli android build --apk --target aarch64-linux-android || true
+          cd ../..
           mkdir -p release-apk
-          find . -name "*.apk" -exec cp {} release-apk/panadiga-android-arm64.apk \; || true
+          find apps/desktop/src-tauri/gen/android -name "*.apk" -exec cp {} release-apk/panadiga-android-arm64.apk \; || true
           if [ -f "release-apk/panadiga-android-arm64.apk" ]; then
             shasum -a 256 "release-apk/panadiga-android-arm64.apk" > "release-apk/panadiga-android-arm64.apk.sha256"
           fi

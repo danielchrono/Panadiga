@@ -12,6 +12,12 @@ const tailwindConfig = {
   theme: {
     extend: {
       colors: {
+        bench: {
+          950: "#090d16",
+          900: "#0f172a",
+          850: "#131d33",
+          800: "#1e293b",
+        },
         diga: {
           dark: "#0b0f19",
           panel: "#111827",
@@ -41,9 +47,23 @@ export default defineConfig({
     strictPort: true,
   },
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@": resolve(import.meta.dirname, "./src"),
     },
+  },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-i18next",
+      "i18next",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-slot",
+      "@radix-ui/react-tabs",
+      "framer-motion",
+      "lucide-react",
+    ],
   },
   css: {
     postcss: {

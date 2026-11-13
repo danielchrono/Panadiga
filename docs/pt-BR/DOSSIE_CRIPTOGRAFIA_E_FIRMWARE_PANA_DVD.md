@@ -11,7 +11,7 @@
 
 ## 1. Sumário Executivo & Especificação Criptoanalítica
 
-O gravador **Panasonic DMR-EH55** (processador Matsushita UniPhier `MN2DS0016` / núcleo RISC 32-bit `AM34`) opera com esquemas de proteção e criptografia de nível industrial:
+O gravador **Panasonic DMR-EH55** (processador **Matsushita `AM34` / `MN103S`**) opera com esquemas de proteção e criptografia de nível industrial:
 
 1. **CPRM (Content Protection for Recordable Media):** Cifragem C-BSA e amarração criptográfica ao identificador físico de drive (`Drive ID` e `Media Key Block`) para gravações em DVD-RAM e HDD.
 2. **DivX DRM Integrado:** Subsistema DRM com chave única de 8 bytes para autenticação de mídias de vídeo.
@@ -52,7 +52,7 @@ A análise forense realizada diretamente sobre os arquivos binários do projeto 
 
 **Conclusão tática imediata:** Tentar decifrar o arquivo `PANA_DVD.FRM` "a quente" sem as chaves é matematicamente inviável (esforço de quebra de força bruta para cifras de 128/64 bits). No entanto, **o hardware físico da Panasonic DMR-EH55 não possui motor de decodificação on-the-fly de barramento de memória externa**. Para o processador AM34 ligar no pino de reset, a memória NOR Flash **Spansion S29JL064H (8 MB)** **TEM QUE CONTER CÓDIGO DE MÁQUINA MN103S EM TEXTO PLANO NATIVO**.
 
-Ao ler a Flash diretamente via gravador físico (**SVOD 4 / Xgecu T48**) ou via interface de depuração em circuito (**DWire32A / OCD**), obtém-se exatamente o bootloader descompactado que possui o algoritmo de decifragem, os mapeamentos de hardware e as chaves mestras.
+Ao ler a Flash diretamente via gravador físico (**SVOD 4 / Xgecu T48** em soquete TSOP-48) ou capturar dados em bancada pela interface **`P7501` (`115200 8N1`) / GDB RSP**, obtém-se acesso ao bootloader descompactado e aos mapas de memória sem depender de força bruta sobre o contêiner cifrado.
 
 ---
 
@@ -218,7 +218,7 @@ graph TD
 2. **AES-128-CBC:** Utilizada para envolver os blocos pesados de dados (o núcleo executável do sistema). Cada seção possui seu próprio vetor de inicialização (`IV`), que é frequentemente derivado do hash dos primeiros 16 bytes de cabeçalho do registro somados a uma constante da plataforma.
 3. **Chaves Mestras e Formato `keys.ukf`:** As chaves de autorização não estão no arquivo `.FRM`. Elas estão embutidas no hardware do gravador:
    * Em aparelhos baseados em Linux recente, residem na biblioteca `/usr2/dtvrec/lib/libfmupre.so`.
-   * No DMR-EH55 (sem Linux, baseado em RTOS proprietário Matsushita sobre AM34), as chaves residem na **máscara ROM interna do SoC MN2DS0016** e no **bloco de boot da Spansion Flash S29JL064H**.
+   * No DMR-EH55 (sem Linux, baseado em RTOS proprietário Matsushita sobre AM34), as chaves residem na **máscara ROM interna do SoC Matsushita AM34 (MN103S)** e no **bloco de boot da Spansion Flash S29JL064H (`IC5001`)**.
 
 ---
 
@@ -226,7 +226,7 @@ graph TD
 
 A tabela abaixo sintetiza a relação de volume e entropia entre os componentes físicos do projeto:
 
-| Parâmetro de Análise | Arquivo CD-R (`PANA_DVD.FRM`) | Partição HDD 1 (`0x02000000`) | Partição HDD 2 (`0x04000000`) | Flash Spansion (`IC55007`) |
+| Parâmetro de Análise | Arquivo CD-R (`PANA_DVD.FRM`) | Partição HDD 1 (`0x02000000`) | Partição HDD 2 (`0x04000000`) | Flash Spansion (`IC5001`) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Mídia / Origem** | Disco CD-R de Atualização | Trilha Reservada do HD IDE | Trilha Reservada do HD IDE | Memória NOR Flash TSOP-48 |
 | **Tamanho Físico** | $7.531.744\text{ bytes}$ | $6.173.264\text{ bytes}$ úteis | $720.896\text{ bytes}$ ($704\text{ KB}$) | $8.388.608\text{ bytes}$ ($8\text{ MB}$) |
@@ -250,7 +250,7 @@ O procedimento oficial da Panasonic para troca de HD confirma o intercâmbio de 
 
 ## 5. O Papel Fundamental da Flash Spansion S29JL064H: O "Root of Trust"
 
-A constatação de que o arquivo `.FRM` e as partições do HDD são cifradas ressalta a importância capital do chip físico de memória Flash **Spansion S29JL064H (8 MB)** na placa digital (`VEP79138`, `IC55007`):
+A constatação de que o arquivo `.FRM` e as partições do HDD são cifradas ressalta a importância capital do chip físico de memória Flash **Spansion S29JL064H (8 MB)** na placa digital (`VEP79138`, `IC5001`):
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -258,7 +258,7 @@ A constatação de que o arquivo `.FRM` e as partições do HDD são cifradas re
 │                                                                        │
 │   ┌─────────────────────┐               ┌──────────────────────────┐   │
 │   │  Matsushita AM34    │  16-bit Data  │ Spansion S29JL064H (8MB) │   │
-│   │     MN2DS0016       │◄─────────────►│         IC55007          │   │
+│   │      (MN103S)       │◄─────────────►│          IC5001          │   │
 │   │ (Sem Decodificador  │  23-bit Addr  │                          │   │
 │   │  de Barramento Ext) │──────────────►│ 0x000000 - 0x7EFFFF:     │   │
 │   └─────────────────────┘               │    Bootloader Nativo     │   │
@@ -275,12 +275,12 @@ A constatação de que o arquivo `.FRM` e as partições do HDD são cifradas re
 
 ### 5.1 O Princípio da Inicialização a Frio (*Cold Boot & XIP*)
 
-1. **XIP (eXecute In Place):** No momento em que a linha de alimentação de 3.3V estabiliza e o sinal `nRESET` sobe para nível alto, a CPU AM34 aponta seu Program Counter (`PC`) para o vetor de reset em `0x80000000`.
+1. **XIP (eXecute In Place):** No momento em que a linha de alimentação de 3.3V estabiliza e o sinal `XRESET` sobe para nível alto, a CPU AM34 aponta seu Program Counter (`PC`) para o vetor de reset em `0x80000000`.
 2. **Inexistência de Criptografia Externa na Flash:** A memória Flash Spansion é uma memória assíncrona paralela convencional conectada diretamente às trilhas de dados `D0-D15` e endereços `A0-A22` do processador. O SoC não possui um motor inline de decifragem que atue entre os pinos de barramento externo e a CPU.
 3. **Consequência Irrefutável:** O código que reside entre `0x000000` e `0x7EFFFF` na memória Spansion é **CÓDIGO DE MÁQUINA MATSUSHITA AM34 PURO E NÃO CRIPTOGRAFADO**.
 4. **O "Root of Trust" Exposto:** O bootloader da Spansion contém as instruções que configuram a memória RAM Elpida, acionam as linhas ATA do HD, acionam a controladora óptica e executam as rotinas de validação e decifragem do contêiner `PANA_DVD.FRM`.
 
-Ao realizar a leitura física do chip Spansion (via programador de bancada **SVOD 4 / Xgecu T48** no soquete TSOP-48 ou através de injeção de RAM Loader via **DWire32A**), **nós obtemos acesso direto ao código de máquina em texto plano**, contornando 100% da criptografia do contêiner `.FRM`!
+Ao realizar a leitura física do chip Spansion (via programador de bancada **SVOD 4 / Xgecu T48** no soquete TSOP-48 ou análise via **`P7501` Async UART / GDB RSP**), **nós obtemos acesso direto ao código de máquina em texto plano**, contornando 100% da criptografia do contêiner `.FRM`!
 
 ---
 
@@ -308,7 +308,7 @@ MN10300:LE:32:default
 
 ### 6.2 Mapeamento do Espaço de Endereçamento de 32 Bits
 
-No Ghidra, acesse **Window $\rightarrow$ Memory Map** e configure os seguintes blocos para refletir a topologia física do SoC Panasonic MN2DS0016:
+No Ghidra, acesse **Window $\rightarrow$ Memory Map** e configure os seguintes blocos para refletir a topologia física do SoC Panasonic `AM34` (`MN103S`):
 
 | Nome do Bloco | Início (Hex) | Fim (Hex) | Tamanho | Permissões | Descrição do Hardware |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -349,7 +349,7 @@ No MN103S / AM34, a execução se inicia no primeiro byte físico da Flash.
 Criar símbolos (*Labels*) nesses endereços no Ghidra transforma desassemblagens opacas em código autoexplicativo:
 
 ```text
-Registradores Seriais (Comunicação com CN55001 e Painel IC7001):
+Registradores Seriais (Comunicação Assíncrona `P7501` `115200 8N1` e Syscon/Painel `IC7501` / `IC7001`):
 0xD4000000 -> SC0CTR   (Serial Ch0 Control Register - Modo UART/SIO)
 0xD4000004 -> SC0STR   (Serial Ch0 Status Register - TX Ready / RX Full)
 0xD4000008 -> SC0TXB   (Serial Ch0 Transmit Data Buffer)
@@ -426,9 +426,9 @@ Assim que o dump da Spansion for importado no Ghidra:
 1. **Abandono Definitivo da Tentativa de Ataque por Força Bruta no `.FRM`:**  
    Não se deve gastar tempo computacional tentando quebrar o arquivo `PANA_DVD.FRM` de fora para dentro. O contêiner foi projetado com criptografia pesada para resistir a ataques criptoanalíticos.
 2. **A Rota Física é 100% Eficaz:**  
-   O ponto de menor resistência e maior eficiência da engenharia reversa é a leitura direta da memória **Spansion S29JL064H (IC55007)**:
+   O ponto de menor resistência e maior eficiência da engenharia reversa é a leitura direta da memória **Spansion S29JL064H (`IC5001`)**:
    * **Via Hardware Externo:** Dessolda com estação de retrabalho a ar quente e leitura no programador **SVOD 4** ou **Xgecu T48** (com adaptador TSOP-48).
-   * **Via Interface DWire32A:** Injeção de RAM Loader pelo conector `CN55001` utilizando o Raspberry Pi Pico (RP2040) emulando o protocolo síncrono proprietário Matsushita.
+   * **Via Interface `P7501` / GDB RSP:** Captura de telemetria e boot via UART assíncrona `115200 8N1` no conector `P7501` (`TO JIGU`) utilizando o Raspberry Pi Pico (`RP2040`/`RP2350`) ou investigação de carga in-circuit onde o monitor de boot estiver acessível.
 3. **A Partição do HDD É Cifrada para Proteger o Sistema:**  
    A clonagem direta de discos de 100 MB de gravadores funcionais para gravadores travados deve preservar estritamente os setores nos offsets `0x02000000` e `0x04000000`, pois o firmware do SoC espera encontrar os cabeçalhos cifrados com a assinatura `51 87 13 8D 5B 0A FB 22`.
 4. **Ghidra como Ambiente de Reconstrução:**  

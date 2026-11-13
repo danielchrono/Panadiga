@@ -46,7 +46,7 @@ Desacoplar a lógica forense de baixo nível de operações de E/S em disco. Tod
 
 ---
 
-## 3. Camada 2: GDB Introspectivo & Protocolo de Hardware (DWire32A / RSP)
+## 3. Camada 2: GDB Introspectivo & Protocolo de Hardware (P7501 Async UART / RSP)
 
 ### Objetivo Arquitetural
 
@@ -59,7 +59,7 @@ Garantir fidelidade protocolar absoluta na ponte de depuração serial-para-TCP,
 | `tests/debugger_gdb_tests.rs`        | `test_gdb_rsp_checksum_calculation`   | Validação formal do cálculo de checksum de dois dígitos hexadecimais (`sum % 256`) para comandos RSP (`qSupported`, `g`, `?`, `c`, `s`, `OK`).                                                                     |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_verify_and_classify_rsp_packet` | Testa o classificador formal de pacotes RSP: validação de prefixo `$`, delimitador `#`, cálculo de checksum e extração do tipo de comando.                                                                                  |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_telemetry_ring_capacity`        | Valida o buffer circular introspectivo (`RingBuffer<GdbPacketTelemetryEvent>`): capacidade máxima fixa, rotação FIFO sem vazamentos e ordenação cronológica.                                                                 |
-| `dwire32a_jtag_research/tests/test_gdb_rsp_host.c` | Host C11 Firmware (`-Werror`)         | 7 testes de integração do protocolo RSP compilados com GCC C11 executados diretamente no ambiente de build: leitura/escrita em SRAM, rejeição de escrita em flash IPL (`E05`), registradores AM34 e controle de halt/continue. |
+| `firmware/pico-p7501/tests/test_gdb_rsp_host.c` | Host C11 Firmware (`-Werror`)         | 7 testes de integração do protocolo RSP compilados com GCC C11 executados diretamente no ambiente de build: leitura/escrita em SRAM, rejeição de escrita em flash IPL (`E05`), registradores AM34 e controle de halt/continue. |
 
 ---
 
@@ -76,7 +76,7 @@ Substituição definitiva de booleanos soltos por máquinas de estado fechadas (
 | `useInCircuitErase.test.ts`    | `useInCircuitErase`                                | Testa os estados discretos (`idle`, `confirming`, `erasing`, `success`, `error`) e callbacks de log/sucesso durante o unbrick cirúrgico.                                                                    |
 | `useSerialConsole.test.ts`     | `useSerialConsole`                                 | Valida o terminal interativo: anel de histórico de comandos, buffers de log com limite de capacidade e despacho de comandos.                                                                                          |
 | `useGdbBridge.test.ts`         | `useGdbBridge`                                     | Testa transições da ponte GDB (`stopped`, `starting`, `running`, `stopping`, `error`), telemetria assíncrona e despacho de logs para a UI.                                                                |
-| `GdbServerComponents.test.tsx` | `GdbServerControls` & `GdbExternalToolLaunchers` | Testa a decomposição do monólito GDB: exibição correta dos badges de estado, início/parada do servidor TCP e acionamento dos disparadores de ferramentas (GDB Multiarch, OpenOCD AM34, Ghidra, HxD, PowerShell). |
+| `GdbServerComponents.test.tsx` | `GdbServerControls` & `GdbExternalToolLaunchers` | Testa a decomposição do monólito GDB: exibição correta dos badges de estado, início/parada do servidor TCP e acionamento dos disparadores de ferramentas (GDB Multiarch, Ghidra, HxD, PowerShell). |
 | `logger.test.ts`               | `PanadigaLogger`                                   | Valida o subsistema de logging do frontend: filtragem por severidade (`minLevel`), despacho para múltiplos sinks desacoplados, descarte de instâncias e resiliência contra falhas em sinks.                       |
 | `translations.test.ts`         | `i18n` Engine                                      | Valida paridade completa entre dicionários `pt-BR` e `en-US` e resolução de chaves canônicas.                                                                                                                  |
 
@@ -109,7 +109,7 @@ Garantir que argumentos de linha de comando sejam fortemente validados via Clap,
 3. `nvram.spec.ts`: Renderização da especificação da Spansion NOR Flash S29JL064H e card cirúrgico.
 4. `nvram.spec.ts`: Detalhamento dos 8 microsetores (SA134..SA141) e telemetria de integridade.
 5. `pico-bench.spec.ts`: Telemetria do host controller e identificação de arquitetura.
-6. `pico-bench.spec.ts`: Tabela de pinagem do conector P7501 (DWire32A) com alertas de aterramento.
+6. `pico-bench.spec.ts`: Tabela de pinagem verificada do conector `P7501` (UART `115200 8N1` + proteção `NSW5V` Hi-Z) com alertas de aterramento.
 7. `pico-bench.spec.ts`: Alternância de modos do Cold Break-In (Modo 0, 1 e 2).
 8. `pico-bench.spec.ts`: Interatividade do console serial com eco e envio de comandos.
 
@@ -136,6 +136,6 @@ Todos os 8 jobs rodam sob cada push na branch `main`:
 | **MVVM Rigoroso**              | Telas travando em estado intermediário devido a flags booleanas soltas.           | `useInCircuitErase.test.ts`, `useGdbBridge.test.ts`                                          |
 | **GDB Introspectivo**          | Corrupção de pacotes RSP ou estouro de buffer de telemetria em alta frequência. | `test_gdb_rsp_checksum_calculation`, `test_telemetry_ring_capacity`, `test_gdb_rsp_host.c` |
 | **SRP em Componentes**         | Regressão nos launchers rápidos ou controles do socket TCP de depuração.       | `GdbServerComponents.test.tsx`                                                                 |
-| **Zero Raw Prints / Consoles** | Poluição de stdout que quebra integrações JSON-RPC de servidores MCP.          | `logger.test.ts`, `test_logger_custom_sink`, `test_panadiga_mcp_server.py`                 |
+| **Zero Raw Prints / Consoles** | Poluição de stdout que quebra integrações JSON-RPC de servidores MCP.          | `logger.test.ts`, `test_logger_custom_sink`, testes unitários JSON-RPC de `src/mcp.rs`    |
 | **SSOT de Constantes**         | Conflito de endereços de memória entre Ghidra, TUI, CLI e Desktop.               | `test_constants_memory_map_and_candidate_paths`, `test_system_constants_integrity`           |
 | **Decomposição do CLI**      | Parsing silencioso ou argumentos ignorados no novo entrypoint enxuto.              | `test_cli_args_parsing_matrix`                                                                 |

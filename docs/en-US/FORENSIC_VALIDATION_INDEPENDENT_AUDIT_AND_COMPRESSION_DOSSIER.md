@@ -48,13 +48,13 @@ graph TD
 ## 2. High-Precision Structured Prompt for Independent Audit
 
 ```markdown
-# MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & AM34 DWIRE32A
-TARGET SYSTEM: Panasonic DIGA Lineage (MN2DS0016 UniPhier AM34 RISC / MN103 / MN102)
+# MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & `P7501` ASYNC UART
+TARGET SYSTEM: Panasonic DIGA Lineage (Matsushita `AM34 / MN103S` on `VEP79138` / Syscon `IC7501`)
 AUDITOR ROLE: Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
 
 ## 1. CONTEXT & AUDIT OBJECTIVE
 You have been convened to formally validate the reverse engineering architecture, corruption recovery (U99 Unbrick), and hardware protocol of the Panadiga project.
-The ecosystem targets Panasonic DVD/HDD recorders (DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-EZ series), powered by Matsushita/Panasonic UniPhier SoCs with an AM34 core (MN10300 32-bit RISC) and proprietary DWire32A debug interface.
+The ecosystem targets Panasonic DVD/HDD recorders (DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-EZ series), powered by Matsushita/Panasonic SoCs with an `AM34` / `MN103S` core (MN10300 32-bit RISC) and `P7501` asynchronous UART (`115200 8N1`) service console.
 
 Examine the 4 evidence axes below and issue a formal verdict validating structural consistency, physical safety, and handshake reliability.
 
@@ -105,27 +105,27 @@ Does the purely functional sanitization $\text{Clean}(\text{Sector}) = \text{Arr
 
 ---
 
-## 4. AXIS III: HARDWARE LAYER, DWIRE32A & ELECTRICAL CONSTRAINTS
-For the physical interface via RP2040/RP2350 (Pico probe) connected to the JST ZR-6 (P7501) header:
+## 4. AXIS III: HARDWARE LAYER, `P7501` ASYNC UART & ELECTRICAL CONSTRAINTS
+For the physical interface via RP2040/RP2350 (Pico probe) connected to the JST ZR-6 (`P7501`, `TO JIGU`) header:
 
-1. **Canonical Matsushita P7501 Pinout**:
-   - Pin 1: `EXTRG` (External Halt / OCD Trigger)
-   - Pin 2: `SCLK` (Master Synchronous Clock: 1.0 MHz, 50% duty cycle)
-   - Pin 3: `SDATA` (Half-Duplex Bidirectional Data with 4.7 kΩ pull-up to 3.3V)
-   - Pin 4: `GND` (Mandatory 0V Reference: 0.0 Ω to metal chassis)
-   - Pin 5: `nRESET` (Board XRST / D_RESET line)
-   - Pin 6: `VDD` (Target Power Sense: +3.3V nominal)
+1. **Canonical Matsushita `P7501` Pinout (`VEP79138`):**
+   - Pin 1: `SW_UART` (`~3.25V` Hi-Z / `~2.69V` PD via `Q7510`; LOW forces `XFWE` serial boot & cuts off `Q7514`)
+   - Pin 2: `XRESET` (`GP5` Open-Drain Active LOW; `~20 µs` release rise time)
+   - Pin 3: `UARTM2P_T` (`MAX RXD`, `115200 8N1` Pico TX -> AM34 RX via `Q7514` & `R7570 10 kΩ`)
+   - Pin 4: `GND` (Mandatory 0V Reference: `0.0 Ω` to metal chassis)
+   - Pin 5: `NSW5V` (`X_SW_5R2V` via `D7510` from `IC1506 ~5.15V`, resting `~3.29V`; `GP3` strictly `Hi-Z Input`)
+   - Pin 6: `UARTP2M_T` (`MAX TXD`, `115200 8N1` AM34 TX -> Pico RX via `R7572 10 kΩ`, Square Pad)
 2. **Mandatory Physical Constraints**:
-   - **nRESET Open-Drain**: Pin 5 is tied to an on-board open-collector supervisory IC. The RP2040 MUST drive this pin exclusively in **Open-Drain** mode (low = pulled to GND; high = Hi-Z floating). Driving 3.3V push-pull is strictly prohibited to prevent hardware damage.
-   - **GND on Pin 4**: Multimeter continuity testing confirms Pin 4 is tied to the chassis (0.0 Ω). Inverting with Pin 3 causes direct shorts on data lines.
-3. **DWire32A Bus Timings**:
-   - Clock Frequency ($f_{\text{SCLK}}$): Max 1.0 MHz ($T_{\text{CYC}} = 1000\text{ ns}$).
-   - Setup Time ($t_{\text{SU}}$): Min 250 ns before SCLK rising edge.
-   - Hold Time ($t_{\text{H}}$): Min 250 ns after rising edge.
-   - Turnaround Latency ($t_{\text{TR}}$): 2 complete clock cycles in tri-state for Master $\leftrightarrow$ Target direction turnaround.
+   - **`XRESET` Open-Drain**: Pin 2 (`GP5`) is tied to an open-collector/transistor reset line (`QR7503`). The RP2040/RP2350 MUST drive this pin exclusively in **Open-Drain** mode (low = pulled to GND; high = Hi-Z floating). Driving 3.3V push-pull HIGH is strictly prohibited.
+   - **`NSW5V` Strict `Hi-Z Input` Protection**: Pin 5 (`GP3`) feeds `R7570`/`R7572`/`IC7501` VDD through `D7510`. `GP3` MUST always stay initialized as `Hi-Z Input` with pulls disabled.
+   - **GND on Pin 4**: Multimeter continuity testing confirms Pin 4 is tied to the chassis (`0.0 Ω`). Inverting with Pin 1 or Pin 5 risks shorting board power rails.
+3. **`P7501` Async UART & Discrete Timing**:
+   - Baud Rate: `115200 bps`, `8N1` framing (`p7501_uart.pio`, $8.68\,\mu\text{s}$ bit period).
+   - `XRESET` Hold Low Window: $10\text{ ms}$ open-drain reset pulse, releasing cleanly to Hi-Z in `~20 µs`.
+   - `SW_UART` Interlock Window: Hold LOW during reset to latch `XFWE` serial/`CDDIAG` boot mode, then restore `Hi-Z` so `Q7514` enables `UARTM2P_T` TX.
 
 **Audit Question 3**:
-Does the state machine implemented in the C11 firmware (utilizing RP2040 PIO state machines with single-cycle pin direction control) and Open-Drain reset isolation satisfy all electrical safety and timing requirements of the Matsushita AM34 specification?
+Does the state machine implemented in the C11 firmware (`firmware/pico-p7501/`, using RP2040/RP2350 PIO UART `115200 8N1` + Open-Drain `XRESET` + `NSW5V` Hi-Z protection) satisfy all electrical safety and timing requirements verified against the `VEP79138` schematic?
 
 ---
 
@@ -133,7 +133,7 @@ Does the state machine implemented in the C11 firmware (utilizing RP2040 PIO sta
 Based on the technical documentation, forensic cryptanalysis, and service schematics, please issue your formal peer-review verdict validating:
 1. The mathematical consistency of the ECB codebook parser.
 2. The safety and sufficiency of the NVRAM unbrick algorithm.
-3. The electrical conformity of the P7501 connector pinout and DWire32A timings.
+3. The electrical conformity of the `P7501` connector pinout, `NSW5V` protection, and `115200 8N1` UART timings.
 ```
 
 ---

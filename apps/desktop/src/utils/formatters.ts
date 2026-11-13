@@ -3,6 +3,12 @@
  * All functions are pure, deterministic, and free of side effects.
  */
 
+import {
+  PICO_MAX_VDD_CEILING_VOLTS,
+  PICO_MIN_VDD_THRESHOLD_VOLTS,
+  PICO_SAFE_OPERATING_MIN_VOLTS,
+} from '@/constants';
+
 /**
  * Pure function: formats a 32-bit unsigned number into 8-digit uppercase hex representation with 0x prefix.
  *
@@ -37,11 +43,28 @@ export const formatVoltage = (volts: number | undefined | null): string => {
  * @param threshold Minimum voltage threshold (defaults to 2.5V)
  * @returns boolean
  */
-export const isTargetPowered = (volts: number | undefined | null, threshold = 2.5): boolean => {
+export const isTargetPowered = (
+  volts: number | undefined | null,
+  threshold = PICO_MIN_VDD_THRESHOLD_VOLTS
+): boolean => {
   if (volts === undefined || volts === null || isNaN(volts)) {
     return false;
   }
   return volts >= threshold;
+};
+
+/**
+ * Pure predicate: determines whether measured VDD rail lies within nominal 3.3V LVTTL tolerance.
+ */
+export const isTargetVoltageNominal = (
+  volts: number | undefined | null,
+  minVolts = PICO_SAFE_OPERATING_MIN_VOLTS,
+  maxVolts = PICO_MAX_VDD_CEILING_VOLTS
+): boolean => {
+  if (volts === undefined || volts === null || isNaN(volts)) {
+    return false;
+  }
+  return volts >= minVolts && volts <= maxVolts;
 };
 
 /**

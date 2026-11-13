@@ -1,0 +1,18 @@
+[package]
+name = "panadiga-rag"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Zero-Error deterministic 6-layer RAG engine indexing Panadiga documentation, service manual PDFs, source symbols, and Ghidra maps"
+
+[lib]
+name = "panadiga_rag"
+crate-type = ["rlib"]
+
+[dependencies]
+panadiga-core = { path = "../panadiga-core" }
+lopdf = { workspace = true }
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

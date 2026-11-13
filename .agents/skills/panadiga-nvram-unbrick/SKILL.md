@@ -1,7 +1,7 @@
 ---
 name: panadiga-nvram-unbrick
 description: >-
-  Procedimento de cirurgia de NVRAM e recuperação do erro fatal U99 na Flash Spansion S29JL064H (IC55007).
+  Procedimento de cirurgia de NVRAM e recuperação do erro fatal U99 na Flash Spansion S29JL064H (IC5001).
   Use esta skill quando o usuário solicitar reparar o erro U99, limpar os 64 KB de NVRAM ou sanitizar um dump da Flash.
 ---
 

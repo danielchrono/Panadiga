@@ -34,21 +34,21 @@ flowchart TD
     subgraph Probe["Microcontroller Bench Probe"]
         direction TB
         PICO["Raspberry Pi Pico W / Pico 2W<br/>RP2040 / RP2350 + CYW43439<br/>C11 Firmware + PIO State Machine"]
-        BUFFER["Lossless Circular Telemetry Ring Buffer<br/>GDB RSP Server & DWire32A Transceiver"]
-        PIO_ENG["Local PIO Hardware Engine @ 133/150 MHz<br/>Nanosecond Timing Precision (~7.5 ns/cycle)<br/>Synchronous Clock SCLK = 1.00 MHz"]
+        BUFFER["Lossless Circular Telemetry Ring Buffer<br/>GDB RSP Server & P7501 Async UART"]
+        PIO_ENG["Local PIO / UART Engine @ 115200 8N1<br/>Deterministic XRESET / SW_UART Timing<br/>NSW5V (GP3) Hi-Z Protection"]
         PICO --- BUFFER
         BUFFER --- PIO_ENG
     end
 
     subgraph Target["Target Hardware (Panasonic DMR-EH55)"]
         direction TB
-        P7501["P7501 Header (B6B-ZR-3R4 / 6 Pins)<br/>Silkscreen 'TO WRITE JIGU'<br/>1: EXTRG | 2: SCLK | 3: SDATA<br/>4: GND | 5: nRESET | 6: VDD (Sense)"]
-        MN2DS["Matsushita MN2DS0016 SoC<br/>AM34 (MN103S) RISC Core<br/>On-Chip Debugger (OCD)"]
-        P7501 <--> MN2DS
+        P7501["P7501 Header (B6B-ZR-3R4 / 6 Pins)<br/>Silkscreen 'TO JIGU'<br/>1: SW_UART | 2: XRESET | 3: UARTM2P_T<br/>4: GND | 5: NSW5V (Hi-Z) | 6: UARTP2M_T"]
+        AM34["Matsushita AM34 / MN103S<br/>Main Board VEP79138<br/>Boot / CDDIAG Service Console"]
+        P7501 <--> AM34
     end
 
     NativeHAL <-->|"BLE (NUS) or USB-C OTG"| Probe
-    Probe <-->|"DWire32A Half-Duplex Synchronous Bus (3.3V)"| Target
+    Probe <-->|"P7501 Async UART 115200 8N1 (3.3V LVTTL)"| Target
 ```
 
 ---
@@ -89,10 +89,10 @@ The Raspberry Pi Pico W / Pico 2W firmware exposes the standard **Nordic UART Se
 A common engineering question is whether Bluetooth latency compromises nanosecond-accurate silicon bus timings:
 
 > [!IMPORTANT]
-> **Bluetooth NEVER bit-bangs the hardware bus directly.**  
-> The Matsushita DWire32A protocol operates at a synchronous **1.00 MHz** clock with bus turnaround times of **$1.0\,\mu\text{s}$** and single-cycle instruction timings of **$\sim 7.5\,\text{ns}$** (at 133 MHz RP2040 clock).  
-> All time-critical operations are executed **locally by the hardware PIO (Programmable I/O) coprocessor** on the Pico board.  
-> The Bluetooth channel operates solely on the upper transport layer (asynchronously streaming command and telemetry frames managed by the native Rust HAL), where latencies of $15\text{ ms}$ to $25\text{ ms}$ are completely transparent to the user and the asynchronous GDB RSP protocol.
+> **Bluetooth NEVER bit-bangs the hardware lines directly.**  
+> `P7501` communicates at **`115200 8N1` UART** paired with sub-millisecond Open-Drain reset (`XRESET` / `GP5`) and `SW_UART` boot latching (`GP26`).  
+> All real-time UART framing and reset pulses are executed **locally on the RP2040/RP2350** (`p7501_uart.pio` + HAL).  
+> The Bluetooth channel operates solely on the upper transport layer (asynchronously streaming command and telemetry frames managed by the native Rust HAL), where latencies of $15\text{ ms}$ to $25\text{ ms}$ are completely transparent to the user and the asynchronous console/GDB RSP session.
 
 ---
 
@@ -101,29 +101,29 @@ A common engineering question is whether Bluetooth latency compromises nanosecon
 ### 4.1 Strict Prohibition on Powering Pico via Panasonic P7501
 
 > [!CAUTION]
-> **CRITICAL PHYSICAL SAFETY RULE: NEVER POWER THE RASPBERRY PI PICO FROM HEADER P7501.**  
-> Pin 6 of the `P7501` header on PCB `VEP79138` delivers $3.3\text{V}$ tapped from the Panasonic voltage supervisor logic rail. This line was designed by Matsushita strictly for **voltage presence sensing** (current capacity $< 10\text{ mA}$).  
+> **CRITICAL PHYSICAL SAFETY RULE: NEVER POWER THE RASPBERRY PI PICO FROM HEADER P7501, AND KEEP `NSW5V` (`GP3`) Hi-Z ONLY.**  
+> Pin 1 (`SW_UART`) only senses target logic (`~3.25V`, $I < 10\text{ mA}$), while Pin 5 (`NSW5V` / `GP3`) ties via `D7510` to `IC1506` (`~5.15V` upstream / `~3.29V` resting) to bias `R7570`/`R7572` (`10 kΩ`) and `IC7501` VDD.  
 > A standard Pico draws $30\text{ mA}$ to $50\text{ mA}$, while a **Pico W / Pico 2W peaks between $150\text{ mA}$ and $300\text{ mA}$ during Wi-Fi/Bluetooth RF transmissions**.  
-> Sourcing power from Pin 6 will immediately **collapse the Panasonic 3.3V power rail**, trip the master reset IC (`XRST`), induce system panic on the front VFD, and risk burning internal traces on the 4-layer digital PCB.
+> Sourcing power from `P7501` or driving `GP3` (`NSW5V`) as push-pull will destabilize the board supply or overload the `Q7510`/`IC7501` supervisor network.
 
 ### 4.2 Grounding and External Power Rules
 1. **Pico Power Supply**:
    - Power the Pico from an external $5.0\text{V}$ supply on pin `VSYS` (Pin 39) or via its micro-USB/USB-C connector (portable 5V powerbank or regulated 3.7V LiPo booster).
 2. **Ground Reference (GND)**:
-   - Header Pin 4 of `P7501` (Panasonic GND) **MUST** be bonded to a Pico GND pin (e.g., GP38 or Pin 3) to equalize the bus ground reference.
+   - Header Pin 4 of `P7501` (Panasonic GND) **MUST** be bonded to a Pico GND pin (e.g., Pin 38) to equalize the UART ground reference ($0.0\,\Omega$ to chassis).
 3. **Voltage Sensing (Sense Only)**:
-   - Header Pin 6 of `P7501` (VDD 3.3V) connects to a high-impedance Pico ADC or digital input pin (`GP26` / `ADC0`) solely to report to the mobile UI whether the Panasonic unit is powered on.
+   - Header Pin 1 (`SW_UART` -> `GP26` / `ADC0`) reports logic state (`~3.25V` Hi-Z, `~2.69V` Pull-Down), while Pin 5 (`NSW5V` -> `GP3`) remains permanently configured as **`Hi-Z Input` without internal pulls**.
 
 ### 4.3 Canonical P7501 Pinout Table (B6B-ZR-3R4)
 
-| Physical Pin | Schematic Pin | Matsushita Signal | Pico Pin (RP2040/RP2350) | Protection Circuitry | Function |
+| Pin (`P7501`) | Schematic Net | Matsushita Signal | Pico Pin (RP2040/RP2350) | Conditioning / PCB Network | Function |
 | :---: | :---: | :---: | :---: | :---: | :--- |
-| **1** | 6 | **EXTRG** | `GP4` | $100\,\Omega$ Series | External trigger for logic analyzer / oscilloscope |
-| **2** | 5 | **SCLK** | `GP3` | $100\,\Omega$ Series | 1.00 MHz synchronous clock driven by Pico PIO |
-| **3** | 4 | **SDATA** | `GP2` | $100\,\Omega$ Series + $4.7\,\text{k}\Omega$ Pull-up | Half-duplex bidirectional synchronous data line |
-| **4** | 3 | **GND** | `GND` (Pin 38) | Direct low-impedance bond | **Mandatory common ground reference** |
-| **5** | 2 | **nRESET** | `GP5` | Open-Drain only | Master system reset (`XRST`). Push-pull 3.3V driving is strictly forbidden! |
-| **6** | 1 | **VDD (3.3V)**| `GP26` (ADC0) | High-impedance divider | **Logic level sensing only. DO NOT POWER PICO.** |
+| **1** | `SW_UART` | `SW_UART (D)` | `GP26 / ADC0` | $1.0\,\text{k}\Omega$ ADC series / `Q7510` | Serial boot latch (`LOW` drops `XFWE` & cuts off `Q7514`; `Hi-Z` enables TX). **DO NOT POWER PICO.** |
+| **2** | `XRESET` | `XRESET` | `GP5` | Strict Open-Drain (`LOW`/Hi-Z) | Master system reset (`~20 µs` Hi-Z release rise time). Push-pull HIGH is strictly forbidden! |
+| **3** | `MAX RXD` | `UARTM2P_T` | `GP4` (Pico TX) | Board `R7570 10 kΩ` to `NSW5V` + `Q7514` | Asynchronous `115200 8N1` TX to AM34 RX (requires `SW_UART` Hi-Z). No external 3.3V pull-up. |
+| **4** | `GND` | `GND` | `GND` (Pin 38) | Direct low-impedance bond | **Mandatory common ground reference ($0.0\,\Omega$ to chassis)** |
+| **5** | `NSW5V` | `X_SW_5R2V` | `GP3` | High-impedance sense via `IC1506`/`D7510` | **Static sense (`~3.29V` resting / `~5.15V` up). MUST remain `Hi-Z Input` without pulls!** |
+| **6** | `MAX TXD` | `UARTP2M_T` | `GP2` (Pico RX) | Board `R7572 10 kΩ`, Square Pad | Asynchronous `115200 8N1` RX from AM34 (`<00>DDR CHECK: OK`, `CD diag boot mode`). |
 
 ---
 
@@ -159,13 +159,12 @@ $env:NDK_HOME = "$env:ANDROID_HOME\ndk\27.0.12077973"
 # 2. Add Rust ARM64 target
 rustup target add aarch64-linux-android
 
-# 3. Enter desktop folder and build APK
-cd apps/desktop
-npx tauri android build --apk --target aarch64-linux-android
+# 3. Build APK cleanly from the repository root
+npm run build:android
 ```
 
-The resulting output APK is saved to:
-`apps/desktop/src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk`
+The resulting output APK is saved under:
+`gen/android/app/build/outputs/apk/` (or `dist/releases/` when packaged via `scripts/build.py --android`)
 
 ---
 

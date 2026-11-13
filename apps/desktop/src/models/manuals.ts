@@ -38,3 +38,10 @@ export interface ManualDocumentMetadata {
   page_count: number;
   key_ics: string[];
 }
+
+export interface ServiceManualCatalogItem {
+  file_name: string;
+  relative_path: string;
+  size_bytes: number;
+  formatted_size: string;
+}

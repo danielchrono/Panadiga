@@ -42,3 +42,12 @@ export interface FlashSectorInfo {
   active_bytes?: number;
   notes: string;
 }
+
+export interface LiveNvramCaptureEvent {
+  source: string;
+  port: string;
+  base_bus_address: string;
+  captured_bytes: number;
+  captured_at: string;
+  report: NvramCleanReport;
+}

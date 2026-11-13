@@ -1,14 +1,16 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { Sidebar, ViewKey } from './components/Sidebar';
+import { Sidebar, MobileSidebarDrawer, ViewKey } from './components/Sidebar';
 import { Header } from './components/Header';
-import { isDemoModeActive, setDemoMode, listenEvent } from './services/ipc';
+import { listenEvent } from './services/ipc';
+import { recordLiveNvramCapture } from './services/liveNvramCaptureStore';
+import { LiveNvramCaptureEvent } from './models';
+import { useHardwareSsot } from './viewmodels/useHardwareSsot';
 import { PicoDeviceStatus } from './models/pico';
 import { ToastProvider } from './context/ToastContext';
 import { ErrorBoundary } from './components/ui/error-boundary';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './components/ui/button';
 
-// Lazy-loaded views for optimal code-splitting and reduced initial bundle size
 const DashboardView = lazy(() =>
   import('./views/DashboardView').then(m => ({ default: m.DashboardView }))
 );
@@ -41,8 +43,9 @@ const ViewLoadingFallback: React.FC = () => (
 );
 
 export const App: React.FC = () => {
+  const { ssot } = useHardwareSsot();
   const [currentView, setCurrentView] = useState<ViewKey>('dashboard');
-  const [demoMode, setDemoState] = useState<boolean>(isDemoModeActive());
+  const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hardwareStatus, setHardwareStatus] = useState<{
@@ -54,18 +57,36 @@ export const App: React.FC = () => {
   });
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listenEvent<PicoDeviceStatus>('pico_telemetry', incoming => {
+    let unlistenLegacy: (() => void) | undefined;
+    let unlistenStream: (() => void) | undefined;
+    let unlistenLiveNvram: (() => void) | undefined;
+
+    const applyStatus = (incoming: PicoDeviceStatus) => {
+      if (!incoming) return;
       setHardwareStatus({
-        connected: incoming.connected,
-        vdd_volts: incoming.vdd_volts,
+        connected: Boolean(incoming.connected),
+        vdd_volts: Number(incoming.vdd_volts ?? 0),
       });
-    }).then(cleanup => {
-      unlisten = cleanup;
+    };
+
+    listenEvent<PicoDeviceStatus>('pico_telemetry', applyStatus).then(fn => {
+      unlistenLegacy = fn;
+    });
+    listenEvent<PicoDeviceStatus>('pico://telemetry', applyStatus).then(fn => {
+      unlistenStream = fn;
+    });
+    listenEvent<LiveNvramCaptureEvent>('pico://nvram-live-capture', evt => {
+      if (evt?.report) {
+        recordLiveNvramCapture(evt);
+      }
+    }).then(fn => {
+      unlistenLiveNvram = fn;
     });
 
     return () => {
-      unlisten?.();
+      unlistenLegacy?.();
+      unlistenStream?.();
+      unlistenLiveNvram?.();
     };
   }, []);
 
@@ -73,15 +94,10 @@ export const App: React.FC = () => {
     dashboard: 'Visão Geral do Gravador & Status da Bancada',
     nvram: 'Flash Spansion S29JL064H & Cirurgia NVRAM U99',
     hdd: 'Armazenamento MEIHDFS & Forensic do Disco Rígido',
-    picobench: 'Bancada Raspberry Pi Pico & DWire32A OCD Master',
+    picobench: 'Bancada Raspberry Pi Pico — P7501 UART (115200 8N1)',
     frmcrypto: 'Criptoanálise Óptica PANA_DVD.FRM & Dicionário ECB',
-    manuals: 'Manuais de Serviço & Diagramas Esquemáticos (15 PDFs)',
+    manuals: `Manuais de Serviço & Diagramas Esquemáticos (${ssot.indexed_manuals_count} PDFs)`,
     hexinspector: 'Inspetor Hexadecimal & Alinhamento LBA',
-  };
-
-  const handleToggleDemoMode = (active: boolean) => {
-    setDemoMode(active);
-    setDemoState(active);
   };
 
   const handleRetry = () => {
@@ -116,27 +132,35 @@ export const App: React.FC = () => {
   return (
     <ToastProvider>
       <div className="flex h-screen w-screen overflow-hidden bg-bench-950 text-slate-100 font-sans">
-        {/* Left Sidebar Navigation */}
         <Sidebar
           currentView={currentView}
           onSelectView={setCurrentView}
           vddVolts={hardwareStatus.vdd_volts}
           hardwareConnected={hardwareStatus.connected}
           nvramCleaned={false}
+          indexedManualsCount={ssot.indexed_manuals_count}
         />
 
-        {/* Main Content Area */}
+        <MobileSidebarDrawer
+          open={mobileNavOpen}
+          onOpenChange={setMobileNavOpen}
+          currentView={currentView}
+          onSelectView={setCurrentView}
+          vddVolts={hardwareStatus.vdd_volts}
+          hardwareConnected={hardwareStatus.connected}
+          nvramCleaned={false}
+          indexedManualsCount={ssot.indexed_manuals_count}
+        />
+
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
           <Header
             currentViewTitle={viewTitles[currentView]}
-            demoMode={demoMode}
-            onToggleDemoMode={handleToggleDemoMode}
+            onOpenMobileNav={() => setMobileNavOpen(true)}
             hardwareConnected={hardwareStatus.connected}
             vddVolts={hardwareStatus.vdd_volts}
           />
 
-          {/* View Content with declarative Suspense loading & ErrorBoundary */}
-          <main className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-800">
+          <main className="flex-1 overflow-y-auto p-3 sm:p-6 scrollbar-thin scrollbar-thumb-slate-800">
             <ErrorBoundary fallbackTitle={`Falha ao carregar ${viewTitles[currentView]}`}>
               <Suspense fallback={<ViewLoadingFallback />}>
                 {currentView === 'dashboard' && (

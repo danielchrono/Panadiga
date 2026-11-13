@@ -1,14 +1,18 @@
 import React from 'react';
-import { Cpu, ShieldCheck, RefreshCw, FileCode } from 'lucide-react';
+import { Cpu, ShieldCheck, RefreshCw, FileCode, Radio } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
-import { NvramCleanReport } from '@/models';
+import { LiveNvramCaptureEvent, NvramCleanReport } from '@/models';
 
 interface NvramActionsCardProps {
   report: NvramCleanReport | null;
   cleaning: boolean;
   cleanSuccess: boolean;
+  liveCapture?: LiveNvramCaptureEvent | null;
+  capturingLive?: boolean;
   onExecuteClean: () => void;
+  onCaptureLive?: () => void;
+  onClearLiveCapture?: () => void;
   onRefresh: () => void;
 }
 
@@ -16,7 +20,11 @@ export const NvramActionsCard: React.FC<NvramActionsCardProps> = ({
   report,
   cleaning,
   cleanSuccess,
+  liveCapture = null,
+  capturingLive = false,
   onExecuteClean,
+  onCaptureLive,
+  onClearLiveCapture,
   onRefresh,
 }) => {
   const flashBytes = report?.total_flash_bytes ?? 0;
@@ -50,15 +58,51 @@ export const NvramActionsCard: React.FC<NvramActionsCardProps> = ({
             <h2 className="text-base font-bold text-slate-100">{flashName}</h2>
             <StatusBadge variant="info" label="TOP-BOOT" />
             <StatusBadge variant="neutral" label="TSOP-48 / BGA" />
+            {liveCapture && (
+              <StatusBadge
+                variant="success"
+                label={`LIVE PICO: ${liveCapture.port} (${liveCapture.base_bus_address})`}
+              />
+            )}
           </div>
           <p className="text-xs text-slate-400 mt-1">
             Offset EEMUL NVRAM: <code className="text-cyan-400">{startHex}..{endHex}</code> (64 KB).{' '}
             {report?.microsectors.length ?? 8} microsetores de 8 KB com checksum e cabeçalhos emulados.
+            {liveCapture && (
+              <span className="text-emerald-400 ml-2">
+                Captura in-circuit ({liveCapture.source}, {liveCapture.captured_bytes}B às {liveCapture.captured_at}).
+              </span>
+            )}
           </p>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2.5 flex-wrap shrink-0">
+        {liveCapture && onClearLiveCapture && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClearLiveCapture}
+            className="text-xs text-slate-400 hover:text-slate-200"
+          >
+            Voltar ao Dump em Disco
+          </Button>
+        )}
+
+        {onCaptureLive && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCaptureLive}
+            disabled={capturingLive || cleaning}
+            className="gap-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+          >
+            <Radio className={`w-4 h-4 ${capturingLive ? 'animate-pulse' : ''}`} />
+            <span>{capturingLive ? 'Capturando Pico...' : 'Capturar NVRAM via Pico'}</span>
+          </Button>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
@@ -72,7 +116,7 @@ export const NvramActionsCard: React.FC<NvramActionsCardProps> = ({
         <Button
           variant="emerald"
           onClick={onExecuteClean}
-          disabled={cleaning || cleanSuccess || !report}
+          disabled={cleaning || cleanSuccess || !report || Boolean(liveCapture)}
           className="gap-2"
         >
           {cleaning ? (

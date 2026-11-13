@@ -18,7 +18,7 @@ export enum DigaTab {
   NVRAM_SANITIZER = "NVRAM_SANITIZER",
   HDD_FORENSICS = "HDD_FORENSICS",
   FRM_CRYPTANALYSIS = "FRM_CRYPTANALYSIS",
-  DWIRE_PICO_BRIDGE = "DWIRE_PICO_BRIDGE",
+  PICO_UART_BRIDGE = "PICO_UART_BRIDGE",
   DOCUMENTATION_SEARCH = "DOCUMENTATION_SEARCH",
 }
 
@@ -30,12 +30,12 @@ export enum ExecutionStatus {
   ERROR = "ERROR",
 }
 
-/** Cold Break-in synchronization modes for DWire32A OCD */
-export enum DwireBreakInMode {
-  MODE_0 = 0, // EXTRG Idle Low -> High, 32 clocks pre-reset
-  MODE_1 = 1, // EXTRG Idle High -> Low, 32 clocks pre-reset
-  MODE_2 = 2, // EXTRG Idle Low -> High, 32 clocks pre + post burst
-  MODE_3 = 3, // EXTRG Idle High -> Low, 32 clocks pre + post burst
+/** Discrete boot & reset profile modes for P7501 UART bench probe */
+export enum P7501BootMode {
+  MODE_0 = 0, // Normal Hi-Z (SW_UART open)
+  MODE_1 = 1, // Serial pulse (XFWE pre-reset)
+  MODE_2 = 2, // JIG hold LOW (SW_UART retained)
+  MODE_3 = 3, // Extended Hi-Z capture
 }
 
 /* =========================================================================
@@ -129,22 +129,22 @@ export interface FrmAnalysisReport {
   readonly top_blocks: readonly FrmCipherBlock[];
 }
 
-/** Diagnostic probe hit from DWire32A scan */
-export interface DwireProbeHit {
+/** Diagnostic probe hit from P7501 UART scan */
+export interface P7501ProbeHit {
   readonly opcode_hex: string;
   readonly response_hex: string;
   readonly classification: string;
 }
 
-/** Diagnostic statistics gathered from DWire32A Pico scan */
-export interface DwireScanStats {
+/** Diagnostic statistics gathered from P7501 Pico scan */
+export interface P7501ScanStats {
   readonly vdd_volts: number;
   readonly is_powered: boolean;
   readonly total_probes: number;
   readonly open_bus_high: number;
   readonly open_bus_low: number;
   readonly hits_detected: number;
-  readonly candidate_hits: readonly DwireProbeHit[];
+  readonly candidate_hits: readonly P7501ProbeHit[];
 }
 
 /** Matched manual search entry */

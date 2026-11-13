@@ -2,33 +2,45 @@ import React from 'react';
 import { usePicoBenchViewModel } from '@/viewmodels/usePicoBenchViewModel';
 import { TerminalView } from '@/components/TerminalView';
 import { StatusBadge } from '@/components/StatusBadge';
+import { Button } from '@/components/ui';
 import {
   PicoBenchTopBar,
   PicoBenchMetrics,
   GdbServerCard,
   ColdBreakinSelector,
-  DwirePinoutCard,
+  P7501PinoutCard,
+  PicoDiagnosticsStudio,
 } from '@/components/pico';
 import { useTranslation } from '@/i18n/useTranslation';
 import { CheckCircle2, Send, ShieldCheck } from 'lucide-react';
 
 /**
- * MVVM View: Panasonic DWire32A Hardware Bench Controller.
- * Cleanly composes presentation components and coordinates with usePicoBenchViewModel.
- * Equalized dual columns with CSS Grid items-stretch and matching heights.
+ * MVVM View: Panasonic P7501 Async UART Hardware Bench Controller.
+ * Composes TopBar, Telemetry Metrics, Granular Diagnostics Studio (Radix Tabs),
+ * GDB Server Card, Break-In Modes / Pinout, and Live Serial Console.
  */
 export const PicoBenchView: React.FC = () => {
   const { t } = useTranslation();
   const {
+    ssot,
     deviceStatus,
     availablePorts,
     selectedPort,
     setSelectedPort,
+    transportMode,
     modelCatalog,
     selectedModel,
     selectTargetModel,
     refreshPorts,
     refreshStatus,
+    diagnosticHistory,
+    latestDiagnostic,
+    runningCommandId,
+    diagnosticError,
+    diagnosticCategory,
+    setDiagnosticCategory,
+    executeDiagnostic,
+    clearDiagnosticHistory,
     logs,
     logContainerRef,
     isErasing,
@@ -53,9 +65,8 @@ export const PicoBenchView: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-mono">
-      {/* First-Contact Safety Backup Notification */}
       {backupResult?.success && (
-        <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/40 p-4 flex items-center justify-between shadow-xl">
+        <div className="rounded-xl bg-cyan-500/10 border border-cyan-500/40 p-4 flex items-center justify-between shadow-xl gap-3">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-5 h-5 text-cyan-400 shrink-0" />
             <div>
@@ -71,9 +82,8 @@ export const PicoBenchView: React.FC = () => {
         </div>
       )}
 
-      {/* Erase Success Notification */}
       {eraseResult?.success && (
-        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/40 p-4 flex items-center justify-between shadow-xl">
+        <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/40 p-4 flex items-center justify-between shadow-xl gap-3">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
             <div>
@@ -81,7 +91,7 @@ export const PicoBenchView: React.FC = () => {
                 INJEÇÃO DE RAM LOADER & APAGAMENTO IN-CIRCUIT CONCLUÍDOS!
               </h4>
               <p className="text-[11px] text-slate-300 mt-0.5 font-sans">
-                Executado em {eraseResult.elapsed_ms}ms via DWire32A OCD. NVRAM limpa para 0xFF (65.536 bytes). Alvo pronto para boot.
+                Executado em {eraseResult.elapsed_ms}ms via P7501 UART (SW_UART / XRESET). NVRAM limpa para 0xFF (65.536 bytes). Alvo pronto para boot.
               </p>
             </div>
           </div>
@@ -89,11 +99,11 @@ export const PicoBenchView: React.FC = () => {
         </div>
       )}
 
-      {/* Top Bar: Port Selector, Model Selector, Connect/Disconnect, Flash UF2 & In-Circuit Action */}
       <PicoBenchTopBar
         deviceStatus={deviceStatus}
         availablePorts={availablePorts}
         selectedPort={selectedPort}
+        transportMode={transportMode}
         modelCatalog={modelCatalog}
         selectedModel={selectedModel}
         isErasing={isErasing}
@@ -105,12 +115,29 @@ export const PicoBenchView: React.FC = () => {
         onFirstContactBackup={executeFirstContactBackup}
         onRefreshPorts={refreshPorts}
         onRefreshStatus={refreshStatus}
+        onQuickPincheck={() => {
+          void executeDiagnostic('PINCHECK');
+        }}
       />
 
-      {/* Telemetry Instruments Grid */}
-      <PicoBenchMetrics deviceStatus={deviceStatus} />
+      <PicoBenchMetrics
+        deviceStatus={deviceStatus}
+        ssot={ssot}
+        detectedFlashMb={latestDiagnostic?.detected_flash_mb}
+      />
 
-      {/* GDB Remote RSP Server & AM34 Live Register File */}
+      <PicoDiagnosticsStudio
+        ssot={ssot}
+        latestResult={latestDiagnostic}
+        history={diagnosticHistory}
+        runningCommandId={runningCommandId}
+        error={diagnosticError}
+        selectedCategory={diagnosticCategory}
+        onSelectCategory={setDiagnosticCategory}
+        onExecute={executeDiagnostic}
+        onClearHistory={clearDiagnosticHistory}
+      />
+
       <GdbServerCard
         gdbStatus={gdbStatus}
         registers={am34Registers}
@@ -120,43 +147,44 @@ export const PicoBenchView: React.FC = () => {
         onLaunchTool={launchExternalTool}
       />
 
-      {/* Main Grid: Timing Modes & Live Serial Terminal (Balanced Columns) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left Column: Timing Profile Selector & Pinout Guide */}
-        <div className="lg:col-span-5 flex flex-col space-y-4 min-h-[740px]">
+        <div className="lg:col-span-5 flex flex-col space-y-4 lg:min-h-[720px]">
           <ColdBreakinSelector
             currentMode={deviceStatus?.breakin_mode ?? 2}
             onSelectMode={changeBreakinMode}
+            breakinModes={ssot.breakin_modes}
           />
           <div className="flex-1 min-h-0 flex flex-col">
-            <DwirePinoutCard />
+            <P7501PinoutCard ssot={ssot} />
           </div>
         </div>
 
-        {/* Right Column: Live Terminal & CDC Command Bar */}
-        <div className="lg:col-span-7 flex flex-col space-y-3 min-h-[740px]">
+        <div className="lg:col-span-7 flex flex-col space-y-3 min-h-[420px] lg:min-h-[720px]">
           <div className="flex-1 min-h-0 flex flex-col">
             <TerminalView logs={logs} onClear={clearLogs} containerRef={logContainerRef} />
           </div>
 
-          {/* Interactive Command Input */}
           <div className="flex items-center gap-2 p-2 rounded-xl bg-bench-900 border border-slate-800 shrink-0">
             <span className="text-slate-500 text-xs font-mono pl-2">{'>'}</span>
             <input
               type="text"
-              placeholder="Digite comando CDC (STATUS, RESET, ADC, GDB, PEEK, POKE)..."
+              aria-label={t('pico.title')}
+              placeholder="Digite comando CDC (STATUS, RESET, ADC, PINCHECK, DUMP, GDB)..."
               value={commandInput}
               onChange={e => setCommandInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendCommand()}
               className="flex-1 bg-transparent border-none text-xs text-slate-100 placeholder-slate-500 focus:outline-none font-mono"
             />
-            <button
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
               onClick={sendCommand}
-              className="px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-colors"
+              className="font-bold text-xs gap-1.5"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Enviar</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

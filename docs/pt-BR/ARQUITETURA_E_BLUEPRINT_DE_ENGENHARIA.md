@@ -9,7 +9,7 @@
 
 ## 1. Visão Geral da Arquitetura do Ecossistema
 
-O **Panadiga** é uma suíte integrada de engenharia reversa, análise forense de armazenamento, recuperação de firmware (com foco na resolução do erro crítico **`U99`**) e instrumentação de baixo nível para gravadores digitais **Panasonic DIGA (DMR-EH55)** baseados no processador **Matsushita MN2DS0016 (UniPhier / AM34)**.
+O **Panadiga** é uma suíte integrada de engenharia reversa, análise forense de armazenamento, recuperação de firmware (com foco na resolução do erro crítico **`U99`**) e instrumentação de baixo nível para gravadores digitais **Panasonic DIGA (DMR-EH55)** baseados no processador **Matsushita AM34 (MN103S)**.
 
 O sistema opera segundo o modelo de **Camadas Desacopladas com Comunicação Unidirecional Restrita**:
 
@@ -44,19 +44,19 @@ flowchart TD
     subgraph HAL["4. Camada de Abstração de Hardware (HAL & Protocolos)"]
         USB_SERIAL["Driver CDC Serial (USB OTG / Virtual COM)"]
         BLE_NUS["Driver Nordic UART Service (Bluetooth Low Energy)"]
-        DW_TRANS["Transceptor DWire32A Half-Duplex (PIO C11)"]
+        UART_TRANS["Transceptor UART P7501 115200 8N1 (PIO C11)"]
         GDB_BRIDGE --> USB_SERIAL
         GDB_BRIDGE --> BLE_NUS
-        USB_SERIAL --> DW_TRANS
-        BLE_NUS --> DW_TRANS
+        USB_SERIAL --> UART_TRANS
+        BLE_NUS --> UART_TRANS
     end
 
     subgraph TargetHW["5. Alvo Físico de Silício (Panasonic DMR-EH55)"]
-        P7501["Conector P7501 (JST ZR 6 Pinos 'TO WRITE JIGU')"]
-        SOC["SoC Matsushita MN2DS0016 (AM34 @ 162 MHz)"]
-        FLASH["NOR Flash Spansion S29JL064H (8 MB TSOP-48)"]
+        P7501["Conector P7501 (JST B6B-ZR-3R4 'TO JIGU')"]
+        SOC["SoC Matsushita AM34 (MN103S)"]
+        FLASH["NOR Flash Spansion S29JL064H (IC5001, 8 MB TSOP-48)"]
         HDD["Disco PATA/IDE (Layout MEIHDFS / Superbloco 'SH')"]
-        DW_TRANS <-->|"Barramento Síncrono 3.3V"| P7501
+        UART_TRANS <-->|"UART Assíncrona 115200 8N1 (3.3V LVTTL / NSW5V Hi-Z)"| P7501
         P7501 <--> SOC
         SOC <--> FLASH
         SOC <--> HDD
@@ -92,7 +92,7 @@ A depuração in-circuit do núcleo AM34 através do conector P7501 exige taxa d
 - **Validação Formal de Checksums RSP**: Cada pacote recebido (`$<dados>#<checksum>`) passa por verificação léxica rigorosa. Pacotes corrompidos disparam retransmissão imediata (`-`), blindando o depurador contra ruído eletromagnético em bancada.
 
 ### 2.4 SSOT (Single Source of Truth) e Eliminação de Hardcode
-- **Constantes Canônicas Centralizadas**: O arquivo [`src/panadiga/constants.rs`](file:///C:/Users/danie/Documents/Panadiga/src/panadiga/constants.rs) é a única autoridade no repositório para o mapeamento de memória do SoC Matsushita AM34 (`AM34_SYSTEM_MEMORY_REGIONS`), pinagens de conectores e caminhos candidatos.
+- **Constantes Canônicas Centralizadas**: O arquivo [`crates/panadiga-core/src/constants.rs`](file:///C:/Users/danie/Documents/Panadiga/crates/panadiga-core/src/constants.rs) é a única autoridade no repositório para o mapeamento de memória do SoC Matsushita AM34 (`AM34_SYSTEM_MEMORY_REGIONS`), pinagens de conectores e caminhos candidatos.
 - **Tolerância Zero a Clones (`jscpd`)**: A base de código do frontend mantém **0.00% de duplicação**, prevenindo divergência lógica entre telas de recuperação e terminais seriais.
 
 ### 2.5 Subsistema de Logging Estruturado
@@ -103,7 +103,7 @@ A depuração in-circuit do núcleo AM34 através do conector P7501 exige taxa d
 
 ## 3. Blueprint do Silício e Invariantes Físicas do Panasonic DMR-EH55
 
-### 3.1 Mapeamento Físico de Memória do SoC MN2DS0016 (AM34)
+### 3.1 Mapeamento Físico de Memória do SoC AM34 (MN103S)
 
 | Faixa de Endereços Físicos | Tamanho | Tipo de Memória / Periférico | Propósito no Firmware Matsushita |
 | :--- | :---: | :--- | :--- |
@@ -128,9 +128,9 @@ graph TD
     
     CHECK_REG -- "0x80000000..0x807EFFFF" --> ABORT_BOOT["BLOQUEIO DE ESCRITA (Erro E05)<br/>Bootloader/IPL é Read-Only"]
     CHECK_REG -- "0x807F0000..0x807FFFFF" --> ALLOW_NVRAM["PERMISSÃO CONCEDIDA<br/>Sanitização dos 64 KB de NVRAM (Erro U99)"]
-    CHECK_REG -- "P7501 Pino 6 (VDD)" --> ABORT_PWR["BLOQUEIO ELÉTRICO<br/>Proibido alimentar sonda pelo P7501"]
+    CHECK_REG -- "P7501 Pino 5 (NSW5V) / Alimentação" --> ABORT_PWR["BLOQUEIO ELÉTRICO<br/>NSW5V sempre Hi-Z / Proibido alimentar Pico pelo P7501"]
 ```
 
-1. **Invariante 1: Tensão Máxima de 3.3V**: O SoC Matsushita MN2DS0016 é construído em processo litográfico de 130 nm sensível. O fornecimento de $5.0\text{V}$ (nível TTL legado) destrói as junções internas.
-2. **Invariante 2: Isolamento da Porta J (P7501)**: O pino 6 do conector P7501 é restrito a sensoriamento de tensão. Qualquer consumo de corrente acima de $10\text{ mA}$ provocará o desarme do supervisor de reset e travamento da máquina.
+1. **Invariante 1: Tensão Máxima de 3.3V & Proteção `NSW5V`**: Os sinais lógicos de comunicação e controle em `P7501` (`SW_UART`, `XRESET` Open-Drain, `UARTM2P_T`, `UARTP2M_T`) e a Flash `IC5001` operam em **3.3V LVTTL**; já o **Pino 5 (`NSW5V` / `GP3`)** provém de `IC1506` (`~5.15V` via `D7510`, medido `~3.29V` em repouso) e **DEVE permanecer SEMPRE como entrada `Hi-Z` sem pulls (NUNCA dirigir push-pull!)**.
+2. **Invariante 2: Isolamento de Alimentação da Porta J (P7501)**: Nunca alimente a sonda Pico pelo conector P7501; a extração de corrente nos pinos lógicos é restrita a controle/sensoriamento ($< 10\text{ mA}$). O Pico deve ser alimentado externamente via USB ou `VSYS`.
 3. **Invariante 3: Imutabilidade de Evidências Forenses**: Dumps originais de disco rígido MEIHFS e da Flash Spansion jamais são sobrescritos in-place; a ferramenta opera sempre sobre cópias de trabalho com conferência criptográfica SHA-256.

@@ -19,9 +19,8 @@ Este diretório armazena os dumps brutos de memória e imagens de armazenamento 
 ### 2. Contêiner Óptico de Atualização (`PANA_DVD.FRM`)
 * **Descrição:** Imagem oficial de atualização óptica de firmware para CD-R/DVD-RAM da Panasonic.
 * **Tamanho exato:** `7.531.744 bytes`.
-* **Hash MD5:** `682bf55cf73e728790351798ec4f58c4`
-* **Hash SHA-256:** `fc5e96f2648ec823126f74a0da72c57eb430d4a974917ae69ef112bb67fa7d34`
+* **Hash SHA-256:** `a596d52a8220a9113777c9caf271ac4d518202d0639d6118a4d0bc03b9a6367f`
 
-### 3. Dump da Flash Spansion S29JL064H (`IC55007.bin`)
+### 3. Dump da Flash Spansion S29JL064H (`IC5001.bin`)
 * **Descrição:** Leitura de 8 MB da memória NOR Flash TSOP-48 contendo o bootloader IPL e a partição NVRAM/EEMUL corrompida (`U99`).
 * **Tamanho exato:** `8.388.608 bytes`.

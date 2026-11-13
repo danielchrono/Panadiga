@@ -7,22 +7,39 @@ describe('useDashboardViewModel MVVM Test', () => {
     vi.clearAllMocks();
   });
 
-  it('initializes with loading state and provides overview actions', async () => {
+  it('carries overview data after initialization and exposes refresh()', async () => {
     const { result } = renderHook(() => useDashboardViewModel());
 
-    expect(typeof result.current.toggleDemoMode).toBe('function');
     expect(typeof result.current.refresh).toBe('function');
-    expect(typeof result.current.demoMode).toBe('boolean');
-  });
-
-  it('allows toggling demo mode dynamically', async () => {
-    const { result } = renderHook(() => useDashboardViewModel());
-    const initialMode = result.current.demoMode;
 
     await act(async () => {
-      result.current.toggleDemoMode(!initialMode);
+      await result.current.refresh();
     });
 
-    expect(result.current.demoMode).toBe(!initialMode);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.overview).not.toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('surfaces backend IPC failures explicitly without silent demo fallback', async () => {
+    const previousBridge = window.__PANADIGA_TEST_IPC__;
+    window.__PANADIGA_TEST_IPC__ = {
+      invoke: async () => {
+        throw new Error('Backend IPC offline');
+      },
+      listen: () => () => {},
+    };
+
+    try {
+      const { result } = renderHook(() => useDashboardViewModel());
+      await act(async () => {
+        await result.current.refresh();
+      });
+
+      expect(result.current.loading).toBe(false);
+      expect(result.current.error).toContain('Backend IPC offline');
+    } finally {
+      window.__PANADIGA_TEST_IPC__ = previousBridge;
+    }
   });
 });

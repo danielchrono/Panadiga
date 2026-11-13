@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { installMockIpcBridge } from './fixtures/mockIpcBridge';
 
 test.describe('Panadiga Desktop Navigation & Layout E2E', () => {
   test.beforeEach(async ({ page }) => {
+    await installMockIpcBridge(page);
     await page.goto('/');
     await expect(page.locator('h1')).toContainText('DIGA SUITE');
+    await expect(page.getByText(/Modo Demo|Demonstração/i)).toHaveCount(0);
   });
 
   test('loads Dashboard View by default with system metrics', async ({ page }) => {

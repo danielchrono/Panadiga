@@ -1,10 +1,9 @@
 {
   "mcpServers": {
     "panadiga-tools": {
-      "command": "python",
-      "args": ["tools/panadiga_mcp_server.py"],
+      "command": "cargo",
+      "args": ["run", "--quiet", "--bin", "panadiga", "--", "mcp"],
       "env": {
-        "PYTHONIOENCODING": "utf-8",
         "PANADIGA_WORKSPACE_ROOT": "."
       }
     }

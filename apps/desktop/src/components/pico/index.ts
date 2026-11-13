@@ -6,4 +6,5 @@ export * from './GdbTelemetryInspector';
 export * from './PicoBenchTopBar';
 export * from './PicoBenchMetrics';
 export * from './ColdBreakinSelector';
-export * from './DwirePinoutCard';
+export * from './P7501PinoutCard';
+export * from './PicoDiagnosticsStudio';

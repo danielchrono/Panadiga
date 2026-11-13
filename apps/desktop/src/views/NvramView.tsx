@@ -20,16 +20,20 @@ export const NvramView: React.FC = () => {
   const { t } = useTranslation();
   const {
     report,
-    sectorMap,
+    filteredSectors,
     selectedSector,
     setSelectedSector,
     loading,
+    capturingLive,
+    liveCapture,
     cleaning,
     cleanSuccess,
     filterType,
     setFilterType,
     error,
     executeSurgicalClean,
+    captureFromLivePico,
+    clearLiveCapture,
     refresh,
   } = useNvramViewModel();
 
@@ -66,7 +70,15 @@ export const NvramView: React.FC = () => {
         report={report}
         cleaning={cleaning}
         cleanSuccess={cleanSuccess}
+        liveCapture={liveCapture}
+        capturingLive={capturingLive}
         onExecuteClean={executeSurgicalClean}
+        onCaptureLive={() => {
+          void captureFromLivePico();
+        }}
+        onClearLiveCapture={() => {
+          void clearLiveCapture();
+        }}
         onRefresh={refresh}
       />
 
@@ -79,7 +91,7 @@ export const NvramView: React.FC = () => {
 
       {/* Interactive Sector Physical Grid & Selected Sector Inspector */}
       <NvramSectorMap
-        sectorMap={sectorMap}
+        sectorMap={filteredSectors}
         selectedSector={selectedSector}
         filterType={filterType}
         cleanSuccess={cleanSuccess}

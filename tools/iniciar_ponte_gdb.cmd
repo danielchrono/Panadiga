@@ -5,7 +5,7 @@ title Panadiga - GDB Remote RSP Bridge Server
 
 echo ====================================================================
 echo    PANADIGA: SERVIDOR PONTE GDB REMOTE SERIAL PROTOCOL (RSP)
-echo    Target: Panasonic UniPhier MN2DS0016 (Matsushita AM34 / MN103S)
+echo    Target: Panasonic DMR-EH55 SoC (Matsushita AM34 / MN103S)
 echo ====================================================================
 echo.
 

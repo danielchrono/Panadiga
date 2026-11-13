@@ -21,7 +21,7 @@ flowchart TD
     end
 
     subgraph CoreBridge ["Camada de Comunicação & Bridge (C & Rust)"]
-        CDC["Firmware Pico CDC Serial (dwire32a_pico)"]
+        CDC["Firmware Pico CDC Serial (panasonic_p7501_uart)"]
         RSP["GDB Remote Serial Protocol (RSP) Engine"]
         PANAPICO["Panadiga CLI / Desktop Bridge (src & apps/desktop)"]
         PICO <--> CDC
@@ -56,11 +56,11 @@ flowchart TD
 * **Como Funciona:**
   1. No Panadiga Desktop, clique em **"Iniciar Servidor GDB"** (ou use a CLI `panadiga pico gdb-bridge`).
   2. O servidor abre o socket `127.0.0.1:3333` e o canal USB CDC com a Raspberry Pi Pico.
-  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.cmd`](../tools/conectar_gdb_multiarch.cmd) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
+  3. Ao clicar em **"GDB Multiarch"** no Desktop, o script [`tools/conectar_gdb_multiarch.cmd`](../../tools/conectar_gdb_multiarch.cmd) é disparado em uma nova janela de terminal, pré-carregando a arquitetura e emitindo `target remote 127.0.0.1:3333`.
   4. O usuário pode pausar (`Ctrl+C`), inspecionar registradores (`info registers`), ler memória (`x/16wx 0x807FE000`) e executar instruções passo-a-passo (`stepi`).
 
 ### 2.2 NSA Ghidra (Descompilador & Ghidra Debugger)
-Ghidra é a ferramenta primária de descompilação de código estático e análise dinâmica. A suíte Panadiga fornece 3 scripts dedicados em [`tools/`](../tools/):
+Ghidra é a ferramenta primária de descompilação de código estático e análise dinâmica. A suíte Panadiga fornece scripts dedicados em [`tools/`](../../tools/) e [`tools/ghidra/`](../../tools/ghidra/):
 
 1. **`ghidra_am34_memory_map.py` (Mapeador de Barramento):**
    - Cria no Ghidra as regiões exatas da placa mãe:
@@ -76,15 +76,15 @@ Ghidra é a ferramenta primária de descompilação de código estático e anál
    - Orienta a conexão da perspectiva dinâmica do Ghidra (Window -> Debugger) via conector GDB local apontando para `127.0.0.1:3333`.
    - O código descompilado do Ghidra sincroniza com a posição física do registrador PC da CPU Panasonic DMR-EH55.
 
-### 2.3 OpenOCD (Open On-Chip Debugger)
-* **Arquivo de Configuração:** [`dwire32a_jtag_research/openocd_panasonic_am34.cfg`](../dwire32a_jtag_research/openocd_panasonic_am34.cfg).
-* **Disparador:** Botão **"OpenOCD AM34"** no Panadiga Desktop ou [`tools/executar_openocd.cmd`](../tools/executar_openocd.cmd).
+### 2.3 Ponte Nativa GDB RSP (`panadiga pico gdb-bridge`)
+* **Arquitetura Alvo:** Matsushita **`mn10300`** (`AM34 / MN103S`), evitando abstrações genéricas incompatíveis com JTAG ARM padrão.
+* **Disparador:** Botão **"Iniciar Ponte GDB"** / **"GDB Multiarch"** no Panadiga Desktop, [`tools/iniciar_ponte_gdb.cmd`](../../tools/iniciar_ponte_gdb.cmd) ou [`tools/conectar_gdb_multiarch.cmd`](../../tools/conectar_gdb_multiarch.cmd).
 * **Recursos:**
-  - Procedimento TCL `panasonic_cold_break_in` automatizado.
-  - Comandos para dump de setores e gravação de emergência.
+  - Encaminhamento direto TCP (`127.0.0.1:3333`) $\leftrightarrow$ Raspberry Pi Pico CDC (`P7501 Async UART`).
+  - Comandos nativos para perfis discretos de boot, dump de setores e inspeção/sanitização de NVRAM.
 
 ### 2.4 HxD Hex Editor Portable
-* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](../tools/Abrir_HxD.cmd).
+* **Executável Integrado:** [`tools/HxD/app/HxD64.exe`](../../tools/Abrir_HxD.cmd).
 * **Disparador:** Botão **"HxD Editor"** na interface web.
 * **Uso:** Inspeção imediata dos dumps de NVRAM, firmware Spansion e setores LBA do disco MEIHDFS sem depender de instalações no Windows.
 
@@ -92,7 +92,7 @@ Ghidra é a ferramenta primária de descompilação de código estático e anál
 
 ## 3. Disparo em 1 Clique a Partir do Panadiga Desktop
 
-A comunicação entre a interface gráfica declarativa e o sistema operacional ocorre através do comando nativo Tauri:
+A comunicação entre a interface gráfica declarativa e o sistema operacional ocorre através do comando nativo Tauri (`apps/desktop/src-tauri/src/commands/hardware.rs`):
 
 ```rust
 #[tauri::command]
@@ -105,15 +105,8 @@ pub fn launch_external_tool_command(tool: String) -> Result<String, String> {
                 .map_err(|e| format!("Falha ao iniciar GDB: {}", e))?;
             Ok("Sessão interativa do GDB iniciada em novo terminal.".to_string())
         }
-        "openocd" => {
-            Command::new("cmd")
-                .args(["/c", "start", "tools\\executar_openocd.cmd"])
-                .spawn()
-                .map_err(|e| format!("Falha ao iniciar OpenOCD: {}", e))?;
-            Ok("Servidor OpenOCD iniciado em novo terminal.".to_string())
-        }
         "ghidra" => {
-            Command::new("explorer").arg("tools").spawn().map_err(...)?;
+            Command::new("explorer").arg("tools\\ghidra").spawn().map_err(...)?;
             Ok("Pasta de scripts do Ghidra aberta.".to_string())
         }
         "hxd" => {

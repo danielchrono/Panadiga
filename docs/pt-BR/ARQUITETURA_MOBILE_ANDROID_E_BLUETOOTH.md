@@ -34,21 +34,21 @@ flowchart TD
     subgraph Probe["Sonda de Bancada Microcontrolada"]
         direction TB
         PICO["Raspberry Pi Pico W / Pico 2W<br/>RP2040 / RP2350 + CYW43439<br/>Firmware C11 + Máquina de Estados PIO"]
-        BUFFER["Anel Circular de Telemetria (Zero-Loss)<br/>Servidor GDB RSP & Transceptor DWire32A"]
-        PIO_ENG["Máquina PIO Local @ 133/150 MHz<br/>Temporização em Nanossegundos (~7.5 ns/ciclo)<br/>Clock Síncrono SCLK = 1.00 MHz"]
+        BUFFER["Anel Circular de Telemetria (Zero-Loss)<br/>Servidor GDB RSP & Ponte UART P7501"]
+        PIO_ENG["Máquina PIO Local & UART Assíncrona<br/>P7501 @ 115200 8N1 (3.3V LVTTL)<br/>Proteção Hardware: NSW5V = Hi-Z"]
         PICO --- BUFFER
         BUFFER --- PIO_ENG
     end
 
     subgraph Target["Hardware Alvo (Panasonic DMR-EH55)"]
         direction TB
-        P7501["Conector P7501 (B6B-ZR-3R4 / 6 Pinos)<br/>Ilhas 'TO WRITE JIGU'<br/>1: EXTRG | 2: SCLK | 3: SDATA<br/>4: GND | 5: nRESET | 6: VDD (Sense)"]
-        MN2DS["SoC Matsushita MN2DS0016<br/>Núcleo RISC AM34 (MN103S)<br/>On-Chip Debugger (OCD)"]
-        P7501 <--> MN2DS
+        P7501["Conector P7501 (B6B-ZR-3R4 / 6 Pinos)<br/>Ilhas 'TO JIGU' (Main PCB VEP79138)<br/>1: SW_UART | 2: XRESET | 3: UARTM2P_T<br/>4: GND | 5: NSW5V (Hi-Z!) | 6: UARTP2M_T"]
+        AM34["SoC Matsushita AM34 (MN103S)<br/>Syscon IC7501 & Flash IC5001 (S29JL064H)<br/>Interface UART & Controle de Boot"]
+        P7501 <--> AM34
     end
 
     NativeHAL <-->|"BLE (NUS) ou USB-C OTG"| Probe
-    Probe <-->|"Barramento Síncrono DWire32A Half-Duplex (3.3V)"| Target
+    Probe <-->|"UART Assíncrona P7501 115200 8N1 + SW_UART / XRESET"| Target
 ```
 
 ---
@@ -85,13 +85,12 @@ O firmware do Raspberry Pi Pico W / Pico 2W expõe o serviço padrão **Nordic U
 | **RX Characteristic** | `6E400002-B5A3-F393-E0A9-E50E24DCCA9E` | Write Without Response / Write | Envio de comandos do Rust Core para o Pico (ex: Cold Break-In, GDB RSP) |
 | **TX Characteristic** | `6E400003-B5A3-F393-E0A9-E50E24DCCA9E` | Notify / Read | Envio de telemetria e respostas de registradores do Pico para o Rust Core |
 
-### 3.2 Desmistificação: Latência de Nanossegundos vs. Conexão Bluetooth
-Uma dúvida recorrente em engenharia de hardware é se o uso de Bluetooth geraria latência excessiva para protocolos de silício que exigem precisão de nanossegundos (como o Matsushita DWire32A):
+### 3.2 Desmistificação: Determinismo de Hardware vs. Conexão Bluetooth
+Uma dúvida recorrente em engenharia de hardware é se o uso de Bluetooth geraria *jitter* excessivo para protocolos seriais de baixo nível e controle de reset na interface `P7501`:
 
 > [!IMPORTANT]
-> **O Bluetooth NUNCA faz bit-banging direto do barramento.**  
-> O protocolo Matsushita DWire32A opera a **1.00 MHz síncrono** com reversão de sentido em ciclos de clock de **$1.0\,\mu\text{s}$** e amostragens em nível de instrução de **$\sim 7.5\,\text{ns}$** (executadas a 133 MHz pelo RP2040).  
-> Toda essa temporização crítica é executada **localmente pelo coprocessador de hardware PIO (Programmable I/O)** dentro do microcontrolador Pico.  
+> **O Bluetooth NUNCA faz bit-banging direto dos pinos de bancada.**  
+> Os transceptores PIO / UART a `115200 8N1` e o controle sub-milissegundo de `SW_UART` / `XRESET` Open-Drain (subida Hi-Z em `~20 µs`) são executados **localmente dentro do microcontrolador Pico (RP2040 / RP2350)**.  
 > O canal Bluetooth atua exclusivamente na camada superior (transporte assíncrono de pacotes de comando e telemetria forense gerenciado pela HAL em Rust), onde latências de $15\text{ ms}$ a $25\text{ ms}$ são perfeitamente imperceptíveis para a operação humana e para o protocolo GDB RSP assíncrono.
 
 ---
@@ -101,29 +100,30 @@ Uma dúvida recorrente em engenharia de hardware é se o uso de Bluetooth gerari
 ### 4.1 Proibição Absoluta de Alimentar o Pico pela Placa Panasonic
 
 > [!CAUTION]
-> **REGRA DE OURO DE SEGURANÇA FÍSICA: NUNCA ALIMENTE O RASPBERRY PI PICO PELO CONECTOR P7501.**  
-> O pino 6 do conector `P7501` da placa `VEP79138` fornece nível lógico de $3.3\text{V}$ proveniente do barramento de sinal do circuito supervisor da Panasonic. Esta linha foi projetada pela Matsushita exclusivamente para **sensoriamento de presença de tensão** (capacidade de corrente $< 10\text{ mA}$).  
+> **REGRA DE OURO DE SEGURANÇA FÍSICA: NUNCA ALIMENTE O RASPBERRY PI PICO PELO CONECTOR P7501 E MANTENHA `NSW5V` (`GP3`) EM `Hi-Z`.**  
+> Os sinais lógicos de comunicação e controle em `P7501` (`SW_UART`, `XRESET`, `UARTM2P_T`, `UARTP2M_T`) operam em nível de $3.3\text{V}$ LVTTL com capacidade de corrente restrita a controle/sensoriamento ($< 10\text{ mA}$). Já o **Pino 5 (`NSW5V`)** provém de `IC1506` (`~5.15V` via `D7510`, `~3.29V` em repouso) e deve permanecer **SEMPRE como `Hi-Z Input` sem pulls** em `GP3` (NUNCA dirigir push-pull!).  
 > O Raspberry Pi Pico normal consome entre $30\text{ mA}$ e $50\text{ mA}$, e o **Pico W / Pico 2W atinge picos de $150\text{ mA}$ a $300\text{ mA}$ durante transmissões de rádio Wi-Fi/Bluetooth**.  
-> Ligar a alimentação do Pico no Pino 6 causará a **queda imediata da tensão de $3.3\text{V}$ da placa digital**, acionará o circuito de monitoramento de reset do gravador (`XRST`), provocará travamento com pânico no display VFD e pode romper microtrilhas internas da PCB de 4 camadas da Panasonic.
+> Tentar alimentar o Pico pelo conector `P7501` ou dirigir `GP3` em push-pull causará **queda da barra de alimentação/supervisão**, acionamento de reset (`XRESET`) ou dano elétrico na PCB da Panasonic.
 
 ### 4.2 Topologia Correta de Alimentação e Aterramento
 1. **Alimentação do Pico**:
-   - Conectar o Pico a uma fonte de alimentação externa de $5.0\text{V}$ no pino `VSYS` (Pino 39 da placa Pico) ou via porta micro-USB/USB-C (powerbank portátil de 5V ou bateria LiPo de 3.7V com conversor booster).
+   - Conectar o Pico a uma fonte de alimentação externa de $5.0\text{V}$ no pino `VSYS` (Pino 39 da placa Pico) ou via porta micro-USB/USB-C (ou powerbank/LiPo dedicada via módulo de regulação USB).
 2. **Referência de Terra (GND)**:
-   - O Pino 4 do conector `P7501` (GND da Panasonic) **DEVE** ser interligado a um pino GND do Pico (ex: GP38 ou GP3) para equalizar o potencial elétrico do barramento de dados.
-3. **Leitura de Tensão (Sense)**:
-   - O Pino 6 do `P7501` (VDD 3.3V) deve ser conectado a um pino ADC do Pico (ex: `ADC0` / `GP26`) ou a uma entrada digital configurada com alta impedância (`pull-down` desativado), atuando apenas como sensor que informa ao app mobile se o gravador Panasonic está ligado ou desligado.
+   - O Pino 4 do conector `P7501` (GND da Panasonic) **DEVE** ser interligado ao `GND` do Pico (Pino 38) para equalizar o potencial elétrico do barramento UART (`0.0 Ω` ao chassi).
+3. **Sensoriamento Seguro (`SW_UART` / `NSW5V`)**:
+   - O Pino 1 (`SW_UART`) conecta-se a `GP26 / ADC0` para leitura de presença (`~3.25V` Hi-Z / `~2.69V` PD via `Q7510`) e seleção de serial boot em `LOW`.
+   - O Pino 5 (`NSW5V`) conecta-se a `GP3` configurado estritamente como **`Hi-Z Input` sem pulls** (apenas leitura passiva).
 
-### 4.3 Tabela Canônica de Pinagem do Conector P7501 (B6B-ZR-3R4)
+### 4.3 Tabela Canônica de Pinagem Verificada do Conector `P7501` (`B6B-ZR-3R4`)
 
-| Pino Físico | Pino Esquemático | Sinal Matsushita | Pino Pico (RP2040/RP2350) | Condicionamento Elétrico | Função no Ecossistema |
-| :---: | :---: | :---: | :---: | :---: | :--- |
-| **1** | 6 | **EXTRG** | `GP4` | Série $100\,\Omega$ | Disparo externo de trigger para osciloscópio / analisador lógico |
-| **2** | 5 | **SCLK** | `GP3` | Série $100\,\Omega$ | Clock de depuração de 1.00 MHz gerado pelo PIO do Pico |
-| **3** | 4 | **SDATA** | `GP2` | Série $100\,\Omega$ + Pull-up $4.7\,\text{k}\Omega$ | Barramento de dados síncrono bidirecional half-duplex DWire32A |
-| **4** | 3 | **GND** | `GND` (Pino 38) | Ligação direta de baixa impedância | **Terra comum obrigatório entre gravador e microcontrolador** |
-| **5** | 2 | **nRESET** | `GP5` | Dreno Aberto (*Open-Drain*) | Linha mestre de reinicialização (`XRST`). Proibido dirigir 3.3V push-pull! |
-| **6** | 1 | **VDD (3.3V)**| `GP26` (ADC0) | Divisor de alta impedância | **Apenas Sensoriamento de Nível Lógico. PROIBIDO ALIMENTAR O PICO.** |
+| Pino `P7501` | Sinal Matsushita (`VEP79138`) | Pino Pico (`RP2040`/`RP2350`) | Condicionamento & Regra Elétrica | Função Verificada no Ecossistema |
+| :---: | :---: | :---: | :---: | :--- |
+| **1** | **`SW_UART`** (`(D)`) | `GP26 / ADC0` (Pino 31) | Entrada ADC / Open-Drain `LOW` | Seleção de boot (`LOW` aciona serial boot e corta `Q7514`; `Hi-Z` habilita TX UART ao SoC) |
+| **2** | **`XRESET`** | `GP5` (Pino 7) | **Dreno Aberto (*Open-Drain*)** estrito | Reset mestre do sistema (`QR7503`, ativo `0V`; proibido dirigir `3.3V` push-pull!) |
+| **3** | **`UARTM2P_T`** (`MAX RXD`) | `GP4` (Pino 6 / TX Pico) | UART TX `115200 8N1` (sem pull-up externo) | Transmissão do Pico para o AM34 (via `Q7514` com `R7570 10 kΩ` interno para `NSW5V`) |
+| **4** | **`GND`** | `GND` (Pino 38) | Ligação direta de baixa impedância ($0.0\,\Omega$) | **Terra comum obrigatório entre gravador e microcontrolador** |
+| **5** | **`NSW5V`** (`X_SW_5R2V`) | `GP3` (Pino 5) | **SEMPRE `Hi-Z Input` sem pulls** | Barramento `~5.15V` de `IC1506` via `D7510` (`~3.29V` repouso) — **PROIBIDO dirigir push-pull ou alimentar Pico!** |
+| **6** | **`UARTP2M_T`** (`MAX TXD`) | `GP2` (Pino 4 / RX Pico) | UART RX `115200 8N1` (Pad Quadrado na PCB) | Recepção de console/boot do AM34 (`R7535`/`R7572 10 kΩ`) |
 
 ---
 
@@ -159,13 +159,12 @@ $env:NDK_HOME = "$env:ANDROID_HOME\ndk\27.0.12077973"
 # 2. Adicionar target Rust para arquitetura ARM64
 rustup target add aarch64-linux-android
 
-# 3. Navegar para a pasta desktop e disparar o build do APK
-cd apps/desktop
-npx tauri android build --apk --target aarch64-linux-android
+# 3. Disparar o build unificado do APK a partir da raiz do repositório
+npm run build:android
 ```
 
 O arquivo compilado final estará disponível em:
-`apps/desktop/src-tauri/gen/android/app/build/outputs/apk/debug/app-debug.apk`
+`gen/android/app/build/outputs/apk/` (e copiado para `dist/releases/` via `scripts/build.py --android`)
 
 ---
 
@@ -178,6 +177,6 @@ O arquivo compilado final estará disponível em:
    - Toque em **"Conectar BLE (Pico W)"**.
    - O Tauri Core em Rust inicializa o scanner BLE nativo e conecta diretamente à característica NUS (`6E400001-...`).
 5. **Telemetria e Diagnóstico**:
-   - Ligue o gravador Panasonic DMR-EH55. O indicador de **VDD Sense** na tela do app mudará para verde ($3.3\text{V}$).
-   - Dispare o comando **Cold Break-In**. O Pico W assumirá o controle do barramento DWire32A antes do primeiro ciclo do bootloader Matsushita.
+   - Ligue o gravador Panasonic DMR-EH55. O indicador de **`SW_UART` / Sonda `P7501`** confirmará o nível seguro na bancada.
+   - Dispare os comandos **`PINCHECK`**, **`JIGBOOT`** ou **`UARTMON` (`115200 8N1`)**. O Pico W gerencia localmente `SW_UART` (`GP26`) e `XRESET` Open-Drain (`GP5`), mantendo `NSW5V` (`GP3`) sempre em **`Hi-Z Input`**.
    - Execute o diagnóstico da NVRAM ou a ponte com o servidor GDB diretamente pela tela do smartphone com zero latência de GC.

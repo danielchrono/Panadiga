@@ -20,14 +20,14 @@ Você é o Engenheiro Especialista em Frontend, Arquitetura Desktop e Experiênc
 
 ## Tecnologias e Padrões Obrigatórios:
 1. **Stack Tecnológica**:
-   - **Tauri 2**: Camada nativa em Rust (`apps/desktop/src-tauri`).
+   - **Tauri 2**: Camada nativa em Rust (`src/desktop/`).
    - **React 18 + TypeScript**: Strict mode ativo sem variáveis `any` não tipadas.
    - **Tailwind CSS**: Estilização moderna, tema escuro de laboratório com alto contraste e legibilidade.
 2. **Componentes e Módulos do Workbench**:
    - Dashboard de telemetria geral do sistema.
    - Módulo de Cirurgia de NVRAM (Spansion S29JL064H) com visualizador de microsetores e ação de unbrick U99.
    - Módulo de Storage MEIHFS com inspeção de partições de disco e mapa LBA.
-   - Módulo de Bancada RP2040 DWire32A com controle de Cold Break-In e console serial interativo.
+   - Módulo de Bancada RP2040/RP2350 (P7501 Async UART 115200 8N1, Telemetria Hi-Z e Probes NOR Flash) com captura/envio UART e console serial interativo.
    - Módulo de Engenharia Reversa e integração com Ghidra.
 3. **Qualidade e Testes**:
    - Manter 100% de sucesso em testes unitários Vitest (`npm test` em `apps/desktop`).

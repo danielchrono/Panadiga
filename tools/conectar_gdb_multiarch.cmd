@@ -5,7 +5,7 @@ title Panadiga - Cliente GNU Debugger (AM34 / MN10300)
 
 echo ====================================================================
 echo    PANADIGA: CONEXAO GNU DEBUGGER (GDB) AO CHIP PANASONIC AM34
-echo    Target: Panasonic UniPhier MN2DS0016 (Matsushita AM34 / MN103S)
+echo    Target: Panasonic DMR-EH55 SoC (Matsushita AM34 / MN103S)
 echo    Porta Alvo: 127.0.0.1:3333 (Panadiga GDB RSP Bridge)
 echo ====================================================================
 echo.

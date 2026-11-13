@@ -51,13 +51,13 @@ graph TD
 > Este prompt foi arquitetado para ser submetido diretamente a um auditor de criptografia, engenharia reversa e segurança de hardware para "bater o martelo", contendo todas as evidências formais, equações, tabelas de verdade e diagramas de temporização.
 
 ```markdown
-# MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & AM34 DWIRE32A
-TARGET SYSTEM: Panasonic DIGA Lineage (MN2DS0016 UniPhier AM34 RISC / MN103 / MN102)
+# MISSION BRIEFING & SYSTEM VERIFICATION AUDIT: PANASONIC DIGA ECOSYSTEM & AM34 P7501 UART
+TARGET SYSTEM: Panasonic DIGA Lineage (Matsushita AM34 / MN103S RISC / MN102)
 AUDITOR ROLE: Principal Cryptanalyst, Hardware Security Engineer & Firmware Forensics Lead)
 
 ## 1. CONTEXTO & OBJETIVO DA AUDITORIA
 Você foi convocado para validar formalmente a arquitetura de engenharia reversa, recuperação contra corrupção (U99 Unbrick) e protocolo de hardware do projeto Panadiga.
-O ecossistema atua sobre os gravadores de DVD/HDD da Panasonic (famílias DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-EZ), equipados com SoCs Matsushita/Panasonic UniPhier com núcleo AM34 (MN10300 32-bit RISC) e interface de depuração proprietária DWire32A.
+O ecossistema atua sobre os gravadores de DVD/HDD da Panasonic (famílias DMR-E, DMR-EH, DMR-ES, DMR-EX, DMR-EZ), equipados com SoCs Matsushita AM34 (MN103S / MN10300 32-bit RISC) e interface de serviço e diagnóstico `P7501` (UART Assíncrona `115200 8N1` + controle de boot `SW_UART` / `XRESET`).
 
 Examine os 4 eixos de evidência abaixo e emita o veredito formal ("bater o martelo") sobre a consistência estrutural, segurança física e confiabilidade do handshake.
 
@@ -108,27 +108,25 @@ A operação de limpeza puramente funcional $\text{Clean}(\text{Sector}) = \text
 
 ---
 
-## 4. EIXO III: CAMADA DE HARDWARE, DWIRE32A & REQUISITOS ELÉTRICOS
-Para a interface física via RP2040/RP2350 (Pico probe) conectada ao conector JST ZR-6 (P7501) na placa mãe:
+## 4. EIXO III: CAMADA DE HARDWARE P7501 (`UART 115200 8N1`) & REQUISITOS ELÉTRICOS
+Para a interface física via RP2040/RP2350 (Pico probe) conectada ao conector JST ZR-6 (`P7501` / `B6B-ZR-3R4`, `TO JIGU`) na placa `VEP79138`:
 
-1. **Pinout Canônico Matsushita P7501**:
-   - Pino 1: `EXTRG` (Halt externo / Gatilho OCD)
-   - Pino 2: `SCLK` (Clock Síncrono Master: 1.0 MHz, 50% duty cycle)
-   - Pino 3: `SDATA` (Dados Half-Duplex Bidirecionais com Pull-Up 4.7 kΩ para 3.3V)
-   - Pino 4: `GND` (Referência 0V obrigatória: 0.0 Ω para a carcaça/chassi metálico)
-   - Pino 5: `nRESET` (XRST / D_RESET da placa)
-   - Pino 6: `VDD` (Target Power Sense: +3.3V nominal)
-2. **Regras Físicas Mandatórias**:
-   - **nRESET Open-Drain**: O pino 5 é conectado a um circuito supervisor de reset com coletor aberto e comparador de subtensão. O RP2040 DEVE controlar este pino exclusivamente em modo **Open-Drain** (nível baixo = puxado para GND; nível alto = alta impedância Hi-Z com resistor de pull-up da placa). Jamais aplicar 3.3V Push-Pull!
-   - **GND no Pino 4**: Testes de continuidade com multímetro confirmam que o Pino 4 tem continuidade direta (0.0 Ω) com os parafusos do chassi. Inversões para o Pino 3 causam curto-circuito em linhas de dados.
-3. **Temporizações do Barramento DWire32A**:
-   - Clock Frequency ($f_{\text{SCLK}}$): Máximo 1.0 MHz ($T_{\text{CYC}} = 1000\text{ ns}$).
-   - Setup Time ($t_{\text{SU}}$): Mínimo 250 ns antes da borda de subida de SCLK.
-   - Hold Time ($t_{\text{H}}$): Mínimo 250 ns após a borda de subida.
-   - Turnaround Latency ($t_{\text{TR}}$): 2 ciclos de clock completos em tri-state para reversão de direção Master $\leftrightarrow$ Target no pino SDATA.
+1. **Pinout Canônico Verificado de `P7501`:**
+   - Pino 1: `SW_UART` (`(D)`) -> `GP26 / ADC0` (`~3.25V` Hi-Z, `~2.69V` PD via `Q7510`/`R7562`/`R7559`; `LOW` aciona serial boot e corta `Q7514`; `TX` ao AM34 exige `SW_UART = Hi-Z`)
+   - Pino 2: `XRESET` -> `GP5` (controle estrito Open-Drain ativo-LOW; subida Hi-Z em `~20 µs` via `QR7503`)
+   - Pino 3: `UARTM2P_T` (`MAX RXD`) -> `GP4` (Pico TX `115200 8N1` -> RX AM34 via `Q7514`; `R7570 10 kΩ` interno para `NSW5V`; sem pull-up externo)
+   - Pino 4: `GND` (`0.0 Ω` direto à carcaça/chassi metálico)
+   - Pino 5: `NSW5V` (`X_SW_5R2V`) -> `GP3` (**SEMPRE `Hi-Z Input` sem pulls** — alimentado por `IC1506` `~5.15V` via `D7510`, `~3.29V` em repouso; **NUNCA dirigir push-pull!**)
+   - Pino 6: `UARTP2M_T` (`MAX TXD`) -> `GP2` (Pico RX `115200 8N1` <- TX AM34 via `R7535`/`R7572 10 kΩ`, pad quadrado na PCB)
+2. **Regras Físicas Mandatórias:**
+   - **`XRESET` Open-Drain (`GP5`):** O Pino 2 é conectado à malha de reset supervisora. O RP2040 DEVE dirigir esse pino exclusivamente em Open-Drain (`LOW` ou `Hi-Z`), nunca em `3.3V` push-pull.
+   - **Proteção `NSW5V` (`GP3`) & Isolamento de Alimentação:** Nunca alimente o Pico pelo conector `P7501` e nunca dirija `GP3` como saída push-pull.
+   - **GND no Pino 4:** Continuidade de `0.0 Ω` ao chassi confirma a referência antes de energizar a sonda.
+3. **Temporização & Camada Lógica `P7501`:**
+   - Comunicação serial assíncrona em **`115200 bps, 8N1`** implementada por UART/PIO determinístico no RP2040/RP2350 com ponte GDB RSP segura.
 
 **Pergunta de Auditoria 3**:
-O modelo de máquina de estados implementado no firmware C11 (utilizando a máquina de estados PIO do RP2040 com controle de direção de pino em 1 ciclo) e o isolamento de reset Open-Drain satisfazem todos os requisitos de segurança elétrica e timing da especificação Matsushita AM34?
+A implementação no firmware C11 (`firmware/pico-p7501/`, com isolamento inicial em `Hi-Z`, proteção rígida de `GP3`/`NSW5V` e controle Open-Drain em `XRESET`) satisfaz integralmente os requisitos de segurança elétrica do circuito `Q7510`/`Q7514`/`QR7503`/`IC1506` do DMR-EH55?
 
 ---
 

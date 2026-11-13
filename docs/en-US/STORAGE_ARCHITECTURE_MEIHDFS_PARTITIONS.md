@@ -6,7 +6,7 @@
 
 ## 1. System Overview & Storage Engineering Scope
 
-The **Panasonic DMR-EH55** digital DVD/HDD recorder (part of Matsushita Electric Industrial Co., Ltd.'s DIGA product line) utilizes a non-conventional hybrid storage architecture. Unlike generic PC platforms or commodity Linux-based DVRs, the DMR-EH55 is powered by the proprietary **Matsushita UniPhier MN2DS0016** system-on-chip (32-bit **AM34** RISC core) and delegates persistent storage across two complementary media:
+The **Panasonic DMR-EH55** digital DVD/HDD recorder (part of Matsushita Electric Industrial Co., Ltd.'s DIGA product line) utilizes a non-conventional hybrid storage architecture. Unlike generic PC platforms or commodity Linux-based DVRs, the DMR-EH55 is powered by the proprietary **Matsushita AM34 / MN103S** SoC (`VEP79138` main/digital PCB) and delegates persistent storage across two complementary media:
 
 1. **On-Board NOR Flash Memory (Spansion S29JL064H — 8 MBytes TSOP-48):**
    Contains the primary initial program loader (*IPL*), minimal hardware initialization routines, exception vectors, and non-volatile emulated calibration parameter blocks (`EEMUL` / NVRAM).
@@ -21,7 +21,7 @@ If a blank or uninitialized hard disk drive is installed in a unit with a malfun
  │                               MAIN BOARD (VEP79138)                                    │
  │                                                                                        │
  │   ┌──────────────────────────┐                  ┌──────────────────────────────────┐   │
- │   │  Matsushita MN2DS0016    │   Initial Boot   │      Spansion S29JL064H          │   │
+ │   │  Matsushita AM34 / MN103S │   Initial Boot   │  IC5001 Spansion S29JL064H     │   │
  │   │  (UniPhier / AM34 Core)  │◄─────────────────│  (8 MB Flash NOR TSOP-48)        │   │
  │   │   108 MHz / 162 MHz      │   (Stage 1 IPL)  │  - Initial Program Loader (IPL)  │   │
  │   └────────────┬─────────────┘                  │  - Minimal Bootloader            │   │

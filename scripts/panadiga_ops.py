@@ -102,9 +102,19 @@ def update_sha256_manifest(manifest_path: Path, artifacts: Sequence[Path]) -> No
     manifest_path.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
 
 
+def _executable_suffix(stem: str) -> str:
+    """Return platform executable filename for a Cargo binary stem."""
+    return f"{stem}.exe" if sys.platform == "win32" else stem
+
+
 def panadiga_binary_name() -> str:
-    """Return native Panadiga binary filename for the current OS."""
-    return "panadiga.exe" if sys.platform == "win32" else "panadiga"
+    """Return native Panadiga CLI binary filename for the current OS."""
+    return _executable_suffix("panadiga")
+
+
+def panadiga_desktop_binary_name() -> str:
+    """Return native Panadiga Tauri Desktop GUI binary filename for the current OS."""
+    return _executable_suffix("panadiga-desktop")
 
 
 def is_wsl() -> bool:
@@ -115,16 +125,92 @@ def is_wsl() -> bool:
     return "microsoft" in proc_ver.read_text(encoding="utf-8", errors="ignore").lower()
 
 
-def locate_panadiga_binary() -> Path | None:
-    """Locate prebuilt release Panadiga binary in dist/ or target/release/."""
-    bin_name = panadiga_binary_name()
+def _locate_binary(stem: str) -> Path | None:
+    """Locate a prebuilt release binary by stem in dist/ or target/release/."""
+    bin_name = _executable_suffix(stem)
     candidates: list[Path] = [
         ROOT / "dist" / bin_name,
         ROOT / "target" / "release" / bin_name,
     ]
     if is_wsl():
-        candidates.extend([ROOT / "dist" / "panadiga.exe", ROOT / "target" / "release" / "panadiga.exe"])
+        candidates.extend([ROOT / "dist" / f"{stem}.exe", ROOT / "target" / "release" / f"{stem}.exe"])
     for cand in candidates:
         if cand.is_file():
             return cand
     return None
+
+
+def locate_panadiga_binary() -> Path | None:
+    """Locate prebuilt release Panadiga CLI binary in dist/ or target/release/."""
+    return _locate_binary("panadiga")
+
+
+def locate_panadiga_desktop_binary() -> Path | None:
+    """Locate prebuilt release Panadiga Desktop GUI binary in dist/ or target/release/."""
+    return _locate_binary("panadiga-desktop")
+
+
+def find_msvc_vcvars64() -> Path | None:
+    """Locate MSVC vcvars64.bat via Visual Studio Locator on Windows."""
+    if sys.platform != "win32":
+        return None
+    program_files_x86 = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"))
+    vswhere = program_files_x86 / "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if not vswhere.is_file():
+        return None
+    proc = subprocess.run(
+        [str(vswhere), "-latest", "-products", "*", "-find", "**\\vcvars64.bat"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for line in proc.stdout.splitlines():
+        cand = Path(line.strip())
+        if cand.is_file():
+            return cand
+    return None
+
+
+def load_msvc_env(base_env: Mapping[str, str]) -> dict[str, str]:
+    """Return environment augmented with MSVC x64 toolchain variables when available on Windows."""
+    env = dict(base_env)
+    if sys.platform != "win32":
+        return env
+    if shutil.which("cl", path=env.get("PATH")) and "INCLUDE" in env and "LIB" in env:
+        return env
+    vcvars = find_msvc_vcvars64()
+    if vcvars is None:
+        return env
+    probe_env = dict(env)
+    for sys_key in ("SystemRoot", "WINDIR", "ComSpec", "TEMP", "TMP"):
+        if sys_key not in probe_env and sys_key in os.environ:
+            probe_env[sys_key] = os.environ[sys_key]
+    sys_root = probe_env.get("SystemRoot") or r"C:\Windows"
+    if not probe_env.get("PATH"):
+        probe_env["PATH"] = f"{sys_root}\\System32;{sys_root}"
+    cmd_line = f'cmd.exe /d /s /c "call "{vcvars}" >nul 2>&1 && set"'
+    try:
+        proc = subprocess.run(
+            cmd_line,
+            env=probe_env,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=20,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return env
+    if proc.returncode != 0:
+        return env
+    merged = {k: v for k, v in env.items() if k.upper() != "PATH"}
+    for line in proc.stdout.splitlines():
+        key, sep, value = line.partition("=")
+        if not sep or not key:
+            continue
+        if key.upper() == "PATH":
+            merged["PATH"] = value
+        else:
+            merged[key] = value
+    merged.setdefault("PATH", env.get("PATH", ""))
+    return merged

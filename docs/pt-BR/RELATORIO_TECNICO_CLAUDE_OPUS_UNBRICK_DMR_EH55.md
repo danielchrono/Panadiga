@@ -1,5 +1,5 @@
 # DOSSIÊ TÉCNICO DE ENGENHARIA REVERSA, VALIDAÇÃO CRUZADA & DESTRAVAMENTO AO VIVO
-## Alvo: Panasonic DMR-EH55 (SoC Matsushita UniPhier MN2DS0016 / Núcleo RISC AM34 / MN103S)
+## Alvo: Panasonic DMR-EH55 (SoC Matsushita AM34 / Núcleo RISC MN103S)
 **Destinatário da Análise:** Claude Opus / Equipe de Engenharia Reversa Sênior  
 **Documento:** `RELATORIO_TECNICO_CLAUDE_OPUS_UNBRICK_DMR_EH55.md`  
 **Data:** 12 de Novembro de 2026  
@@ -50,7 +50,7 @@ Antes de apresentar os dados brutos ao Claude Opus, validamos ponto a ponto o le
    - **Fato Crítico Confirmado pelo Usuário:** O cartão testado **não é SDHC nem adaptador microSD**, e sim um **cartão SD grande antigo original de 2 GB da Fujifilm (SDSC puro dos primórdios)**!
    - **Por que um cartão SDSC Fujifilm antigo de 2 GB falha em `sdcd_check_memory_card()` + `SetBusWidth (-91006)` antes de ler o `PANA_DVD.FRM`?**
      Restam apenas **duas causas físicas/protocolares possíveis** para o Claude Opus considerar:
-     1. **Causa Elétrica (Mais Provável — Flat `P6802`/`P53501`, Alimentação `D3R3V` em `LB6801` ou Oxidação nos 9 Pinos de `P6801`):** No esquemático ([c2c7f1_p113.png](file:///C:/Users/danie/.gemini/antigravity/brain/a874cd2a-2809-4db8-acbd-d274c82ed7ed/scratch/c2c7f1_p113.png) e [sd_card_schem.png](file:///C:/Users/danie/.gemini/antigravity/brain/a874cd2a-2809-4db8-acbd-d274c82ed7ed/scratch/sd_card_schem.png)), o sinal `CD` (`SD Card inserted`) fica na **extrema borda** do conector de 20 vias (`Pino 1 de P53501 / Pino 20 de P6802`) e apenas aterra no chassi metálico do slot quando o plástico do cartão entra — funcionando mesmo se o cartão estiver totalmente sem alimentação (`0V`) ou com as vias de dados abertas! Já a alimentação `D3R3V` (`Pinos 10–11` via `LB6801`) e as linhas `SCMD` (`Pino 7/14`), `CLK` (`Pino 5/16`) e `DAT0..3` passam pelo meio do flat de 20 vias e pelos 9 contatos dourados internos do soquete `P6801`. Se faltar `3.3V` em `LB6801` ou houver mau contato no flat `P53501`/`P6802` ou nas palhetas de `P6801`, o AM34 detecta `SD Card inserted`, mas lê barramento morto em `SCMD`, disparando `This SD Card is't memory card` e `-91006`!
+     1. **Causa Elétrica (Mais Provável — Flat `P6802`/`P53501`, Alimentação `D3R3V` em `LB6801` ou Oxidação nos 9 Pinos de `P6801`):** No esquemático ([page_113.png](../assets/images/re_dmr_eh55/page_113.png) e [sd_card_schem.png](../assets/images/re_dmr_eh55/sd_card_schem.png)), o sinal `CD` (`SD Card inserted`) fica na **extrema borda** do conector de 20 vias (`Pino 1 de P53501 / Pino 20 de P6802`) e apenas aterra no chassi metálico do slot quando o plástico do cartão entra — funcionando mesmo se o cartão estiver totalmente sem alimentação (`0V`) ou com as vias de dados abertas! Já a alimentação `D3R3V` (`Pinos 10–11` via `LB6801`) e as linhas `SCMD` (`Pino 7/14`), `CLK` (`Pino 5/16`) e `DAT0..3` passam pelo meio do flat de 20 vias e pelos 9 contatos dourados internos do soquete `P6801`. Se faltar `3.3V` em `LB6801` ou houver mau contato no flat `P53501`/`P6802` ou nas palhetas de `P6801`, o AM34 detecta `SD Card inserted`, mas lê barramento morto em `SCMD`, disparando `This SD Card is't memory card` e `-91006`!
      2. **Causa de Protocolo SDSC 2 GB vs. 1 GB (`CSD v1.0 READ_BL_LEN = 10`):** Na especificação SD 1.01/1.10 (`CSD_STRUCTURE = 0`), o tamanho máximo representável com blocos de 512 bytes (`READ_BL_LEN = 9`) é exatamente **1 GB** ($4096 \times 512 \times 512\text{ B}$). Para atingir **2 GB**, cartões SDSC de 2 GB são obrigados pelo padrão SD a gravar **`READ_BL_LEN = 10` ($1024\text{ bytes/bloco}$)** no registrador `CSD`. Enquanto o sistema operacional completo da DMR-EH55 suporta até 2 GB, diversos micro-bootloaders de ROM da Matsushita de 2005/2006 validam `if (csd.read_bl_len != 9)` dentro de `sdcd_check_memory_card()`, rejeitando cartões de 2 GB e aceitando apenas cartões de **8 MB a 1 GB** (`READ_BL_LEN = 9`).
 
 2. **Por Que o Módulo 3 do `PANA_DVD.FRM` e a Partição 1 do HDD Têm `0` Blocos Cifrados em Comum Fora do Padding (`0xFF*8` e `0x00*8`):**
@@ -60,23 +60,23 @@ Antes de apresentar os dados brutos ao Claude Opus, validamos ponto a ponto o le
 
 3. **Armadilha de Repositório — O Arquivo `bkp/panasonic_dmr-eh55_flash_dump.bin` (8 MB) NÃO é um Dump Real da Flash:**
    - A inspeção byte a byte provou que `bkp/panasonic_dmr-eh55_flash_dump.bin` possui apenas **99 bytes diferentes de `0xFF`** em 8 MB (um cabeçalho sintético ASCII `PANASONIC DMR-EH55 AM34 IPL BOOTLOADER VEP79138` nos primeiros 63 bytes e marcadores `55 AA 10 00` a cada 8 KB em `0x7F0000..0x7FE007`).
-   - Ou seja: **o código nativo não-criptografado do `Loader ver0.61 [06/03/06]` ainda reside apenas dentro do chip físico Spansion `S29JL064H` (`IC55007`) na placa**, nunca tendo sido extraído para o PC.
+- Ou seja: **o código nativo não-criptografado do `Loader ver0.61 [06/03/06]` ainda reside apenas dentro do chip físico Spansion `S29JL064H` (`IC5001`) na placa**, nunca tendo sido extraído para o PC.
 
 4. **Armadilha Eletrônica no `wait 1 second.` (`fmu` Serial) — Bloqueio de `Q7514` por `XFWE = LOW`:**
-   - No esquemático oficial (`Timer 3/4`, [na_p64_topleft.png](file:///C:/Users/danie/.gemini/antigravity/brain/a874cd2a-2809-4db8-acbd-d274c82ed7ed/scratch/na_p64_topleft.png)), o pino 3 de `P7501` (`MAX RXD` / `GP4`) entra no coletor do transistor NPN **`Q7514`**, cujo emissor é `UARTM2P` (RX do AM34).
+   - No esquemático oficial (`Timer 3/4`, [na_p64_topleft.png](../assets/images/re_dmr_eh55/na_p64_topleft.png)), o pino 3 de `P7501` (`MAX RXD` / `GP4`) entra no coletor do transistor NPN **`Q7514`**, cujo emissor é `UARTM2P` (RX do AM34).
    - Porém, **a Base de `Q7514` é polarizada através de `R7528 (4.7kΩ)` a partir da própria linha `XFWE`!**
    - Isso significa que **enquanto o Pico mantiver `GP26` (`SW_UART`) em `LOW (0V)`, a linha `XFWE` estará em `~0.1V` e o transistor `Q7514` estará em CORTE (desligado), impedindo que qualquer byte transmitido pelo Pico em `GP4` chegue ao AM34!**
-   - Para transmitir comandos ao `fmu` durante o `wait 1 second.`, o Pico precisa:
+   - Para transmitir comandos em `GP4`, o Pico deve:
      1. Manter `GP26 = LOW` apenas durante o pulso de reset (`GP5`) até o AM34 amostrar o modo de boot (`serial boot mode`).
-     2. Manter `GP3` (`Pino 5: NSW5V` / Linha `C`) em **`HIGH (3.3V)`** para alimentar os pull-ups `R7559` e `R7527`.
-     3. **Subir `GP26` para `HIGH (3.3V)` (ou `Hi-Z`) imediatamente antes de transmitir em `GP4`**, liberando `XFWE` para nível alto e ligando a base de `Q7514`!
+     2. **Manter `GP3` (`Pino 5: NSW5V` / Linha `C`) SEMPRE em `Hi-Z Input` sem pulls (NUNCA dirigir push-pull!)**, pois `IC1506` alimenta `NSW5V` a `~5.15V` via `D7510` quando a placa está ativa.
+     3. **Liberar `GP26` para `Hi-Z`** antes de transmitir em `GP4`, permitindo que `XFWE` suba e sature a base de `Q7514`!
 
 ---
 
 ## 1. ARQUITETURA DE HARDWARE & TOPOLOGIA DO SISTEMA
 
-* **SoC Principal:** Matsushita UniPhier `MN2DS0016` (contendo núcleo 32-bit RISC **Matsushita AM34 / MN103S**).
-* **Memória NOR Flash de Sistema:** Spansion `S29JL064H` (8 MB / 64 Mbit, TSOP-48, `IC55007` na Digital PCB).
+* **SoC Principal:** **Matsushita `AM34` / `MN103S`** (núcleo RISC de 32 bits).
+* **Memória NOR Flash de Sistema:** Spansion `S29JL064H` (8 MB / 64 Mbit, TSOP-48, `IC5001` na Digital PCB).
 * **Top-Boot NVRAM / EEMUL:** Setores de topo `SA134` a `SA141` (`0x807F0000` a `0x807FFFFF`, 64 KB).
 * **Microcontrolador do Painel Frontal / Timer:** Matsushita `IC7501` (controla o display VFD, teclado frontal, chave `CD` do cartão SD e linha de reset).
 * **Drive Óptico:** Unidade ATAPI/IDE proprietária Panasonic DVD-RAM (DSP Servo `MN102`).
@@ -84,23 +84,23 @@ Antes de apresentar os dados brutos ao Claude Opus, validamos ponto a ponto o le
 
 ```mermaid
 flowchart TD
-    PICO["Raspberry Pi Pico (RP2040 em COM10)"] -- "6 Pinos (B6B-ZR-3R4)" --> JIG["P7501: TO WRITE JIGU"]
+    PICO["Raspberry Pi Pico (RP2040 em COM10)"] -- "6 Pinos (B6B-ZR-3R4)" --> JIG["P7501: TO JIGU"]
     
     subgraph TIMER_PCB ["Timer PCB (Painel Frontal)"]
         JIG -- "Pino 1: SW_UART (GP26)" --> Q7510["NPN Q7510 (2SD0601A)"]
         JIG -- "Pino 1: SW_UART (GP26)" --> IC7501_80["IC7501 Pino 80 (SW_UART)"]
-        JIG -- "Pino 2: XRESET (GP5)" --> QR7503["Reset Supervisor QR7503"]
-        JIG -- "Pino 3: MAX RXD (GP4)" --> Q7514["NPN Q7514 (Base via R7528 <- XFWE)"]
-        JIG -- "Pino 5: NSW5V (GP3)" --> PULLUPS["Pull-ups R7527, R7559, R7562"]
-        JIG -- "Pino 6: MAX TXD (GP2)" <-- AM34_TX["UART TX 115200 8N1"]
+        JIG -- "Pino 2: XRESET (GP5 Open-Drain)" --> QR7503["Reset Supervisor QR7503"]
+        JIG -- "Pino 3: MAX RXD (GP4 TX)" --> Q7514["NPN Q7514 (Base via R7528 <- XFWE)"]
+        JIG -- "Pino 5: NSW5V (GP3 Hi-Z!)" --> PULLUPS["Pull-ups R7527, R7559, R7562"]
+        JIG -- "Pino 6: MAX TXD (GP2 RX)" <-- AM34_TX["UART TX 115200 8N1"]
         IC7501_80 <--> QR7503
     end
 
     subgraph DIGITAL_PCB ["Digital PCB (Placa Lógica Principal)"]
-        Q7510 -- "Linha XFWE (Pino 32)" --> AM34["SoC UniPhier MN2DS0016 (AM34 RISC)"]
+        Q7510 -- "Linha XFWE (Pino 32)" --> AM34["SoC Matsushita AM34 (MN103S RISC)"]
         Q7510 -- "Polariza Base via R7528" --> Q7514
         Q7514 -- "Linha UARTM2P (RXD)" --> AM34
-        AM34 -- "Bus Paralelo 16-bit (Código Nativo)" --> FLASH["Spansion S29JL064H (8 MB Flash IC55007)"]
+        AM34 -- "Bus Paralelo 16-bit (Código Nativo)" --> FLASH["Spansion S29JL064H (8 MB Flash IC5001)"]
         AM34 -- "Barramento PATA/IDE" --> OPTICAL["Drive DVD-RAM (Servo MN102)"]
         AM34 -- "Barramento PATA/IDE" --> HDD["HDD com Adaptador StarTech (Master)"]
         AM34 -- "Barramento SD (P53501 <-> P6802)" --> SDCARD["Slot Frontal de Cartão SD (P6801)"]
@@ -117,7 +117,7 @@ flowchart TD
 | **2** | `XRESET` | `GP5` | Vai à Linha `(E)` / Coletor de `QR7503`. Reset mestre do sistema (ativo baixo, usar sempre em Open-Drain). |
 | **3** | `MAX RXD` | `GP4` | Vai à malha `UARTM2P_T` / Coletor de **`Q7514`**. O Emissor é `UARTM2P` (RX serial do AM34). Só conduz quando `XFWE` está em nível alto (`R7528 4.7kΩ`). |
 | **4** | `GND` | `GND` | Terra comum (`0V`). |
-| **5** | `NSW5V` | `GP3` | Linha `(C)`. Alimenta o topo dos resistores de pull-up **`R7527 (4.7kΩ)`**, **`R7559 (10kΩ)`** e **`R7562 (4.7kΩ)`**. Deve ser acionado em `HIGH (3.3V)` pelo Pico quando a linha de 5V switched estiver desligada. |
+| **5** | `NSW5V` | `GP3` (**SEMPRE `Hi-Z`!**) | Linha `(C)` alimentada em `~5.15V` por `IC1506` via `D7510` para o topo de `R7527 (4.7kΩ)`, `R7559 (10kΩ)` e `R7562 (4.7kΩ)` (`~3.29V` em repouso). **DEVE permanecer SEMPRE como entrada `Hi-Z` sem pulls (NUNCA dirigir push-pull!)** |
 | **6** | `MAX TXD` | `GP2` | Malha `UARTP2M_T` via `R7535 (100Ω)` direto da saída serial `UARTP2M` do SoC Matsushita AM34 (`115200 8N1`). |
 
 ---
@@ -241,7 +241,7 @@ X(80020401)59,X(80020401)58,X(80020401)57,X(80020401)56,X(80020401)55,X(80020401
 * **Resposta Request Sense:** `70 00 04 00 00 00 00 0A 00 00 83 A7 09 04 00 00 00 00`
   * **Sense Key `04`:** *Hardware Error*.
   * **ASC `09` / ASCQ `04`:** Falha de servo/mecanismo (`0x80040904` = `-2147219196`), subcódigo específico Matsushita `83 A7`.
-* **Causa Física:** No layout da placa ([page_113.png](file:///C:/Users/danie/.gemini/antigravity/brain/a874cd2a-2809-4db8-acbd-d274c82ed7ed/scratch/page_113.png)), o conector `P7501` onde o cabo do Pico foi inserido fica espremido entre os flats **`FP50004` (8 vias: Loading Motor + chaves `OPEN_SW` pino 6 e `CLOSE SW` pino 8)** e **`FP50003` (10/11 vias: Spindle Motor)**. Nos primeiros 7 segundos (ticks `59` a `53`), o drive reporta `80020401` (*Becoming Ready*) enquanto tenta fechar a gaveta; no tick `52`, sem confirmação da chave `CLOSE SW`, emite `** can not close tray **` e trava em `80040904`.
+* **Causa Física:** No layout da placa ([page_113.png](../assets/images/re_dmr_eh55/page_113.png)), o conector `P7501` onde o cabo do Pico foi inserido fica espremido entre os flats **`FP50004` (8 vias: Loading Motor + chaves `OPEN_SW` pino 6 e `CLOSE SW` pino 8)** e **`FP50003` (10/11 vias: Spindle Motor)**. Nos primeiros 7 segundos (ticks `59` a `53`), o drive reporta `80020401` (*Becoming Ready*) enquanto tenta fechar a gaveta; no tick `52`, sem confirmação da chave `CLOSE SW`, emite `** can not close tray **` e trava em `80040904`.
 
 ---
 
@@ -279,11 +279,11 @@ Como já confirmamos que a placa entra em **`SDDIAG`** (`startup reason = [5]`) 
 1. Verificar o encaixe do cabo flat de 8 vias **`FP50004`** (imediatamente à direita do `P7501`) e se a bandeja do drive de DVD está fechada até o fim de curso mecânico (`CLOSE SW`, pino 8 de `FP50004` aterrado ao fechar).
 2. Com o CD contendo `PANA_DVD.FRM` inserido e a chave `CLOSE SW` fechada, o `*** CD diag boot mode ***` (acionado por `JIGBOOT`) passará do tick `52`, lerá o `FVU` do CD (`[LOAD] -> [LD FVU] -> [M_FIRM]`) e usará a rotina nativa de descriptografia da própria ROM para restaurar a Flash e o HDD!
 
-### Prioridade 3: Handshake `fmu` no `wait 1 second.` Liberando `GP26` (`XFWE = HIGH`) para Ativar `Q7514`
-1. No comando `FMUSCAN` do [dwire32a_pico_main.c](file:///C:/Users/danie/Documents/Panadiga/dwire32a_jtag_research/dwire32a_pico_main.c), usar especificamente os modos onde **`GP3 = HIGH (3.3V)`** e **`GP26` sobe para `HIGH`** logo após o boot entrar em `***** serial boot mode *****` (polarizando `XFWE` em nível alto e habilitando o transistor `Q7514` para que `GP4 / MAX RXD` consiga falar com o pino RX do AM34 durante o `wait 1 second.`).
+### Prioridade 3: Handshake `fmu` no `wait 1 second.` Liberando `GP26` (`SW_UART = Hi-Z`) para Ativar `Q7514`
+1. No comando `FMUSCAN` do [`p7501_pico_main.c`](../../firmware/pico-p7501/p7501_pico_main.c), manter **`GP3` (`NSW5V`) SEMPRE como `Hi-Z Input` sem pulls (NUNCA dirigir push-pull!)** e liberar **`GP26` para `Hi-Z`** logo após o boot entrar em `***** serial boot mode *****` (permitindo que `R7559` eleve `XFWE` e habilite `Q7514` para que `GP4 / MAX RXD` alcance o RX do AM34 durante o `wait 1 second.`).
 2. Testar sequências de comandos do utilitário de fábrica Matsushita `fmu` (Flash Memory Updater) a `115200 8N1` (e variantes com paridade `8E1`/`8O1`).
 
-### Prioridade 4: Extração Direta da NOR Flash `S29JL064H` (`IC55007`) para Obter o `Loader ver0.61` Descriptografado
+### Prioridade 4: Extração Direta da NOR Flash `S29JL064H` (`IC5001`) para Obter o `Loader ver0.61` Descriptografado
 1. Caso se deseje quebrar criptograficamente o `PANA_DVD.FRM` offline para gerar imagens pré-descriptografadas do HDD, o caminho determinístico é extrair os primeiros `512 KB` a `1 MB` da NOR Flash Spansion `S29JL064H` (`0x80000000..0x80100000`), onde residem em texto claro (código nativo `MN103S`):
    - A função `uncompress` (que valida `HEADER:5627DD54, DECOMP:5627DD54`),
    - O parser `[SDCD]` do modo `SDDIAG`,

@@ -1,33 +1,35 @@
 import { test, expect } from '@playwright/test';
+import { installMockIpcBridge } from './fixtures/mockIpcBridge';
 
-test.describe('Pico Bench & DWire32A Hardware Workbench E2E', () => {
+test.describe('Pico Bench & P7501 UART Hardware Workbench E2E', () => {
   test.beforeEach(async ({ page }) => {
+    await installMockIpcBridge(page);
     await page.goto('/');
     await page.click('button:has-text("Bancada PicoBench")');
     await expect(page.locator('header')).toContainText('Bancada Raspberry Pi Pico');
   });
 
   test('displays hardware controller telemetry and architecture badge', async ({ page }) => {
-    await expect(page.getByText('Matsushita AM34 / UniPhier Single-Wire OCD Host Controller')).toBeVisible();
-    await expect(page.getByText('Conexões Físicas (Pico → CN55001)')).toBeVisible();
+    await expect(page.getByText('Interface Primária P7501 UART 115200 8N1')).toBeVisible();
+    await expect(page.getByText('Conexões Físicas (Pico → P7501)')).toBeVisible();
   });
 
-  test('renders pins in the DWire32A Pinout table with GND disclaimer', async ({ page }) => {
+  test('renders pins in the P7501 Pinout table with GND disclaimer', async ({ page }) => {
     await expect(page.getByText('DISCLAIMER CRÍTICO: IDENTIFICAÇÃO DO TERRA (GND)')).toBeVisible();
-    await expect(page.getByText('Pino 1 (Manual) / Pino 6 (Físico) [VDD 3.3V]:')).toBeVisible();
-    await expect(page.getByText('Pino 3 (Manual) / Pino 4 (Físico) [SDATA]:')).toBeVisible();
-    await expect(page.getByText('Pino 4 (Manual) / Pino 3 (Físico) [GND]:')).toBeVisible();
-    await expect(page.getByText('Pino 5 (Manual) / Pino 2 (Físico) [SCLK]:')).toBeVisible();
-    await expect(page.getByText('Pino 6 (Manual) / Pino 1 (Físico) [EXTRG]:')).toBeVisible();
+    await expect(page.getByText('Pino 1 [P7501 SW_UART / XFWE]')).toBeVisible();
+    await expect(page.getByText('Pino 3 [P7501 UARTM2P_T / Q7514]')).toBeVisible();
+    await expect(page.getByText('Pino 4 [P7501 GND]')).toBeVisible();
+    await expect(page.getByText('Pino 5 [P7501 NSW5V / IC1506]')).toBeVisible();
+    await expect(page.getByText('Pino 6 [P7501 UARTP2M_T / MAX TXD]')).toBeVisible();
   });
 
-  test('switches Cold Break-In modes dynamically', async ({ page }) => {
-    await expect(page.getByText('Seletor de Modo de Cold Break-In')).toBeVisible();
-    await expect(page.getByText('Modo 2: EXTRG High (Pre + Post Burst)')).toBeVisible();
+  test('switches P7501 Boot/Reset profile modes dynamically', async ({ page }) => {
+    await expect(page.getByText('Seletor de Perfil Boot/Reset P7501')).toBeVisible();
+    await expect(page.getByText('Modo 2: JIG Hold LOW (SW_UART Retido)')).toBeVisible();
 
     // Click Mode 1
-    await page.click('text=Modo 1: EXTRG Low (Pre-Only)');
-    await expect(page.getByText('Modo 1: EXTRG Low (Pre-Only)')).toBeVisible();
+    await page.click('text=Modo 1: Serial Pulse (XFWE Pré-Reset)');
+    await expect(page.getByText('Modo 1: Serial Pulse (XFWE Pré-Reset)')).toBeVisible();
   });
 
   test('interacts with the Serial Console terminal', async ({ page }) => {
@@ -41,6 +43,19 @@ test.describe('Pico Bench & DWire32A Hardware Workbench E2E', () => {
     await expect(page.locator('div').filter({ hasText: '> STATUS' }).first()).toBeVisible();
 
     // Verify simulated RX response arrived
-    await expect(page.getByText('VDD=3.28V | OCD=HALTED')).toBeVisible();
+    await expect(page.getByText('VDD=3.28V | UART=115200-8N1')).toBeVisible();
+  });
+
+  test('executes granular PINCHECK and switches Radix tabs in Diagnostic Studio', async ({ page }) => {
+    await expect(page.getByText(/Estúdio Granular P7501 Async UART/i)).toBeVisible();
+    await page.click('button:has-text("Executar PINCHECK")');
+    await expect(page.getByRole('cell', { name: /GP2 \(Pin6 RXD\s*\)/ })).toBeVisible();
+
+    await page.click('[role="tab"]:has-text("OCD & NOR Flash")');
+    await page.click('button:has-text("Executar DUMP")');
+    await expect(page.getByRole('cell', { name: '0x807F0000' }).first()).toBeVisible();
+
+    await page.click('[role="tab"]:has-text("Mapa Memória AM34")');
+    await expect(page.getByText('Top-Boot NVRAM (EEMUL / U99)')).toBeVisible();
   });
 });

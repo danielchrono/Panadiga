@@ -1,0 +1,19 @@
+[package]
+name = "panadiga-mcp"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Native Rust Model Context Protocol (MCP) JSON-RPC 2.0 server exposing Panadiga tools, resources, and prompts"
+
+[lib]
+name = "panadiga_mcp"
+crate-type = ["rlib"]
+
+[dependencies]
+panadiga-core = { path = "../panadiga-core" }
+panadiga-rag = { path = "../panadiga-rag" }
+anyhow = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

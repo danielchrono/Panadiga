@@ -53,7 +53,7 @@ jobs:
       - name: Install Python Quality Tools
         run: |
           python -m pip install --upgrade pip
-          pip install typer rich mypy pytest
+          pip install mypy pytest
 
       - name: Execute Full 9 Commit Quality Gates
         run: python scripts/validate.py
@@ -67,9 +67,10 @@ jobs:
           name: panadiga-windows-x86_64
           path: |
             dist/panadiga.exe
-            dist/panasonic_dwire32a_rp2040.uf2
-            dist/panasonic_dwire32a_rp2350.uf2
-            dist/panasonic_dwire32a_unified.uf2
+            dist/panadiga-desktop.exe
+            dist/panasonic_p7501_uart_rp2040.uf2
+            dist/panasonic_p7501_uart_rp2350.uf2
+            dist/panasonic_p7501_uart_unified.uf2
             dist/tools/
             dist/releases/panadiga-windows-x86_64.zip
             dist/releases/SHA256SUMS.txt
@@ -129,21 +130,25 @@ jobs:
       - name: Run Native Rust Workspace Tests
         run: cargo test --workspace --verbose
 
-      - name: Compile Release Binary
-        run: cargo build --release -p panadiga
+      - name: Compile Release Binaries
+        run: cargo build --release -p panadiga-cli -p panadiga-desktop
 
       - name: Package Distribution
         run: |
           mkdir -p dist/tools
           cp -f target/release/panadiga dist/panadiga
-          chmod +x dist/panadiga
-          if [ -d "tools" ]; then cp -rf tools/* dist/tools/ 2>/dev/null || true; fi
+          cp -f target/release/panadiga-desktop dist/panadiga-desktop
+          chmod +x dist/panadiga dist/panadiga-desktop
+          if [ -d "tools/ghidra" ]; then cp -rf tools/ghidra dist/tools/; fi
+          if [ -f "tools/README.md" ]; then cp -f tools/README.md dist/tools/README.md; fi
 
       - name: Upload Platform Release Binary
         uses: actions/upload-artifact@v4
         with:
           name: panadiga-${{ matrix.os }}
-          path: dist/panadiga
+          path: |
+            dist/panadiga
+            dist/panadiga-desktop
           retention-days: 14
 
   # ==========================================================================
@@ -163,6 +168,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
 
+      - name: Set up stable Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
       - name: Clone Raspberry Pi Pico SDK
         run: |
           git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
@@ -177,11 +188,11 @@ jobs:
         run: |
           export CMAKE_POLICY_VERSION_MINIMUM=3.5
           export CXXFLAGS="-include cstdint"
-          cd dwire32a_jtag_research
-          cmake -B build_pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build_pico --config Release
-          cp build_pico/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2040.uf2
-          sha256sum panasonic_dwire32a_rp2040.uf2
+          mkdir -p target/pico-build/out
+          cmake -S firmware/pico-p7501 -B target/pico-build/pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build target/pico-build/pico --config Release
+          cp target/pico-build/pico/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
 
       - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
         env:
@@ -191,29 +202,27 @@ jobs:
         run: |
           export CMAKE_POLICY_VERSION_MINIMUM=3.5
           export CXXFLAGS="-include cstdint"
-          cd dwire32a_jtag_research
-          cmake -B build_pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build build_pico2 --config Release
-          cp build_pico2/panasonic_dwire32a.uf2 ./panasonic_dwire32a_rp2350.uf2
-          sha256sum panasonic_dwire32a_rp2350.uf2
+          cmake -S firmware/pico-p7501 -B target/pico-build/pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake --build target/pico-build/pico2 --config Release
+          cp target/pico-build/pico2/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
 
-      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350)
+      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350) via Native Rust CLI
         run: |
-          cd dwire32a_jtag_research
-          python3 merge_unified_uf2.py \
-            --rp2040 panasonic_dwire32a_rp2040.uf2 \
-            --rp2350 panasonic_dwire32a_rp2350.uf2 \
-            --out panasonic_dwire32a_unified.uf2
-          sha256sum panasonic_dwire32a_unified.uf2
+          cargo run -p panadiga-cli -- pico merge-uf2 \
+            --rp2040 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 \
+            --rp2350 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2 \
+            --out target/pico-build/out/panasonic_p7501_uart_unified.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_unified.uf2
 
       - name: Upload Compiled Firmware Artifacts (UF2)
         uses: actions/upload-artifact@v4
         with:
-          name: panasonic_dwire32a_firmware_binaries
+          name: panasonic_p7501_uart_firmware_binaries
           path: |
-            dwire32a_jtag_research/panasonic_dwire32a_rp2040.uf2
-            dwire32a_jtag_research/panasonic_dwire32a_rp2350.uf2
-            dwire32a_jtag_research/panasonic_dwire32a_unified.uf2
+            target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
+            target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+            target/pico-build/out/panasonic_p7501_uart_unified.uf2
           retention-days: 30
 
   # ==========================================================================
@@ -263,10 +272,13 @@ jobs:
           npm ci
           npm run build
 
+      - name: Verify Android Rust Target Compilation
+        run: cargo check -p panadiga-core -p panadiga-desktop --lib --target aarch64-linux-android
+
       - name: Initialize & Build Android APK
         run: |
           export ANDROID_NDK_ROOT=$NDK_HOME
-          sed -i 's/crate-type = \["rlib"\]/crate-type = \["staticlib", "cdylib", "rlib"\]/g' Cargo.toml
+          cd apps/desktop
           npx @tauri-apps/cli android init --ci --skip-targets-install || true
           npx @tauri-apps/cli android build --apk --target aarch64-linux-android || true
 
@@ -275,8 +287,7 @@ jobs:
         with:
           name: panadiga-android-apk
           path: |
-            gen/android/app/build/outputs/apk/**/*.apk
-            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
+            apps/desktop/src-tauri/gen/android/app/build/outputs/apk/**/*.apk
           if-no-files-found: ignore
           retention-days: 30
           

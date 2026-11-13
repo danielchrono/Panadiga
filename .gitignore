@@ -20,8 +20,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-apps/desktop/src-tauri/target/
-apps/desktop/src-tauri/gen/
 
 # ------------------------------------------------------------------------------
 # 3. Test Runners, Coverage & Quality Reports
@@ -41,13 +39,13 @@ AUDIT_DOSSIER_*.md
 # 4. Raspberry Pi Pico Firmware & CMake Build Artifacts (RP2040 / RP2350)
 # ------------------------------------------------------------------------------
 pico-sdk/
-dwire32a_jtag_research/build*/
-dwire32a_jtag_research/*.uf2
-dwire32a_jtag_research/*.elf
-dwire32a_jtag_research/*.bin
-dwire32a_jtag_research/*.hex
-dwire32a_jtag_research/*.map
-dwire32a_jtag_research/*.dis
+firmware/pico-p7501/build*/
+firmware/pico-p7501/*.uf2
+firmware/pico-p7501/*.elf
+firmware/pico-p7501/*.bin
+firmware/pico-p7501/*.hex
+firmware/pico-p7501/*.map
+firmware/pico-p7501/*.dis
 compile_commands.json
 .ninja_*
 CMakeCache.txt
@@ -67,9 +65,7 @@ env/
 # ------------------------------------------------------------------------------
 # 6. Local Binaries, Deployments & Third-Party Portable Tools
 # ------------------------------------------------------------------------------
-/dist_bin/
 *.exe
-!apps/desktop/src-tauri/icons/*.ico
 tools/HxD/app/
 
 # ------------------------------------------------------------------------------

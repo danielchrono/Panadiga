@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, Sparkles } from 'lucide-react';
+import { Button, Input } from '@/components/ui';
 import { useTranslation } from '@/i18n/useTranslation';
 
 interface ManualsSearchCardProps {
@@ -23,26 +24,26 @@ export const ManualsSearchCard: React.FC<ManualsSearchCardProps> = ({
     <div className="rounded-xl bg-bench-900 border border-slate-800 p-5 shadow-xl space-y-4 font-mono">
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-          <input
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <Input
             type="text"
             placeholder={t('manuals.search.placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && executeSearch(searchQuery)}
             aria-label={t('manuals.search.placeholder')}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/50 font-mono"
+            className="pl-9 font-mono"
           />
         </div>
 
-        <button
+        <Button
           onClick={() => executeSearch(searchQuery)}
           aria-label={t('manuals.search.button')}
-          className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          className="px-5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-2 shrink-0"
         >
           <Search className="w-4 h-4" />
           <span>{t('manuals.search.button')}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Diagnostic Terms Quick Pills */}

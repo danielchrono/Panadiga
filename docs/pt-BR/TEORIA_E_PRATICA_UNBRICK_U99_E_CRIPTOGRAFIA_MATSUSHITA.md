@@ -142,8 +142,8 @@ O firmware do DMR-EH55 não possui decodificadores de hardware transparentes no 
 A chave criptográfica mestra reside em dois pontos de hardware:
 1. **No Código do Bootloader IPL (Flash Spansion SA0 — `0x80000000` a `0x8000FFFF`)**:
    - Armazenada como constantes imediatas e tabelas estáticas no código de máquina desprotegido em texto claro na placa principal.
-   - Qualquer dump da Flash via gravador externo (T48) ou via depurador DWire32A (`0x80000000`) contém a rotina de decifragem e as constantes de chave.
-2. **Na Máscara ROM Interna do Silício UniPhier (SoC MN2DS0016)**:
+   - Qualquer dump da Flash via gravador externo (T48 / SVOD 4) ou captura in-circuit (`0x80000000`) contém a rotina de decifragem e as constantes de chave.
+2. **Na Máscara ROM Interna do SoC Matsushita AM34 (MN103S)**:
    - Uma Boot ROM on-chip de 16 KB no silício Matsushita que valida a integridade do IPL primário.
 
 ---

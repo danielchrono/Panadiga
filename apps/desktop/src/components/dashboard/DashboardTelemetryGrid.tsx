@@ -64,10 +64,10 @@ export const DashboardTelemetryGrid: React.FC<DashboardTelemetryGridProps> = ({ 
         }
       />
       <MetricCard
-        title={overview?.debug_port || 'DWire32A OCD Interface'}
-        value="1.00"
-        unit="MHz"
-        subtitle="Barramento Single-Wire AM34"
+        title={overview?.debug_port || 'P7501 UART 115200 8N1'}
+        value="115.2"
+        unit="kbps"
+        subtitle="P7501 Async UART (Legacy PIO 1 MHz)"
         variant="emerald"
         icon={<Radio className="w-4 h-4" />}
         badge={<StatusBadge variant="neutral" label="STANDBY" />}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { HexDumpRow, HexBookmark } from '@/models';
 import { invokeCommand } from '@/services/ipc';
-import { mockHexBookmarks } from '@/services/mockData';
+import { DIGA_HEX_BOOKMARKS } from '@/constants';
 import { useToast } from '../context/ToastContext';
 import { logger } from '@/utils/logger';
 
@@ -9,8 +9,8 @@ export function useHexInspectorViewModel() {
   const { showToast } = useToast();
   const [currentOffset, setCurrentOffset] = useState<number>(0);
   const [hexRows, setHexRows] = useState<HexDumpRow[]>([]);
-  const [bookmarks] = useState<HexBookmark[]>(mockHexBookmarks);
-  const [selectedBookmark, setSelectedBookmark] = useState<HexBookmark | null>(mockHexBookmarks[0]);
+  const [bookmarks] = useState<HexBookmark[]>(DIGA_HEX_BOOKMARKS);
+  const [selectedBookmark, setSelectedBookmark] = useState<HexBookmark | null>(DIGA_HEX_BOOKMARKS[0]);
   const [jumpInput, setJumpInput] = useState<string>('0x00000000');
   const [loading, setLoading] = useState<boolean>(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);

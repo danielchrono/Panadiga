@@ -3,8 +3,8 @@ setlocal enabledelayedexpansion
 
 set "TARGET=%~1"
 if "%TARGET%"=="" (
-    if exist "%~dp0..\firmware_and_images\IC55007.bin" (
-        set "TARGET=%~dp0..\firmware_and_images\IC55007.bin"
+    if exist "%~dp0..\firmware_and_images\bkp\panasonic_dmr-eh55_flash_dump.bin" (
+        set "TARGET=%~dp0..\firmware_and_images\bkp\panasonic_dmr-eh55_flash_dump.bin"
     ) else if exist "%~dp0..\firmware_and_images\dmr-ez485v\panasonic_dmr_ez485v_flash_dump_4mb.bin" (
         set "TARGET=%~dp0..\firmware_and_images\dmr-ez485v\panasonic_dmr_ez485v_flash_dump_4mb.bin"
     ) else if exist "%~dp0..\firmware_and_images\panasonic DMR EH-55 Firmware hdd_100.bin" (

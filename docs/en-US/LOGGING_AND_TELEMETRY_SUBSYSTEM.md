@@ -3,7 +3,7 @@
 
 **Document:** `LOGGING_AND_TELEMETRY_SUBSYSTEM.md`  
 **Classification:** Systems Architecture & Code Standards Technical Reference  
-**Module:** `src/logger.rs` (`panadiga::logger`)  
+**Module:** `crates/panadiga-core/src/logger.rs` (`panadiga_core::logger`)  
 
 ---
 
@@ -16,11 +16,11 @@ Historically, command-line utilities and forensic modules in Rust relied on ad-h
 3. **Inability to Redirect to GUI (Tauri):** The React/Tauri desktop frontend could not programmatically capture Rust engine output without brittle process pipe manipulation.
 4. **Absence of Semantic Severity Levels:** Errors, critical hardware alerts, and informational banners were indistinguishably written to `stdout`.
 
-To permanently solve these limitations, the unified logging subsystem [`src/logger.rs`](../../src/logger.rs) was designed, tested, and certified.
+To permanently solve these limitations, the unified logging subsystem [`crates/panadiga-core/src/logger.rs`](../../crates/panadiga-core/src/logger.rs) was designed, tested, and certified.
 
 ---
 
-## 2. Module Architecture (`src/logger.rs`)
+## 2. Module Architecture (`crates/panadiga-core/src/logger.rs`)
 
 The subsystem was engineered for **maximum throughput**, **strict thread-safety**, and **zero heap allocation overhead** when log levels are filtered out.
 
@@ -39,7 +39,7 @@ flowchart TD
 
 ### 2.1 Severity Hierarchy (`LogLevel`)
 
-The [`LogLevel`](../../src/logger.rs) enum defines semantic ordering:
+The [`LogLevel`](../../crates/panadiga-core/src/logger.rs) enum defines semantic ordering:
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

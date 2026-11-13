@@ -46,7 +46,7 @@ Decouple low-level forensic and cryptanalysis logic from disk I/O. All math, par
 
 ---
 
-## 3. Layer 2: Introspective GDB & Hardware Protocol (DWire32A / RSP)
+## 3. Layer 2: Introspective GDB & Hardware Protocol (`P7501` Async UART / RSP)
 
 ### Architectural Goal
 
@@ -59,7 +59,7 @@ Guarantee absolute protocol fidelity in the serial-to-TCP GDB bridge, prevent pa
 | `tests/debugger_gdb_tests.rs`        | `test_gdb_rsp_checksum_calculation`   | Formal validation of 2-digit hex checksum calculation (`sum % 256`) for RSP commands (`qSupported`, `g`, `?`, `c`, `s`, `OK`).            |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_verify_and_classify_rsp_packet` | Tests formal RSP packet classifier: `$` prefix, `#` delimiter, checksum comparison, and command type tagging.                                       |
 | `src/desktop/pico/gdb_bridge.rs`                   | `test_telemetry_ring_capacity`        | Validates introspective circular buffer (`RingBuffer<GdbPacketTelemetryEvent>`): fixed capacity, FIFO eviction without leaks, chronological ordering. |
-| `dwire32a_jtag_research/tests/test_gdb_rsp_host.c` | Host C11 Firmware (`-Werror`)         | 7 protocol integration tests compiled under GCC C11: SRAM read/write, rejection of write to IPL flash (`E05`), AM34 registers, halt/continue control. |
+| `firmware/pico-p7501/tests/test_gdb_rsp_host.c` | Host C11 Firmware (`-Werror`)         | Protocol integration tests compiled under C11 (`-Wall -Wextra -Werror`): SRAM read/write, rejection of write to IPL flash (`E05`), AM34 registers, halt/continue control. |
 
 ---
 
@@ -76,7 +76,7 @@ Eliminate scattered booleans in favor of closed finite state machines (ADTs / Di
 | `useInCircuitErase.test.ts`    | `useInCircuitErase`                                | Verifies discrete states (`idle`, `confirming`, `erasing`, `success`, `error`) and callback triggering during surgical unbrick.                               |
 | `useSerialConsole.test.ts`     | `useSerialConsole`                                 | Validates interactive terminal: command history ring buffer, bounded log array, and command dispatch.                                                                   |
 | `useGdbBridge.test.ts`         | `useGdbBridge`                                     | Tests bridge state transitions (`stopped`, `starting`, `running`, `stopping`, `error`), async telemetry polling, and log emission.                            |
-| `GdbServerComponents.test.tsx` | `GdbServerControls` & `GdbExternalToolLaunchers` | Tests decomposed GDB card: status badge rendering, TCP start/stop invocation, and tool launcher button handlers (GDB Multiarch, OpenOCD AM34, Ghidra, HxD, PowerShell). |
+| `GdbServerComponents.test.tsx` | `GdbServerControls` & `GdbExternalToolLaunchers` | Tests decomposed GDB card: status badge rendering, TCP start/stop invocation, and tool launcher button handlers (GDB Multiarch, Ghidra, HxD, PowerShell). |
 | `logger.test.ts`               | `PanadigaLogger`                                   | Tests frontend logging subsystem: severity filtering (`minLevel`), multi-sink dispatch, subscription disposal, and error resilience.                                  |
 | `translations.test.ts`         | `i18n` Engine                                      | Validates complete parity between `pt-BR` and `en-US` dictionaries and canonical key resolution.                                                                    |
 
@@ -109,7 +109,7 @@ Guarantee strong CLI argument parsing via Clap, deterministic handler routing, a
 3. `nvram.spec.ts`: Spansion NOR Flash S29JL064H specifications and surgical action card rendering.
 4. `nvram.spec.ts`: 8 microsector breakdown (SA134..SA141) and integrity indicators.
 5. `pico-bench.spec.ts`: Host controller telemetry and architecture badge display.
-6. `pico-bench.spec.ts`: P7501 connector (DWire32A) pinout table with ground loop disclaimers.
+6. `pico-bench.spec.ts`: `P7501` (`115200 8N1` Async UART + `NSW5V` Hi-Z) pinout table and diagnostic controls.
 7. `pico-bench.spec.ts`: Cold Break-In mode switching (Mode 0, 1, and 2).
 8. `pico-bench.spec.ts`: Interactive serial terminal with command echo and transmission.
 
@@ -136,6 +136,6 @@ All 8 jobs execute under every push to `main`:
 | **Strict MVVM**                | UI locking in intermediate states due to scattered boolean flags.                 | `useInCircuitErase.test.ts`, `useGdbBridge.test.ts`                                          |
 | **Introspective GDB**          | RSP packet corruption or telemetry buffer overflow under high traffic.            | `test_gdb_rsp_checksum_calculation`, `test_telemetry_ring_capacity`, `test_gdb_rsp_host.c` |
 | **Component SRP**              | Regressions in quick tool launchers or TCP debugging socket controls.             | `GdbServerComponents.test.tsx`                                                                 |
-| **Zero Raw Prints / Consoles** | Stdout pollution breaking JSON-RPC parsing for MCP servers or external consumers. | `logger.test.ts`, `test_logger_custom_sink`, `test_panadiga_mcp_server.py`                 |
+| **Zero Raw Prints / Consoles** | Stdout pollution breaking JSON-RPC parsing for MCP servers or external consumers. | `logger.test.ts`, `test_logger_custom_sink`, `mcp.rs` JSON-RPC unit tests                 |
 | **SSOT Constants**             | Memory map address conflicts between Ghidra, TUI, CLI, and Desktop.               | `test_constants_memory_map_and_candidate_paths`, `test_system_constants_integrity`           |
 | **CLI Decomposition**          | Silent parsing errors or ignored flags in the new slim entrypoint.                | `test_cli_args_parsing_matrix`                                                                 |

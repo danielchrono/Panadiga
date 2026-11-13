@@ -22,16 +22,16 @@ python scripts/validate.py
 ```
 
 ## Os 9 Portões Validados
-1. **Rust Workspace**: `cargo check --workspace --all-targets` e `cargo test --workspace --verbose` (16 testes).
+1. **Rust Workspace**: `cargo check --workspace --all-targets` e `cargo test --workspace --verbose`.
 2. **TypeScript Strict**: `npm run typecheck` em `apps/desktop`.
-3. **Frontend Vitest**: `npm test` em `apps/desktop` (26 testes).
+3. **Frontend Vitest**: `npm test` em `apps/desktop`.
 4. **Copy/Paste Detector**: `npx --prefix apps/desktop jscpd --config .jscpd.json` (0 clones).
 5. **UX Completeness**: `npm run uxlint` em `apps/desktop` (score 100/100).
 6. **Playwright E2E**: `npm run test:e2e` em `apps/desktop` (8 testes em Chromium headless).
-7. **Ghidra Native Generator**: `cargo run -- ghidra export-all --dir tools`.
-8. **Pico C11 Host Tests**: Compilação e execução com GCC `-Werror -DPICO_HOST_TEST=1`.
-9. **Python Typer & Pytest**: `python -m mypy --strict` e `python -m pytest tools/tests tools/rag_engine/tests`.
+7. **Ghidra Native Generator**: `cargo run -- ghidra export-all --dir tools/ghidra`.
+8. **Pico C11 Host Tests**: Compilação e execução com GCC/MSVC `-Werror`/`/WX` `-DPICO_HOST_TEST=1` em `firmware/pico-p7501/`.
+9. **Scripts Check (mypy/py_compile/pytest)**: `python -m mypy --strict scripts`, `py_compile` nos scripts Ghidra (`tools/ghidra/*.py`) e `pytest scripts/tests`.
 
 ## Resolução de Falhas Comuns
-- **Falha em jscpd**: Identifique blocos repetidos entre `apps/desktop/src`, `src`, `dwire32a_jtag_research` ou `tools` e extraia funções utilitárias compartilhadas.
+- **Falha em jscpd**: Identifique blocos repetidos entre `apps/desktop/src`, `src`, `firmware/pico-p7501`, `tools` ou `scripts` e extraia funções utilitárias compartilhadas.
 - **Falha em mypy**: Certifique-se de que todas as funções Python possuem anotações de tipo completas em argumentos e retornos (`-> None`, etc.).

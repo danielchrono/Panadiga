@@ -1,7 +1,7 @@
 # Especificação do Subsistema de Logging e Telemetria Unificada — Panadiga
 
 > **Classificação:** Documento Técnico de Arquitetura de Software e Padrões de Código  
-> **Módulo:** `src/logger.rs` (`panadiga::logger`)  
+> **Módulo:** `crates/panadiga-core/src/logger.rs` (`panadiga_core::logger`)  
 > **Escopo:** Padronização de saídas de console, telemetria estruturada, supressão de ruído em testes e captura para interface gráfica  
 
 ---
@@ -15,11 +15,11 @@ Historicamente, ferramentas de linha de comando e módulos forenses em Rust util
 3. **Incapacidade de Redirecionamento para a GUI (Tauri):** A interface gráfica em React/Tauri não conseguia capturar programaticamente saídas do motor Rust sem recorrer a pipes instáveis de processo.
 4. **Falta de Níveis Semânticos de Severidade:** Erros, avisos críticos e cabeçalhos visuais eram tratados de forma indistinta no `stdout`.
 
-Para solucionar definitivamente essas limitações, foi projetado e homologado o subsistema unificado [`src/logger.rs`](../src/logger.rs).
+Para solucionar definitivamente essas limitações, foi projetado e homologado o subsistema unificado [`crates/panadiga-core/src/logger.rs`](../../crates/panadiga-core/src/logger.rs).
 
 ---
 
-## 2. Arquitetura do Módulo (`src/logger.rs`)
+## 2. Arquitetura do Módulo (`crates/panadiga-core/src/logger.rs`)
 
 O subsistema foi construído com foco em **desempenho máximo**, **thread-safety estrita** e **zero overhead** quando logs estão desativados ou filtrados.
 
@@ -38,7 +38,7 @@ flowchart TD
 
 ### 2.1 Níveis de Severidade (`LogLevel`)
 
-O enum [`LogLevel`](../src/logger.rs) define a hierarquia de controle:
+O enum [`LogLevel`](../../crates/panadiga-core/src/logger.rs) define a hierarquia de controle:
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -80,7 +80,7 @@ Projetado como substituto direto do `println!` padrão para relatórios tabulare
 
 ```rust
 log_println!("====================================================================");
-log_println!("   PANASONIC AM34 / DWIRE32A GDB REMOTE SERIAL PROTOCOL (RSP) BRIDGE");
+log_println!("   PANASONIC AM34 / P7501 GDB REMOTE SERIAL PROTOCOL (RSP) BRIDGE");
 log_println!("   Porta: {:<10} | Baud: {}", port_name, baud_rate);
 log_println!("====================================================================");
 ```
@@ -154,7 +154,7 @@ Foram migradas **365 chamadas brutas** para o subsistema unificado:
 | **Pico Serial & GDB Bridge** | `src/pico.rs` | 16 chamadas |
 | **Scanner Forense de Strings** | `src/scan.rs` | 15 chamadas |
 | **Indexador de Manuais PDF** | `src/manuals.rs` | 13 chamadas |
-| **Tauri GDB Controller** | `apps/desktop/src-tauri/...` | 2 chamadas |
+| **Tauri GDB Controller** | `src/desktop/...` | 2 chamadas |
 | **Total Global** | | **365 chamadas migradas** |
 
 > **Garantia de Qualidade:** A base de código possui **0 clones no detector `jscpd`**, **0 erros no compilador Rust** e **100% de aprovação nos 9 Quality Gates** do repositório.

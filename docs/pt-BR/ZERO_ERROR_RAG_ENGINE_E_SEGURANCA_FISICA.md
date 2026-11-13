@@ -15,7 +15,7 @@ No entanto, no contexto de **engenharia reversa de hardware proprietário, placa
 
 > [!CAUTION]
 > **O CUSTO DA ALUCINAÇÃO EM HARDWARE É A DESTRUIÇÃO FÍSICA IRREVERSÍVEL:**
-> 1. **Sobretensão no SoC UniPhier:** O processador Matsushita `MN2DS0016` (núcleo AM34 / MN103S) na PCB principal `VEP79138` opera rigorosamente em **3.3V LVTTL**. Se um modelo sugerir alimentar pinos de depuração (`CN55001`) ou barramentos com 5.0V (nível TTL comum em circuitos antigos), as junções PN do silício sofrem ruptura dielétrica instantânea.
+> 1. **Sobretensão no SoC Matsushita e Proteção `NSW5V`:** O processador **Matsushita `AM34` / `MN103S`** na placa `VEP79138` opera em **3.3V LVTTL**. No conector de serviço **`P7501`**, `SW_UART`, `XRESET` (Open-Drain), `UARTM2P_T` e `UARTP2M_T` trabalham em 3.3V, enquanto o **Pino 5 (`NSW5V`)** vem do regulador `IC1506` (`~5.15V` via `D7510`) e deve permanecer SEMPRE como entrada **`Hi-Z`** sem pulls. Se um modelo sugerir aplicar 5.0V em pinos LVTTL ou dirigir `GP3`/`NSW5V` em modo push-pull, ocorrem danos permanentes nas junções de silício.
 > 2. **Destruição do Bootloader (IPL Brick):** A memória NOR Flash Spansion `S29JL064H` (8 MB) armazena o código de inicialização de primeiro estágio (*Initial Program Loader*) de `0x80000000` a `0x807EFFFF`. Se uma IA sugerir um comando de escrita ou apagamento de bloco nessa faixa, o aparelho perde permanentemente o vetor de reset e torna-se um "tijolo" irrecuperável.
 > 3. **Corrupção Estrutural MEIHFS:** O sistema de arquivos de disco proprietário da Panasonic não possui partições MBR padrão PC. Uma suposição incorreta sobre LBAs ou partições de áudio/vídeo corrompe o superbloco `"SH"`, o espelho em 28 MB ou a área transacional de journaling.
 
@@ -79,8 +79,8 @@ flowchart TD
   $$\text{Score}(q, d) = \alpha \cdot \text{BM25}(q, d) + (1 - \alpha) \cdot \text{CosineSimilarity}(\vec{q}, \vec{d}) + \text{EntityBoost}$$
 - **Tokenizador Técnico Especializado:** Diferente de tokenizadores comuns que fragmentam símbolos, o `technical_tokenize` preserva integralmente:
   - Endereços hexadecimais: `0x80000000`, `0x807F0000`, `0xD4000000`.
-  - Designadores de componentes PCB: `IC55001`, `IC55007`, `VEP79138`, `CN55001`.
-  - Terminais e sinais de barramento: `SDATA`, `SCLK`, `nRESET`, `WP#`, `ACC`.
+  - Designadores de componentes PCB: `IC5001`, `IC7501`, `IC1506`, `VEP79138`, `P7501`, `P59001`.
+  - Terminais e sinais de barramento: `SW_UART`, `XRESET`, `UARTM2P_T`, `NSW5V`, `UARTP2M_T`, `WP#`, `ACC`.
   - Códigos de auto-diagnóstico: `U99`, `U61`, `U88`, `F01` a `F99`.
 
 ### Camada 3: RetrievalCritic (Corrective RAG - CRAG)
@@ -114,20 +114,17 @@ flowchart TD
 
 Uma dúvida comum em arquiteturas modernas é a escolha entre linguagens para sistemas de IA e dados:
 
-| Critério de Arquitetura | RAG em Rust Nativo (`src/rag/`) | RAG / MCP em Python (`tools/`) |
+| Critério de Arquitetura | RAG em Rust Nativo (`crates/panadiga-rag/`) | Scripts Dev Python (`scripts/`) |
 | :--- | :--- | :--- |
-| **Status no Projeto** | **Motor Principal de Produção** | **Ambiente de Prototipagem & Dev** |
-| **Onde Executa** | Compilado dentro de `panadiga.exe` e no app Tauri Desktop | Scripts interpretados via Python 3.10+ |
+| **Status no Projeto** | **Motor Principal de Produção** | **Ambiente de Build & Validação Dev** |
+| **Onde Executa** | Compilado dentro de `panadiga` e no app Tauri Desktop/Android | Scripts tipados via Python 3.10+ |
 | **Dependências** | **ZERO dependências** (binário autossuficiente) | Requer interpretador Python, pytest e mypy |
 | **Latência de Execução** | **Sub-milissegundo (< 1 ms)** com zero-copy | ~20 a 50 ms (tempo de startup do CPython) |
 | **Garantia de Tipagem** | Verificada em tempo de compilação com ownership estrito | Tipagem gradual verificada por `mypy --strict` |
 | **Destino do Usuário** | Engenheiro em bancada usando o aplicativo Desktop ou CLI | Desenvolvedor ou Agente de IA trabalhando no código |
 
-### Por que o RAG de produção está em Rust?
-O técnico em laboratório que precisa consertar um Panasonic DMR-EH55 travado no erro `U99` não deve ser obrigado a instalar Python, configurar `pip`, resolver conflitos de ambiente virtual (`venv`) ou compilar pacotes C. O instalador do Panadiga Desktop gera um executável único que funciona instantaneamente.
-
-### Por que o Servidor MCP está em Python?
-O Model Context Protocol (MCP) é um protocolo da camada de **desenvolvimento assistido por IA**. O servidor MCP em [`tools/panadiga_mcp_server.py`](../tools/panadiga_mcp_server.py) roda na máquina do engenheiro enquanto ele conversa com o assistente inteligente (como Claude, Cursor ou Gemini). Em Python, o servidor atua como orquestrador dinâmico capaz de ler PDFs, invocar a CLI em Rust e executar verificações sem exigir recompilação do workspace a cada novo recurso de IA.
+### Por que o RAG e o Servidor MCP estão em Rust?
+O técnico em laboratório que precisa consertar um Panasonic DMR-EH55 travado no erro `U99` não deve ser obrigado a instalar Python, configurar `pip`, resolver conflitos de ambiente virtual (`venv`) ou compilar pacotes C. O executável único `panadiga` em Rust atende tanto a GUI Desktop Tauri, quanto a CLI e o servidor MCP nativo (`panadiga mcp` em [`crates/panadiga-mcp/`](../../crates/panadiga-mcp/src/lib.rs)), comunicando JSON-RPC 2.0 via `stdio` diretamente com assistentes como Claude Desktop, Cursor ou Antigravity.
 
 ---
 
@@ -136,7 +133,7 @@ O Model Context Protocol (MCP) é um protocolo da camada de **desenvolvimento as
 ### Rota 1: Via Linha de Comando (CLI Rust Nativa)
 Para consultas diretas durante a operação de bancada:
 ```bash
-cargo run --release -- rag query "Qual a pinagem de CN55001 e a tensao maxima suportada?"
+cargo run --release -- rag query "Qual a pinagem de P7501 e a tensao maxima suportada?"
 ```
 Ou com saída estruturada em JSON para scripts de automação:
 ```bash
@@ -150,7 +147,7 @@ cargo run --release -- rag query "Quais sao os microsetores de NVRAM para unbric
    ```
 2. Abra o módulo **RAG Assistant / Inteligência de Laboratório**.
 3. Digite sua dúvida sobre códigos de diagnóstico, procedimentos cirúrgicos ou esquemas elétricos.
-4. O backend Desktop (`apps/desktop/src-tauri/src/commands.rs`) aciona diretamente `panadiga::rag::query(&query)` em Rust, renderizando as respostas fundamentadas instantaneamente.
+4. O backend Desktop (`apps/desktop/src-tauri/src/`) aciona diretamente `panadiga_rag::query(&query)` em Rust, renderizando as respostas fundamentadas instantaneamente.
 
 ### Rota 3: Via Ferramenta MCP (Para Agentes de IA)
 Se estiver utilizando uma IDE integrada (como Cursor, Antigravity ou Claude Desktop com `.mcp.json` ativo):
@@ -162,8 +159,8 @@ Se estiver utilizando uma IDE integrada (como Cursor, Antigravity ou Claude Desk
 ## 6. Histórico de Testes e Confiabilidade
 
 O subsistema possui cobertura completa de testes unitários e de integração em ambos os ecossistemas:
-* **Rust Workspace (Gate 1):** 17 testes unitários em [`src/rag/tests.rs`](../src/rag/tests.rs) validando resistência a prompt injection, tolerância a negações direcionadas, bloqueio estrito de wipe no IPL e interceptação de sobretensão.
-* **Python Pytest (Gate 9):** 17 testes em [`tools/rag_engine/tests/test_rag_zero_error.py`](../tools/rag_engine/tests/test_rag_zero_error.py) auditados com `mypy --strict`.
+* **Rust Workspace (Gate 1):** Testes unitários em [`crates/panadiga-rag/src/safety.rs`](../../crates/panadiga-rag/src/safety.rs) e [`crates/panadiga-mcp/`](../../crates/panadiga-mcp/) validando resistência a prompt injection, tolerância a negações direcionadas, bloqueio estrito de wipe no IPL, interceptação de sobretensão e transporte JSON-RPC 2.0 limpo em `stdout`.
+* **Python Pytest (Gate 9):** Testes da suíte de build e validação em [`scripts/tests/test_scripts_ops.py`](../../scripts/tests/test_scripts_ops.py) auditados com `mypy --strict`.
 
 ---
 
@@ -205,13 +202,13 @@ A suíte distingue rigorosamente os dois procedimentos de gravação em Flash:
 * **Escopo:** **100% Irrestrito.** Permite regravar toda a memória Flash de 8 MB (ou 2MB/4MB/16MB), incluindo Bootloader/IPL (`0x000000..0x7EFFFF`), fontes OSD e microsetores.
 * **Saída da Suíte:** O comando `panadiga nvram clean` gera um arquivo binário completo (ex: `DMR_EH55_CLEAN.bin`) com tamanho exato para gravação direta no software do programador.
 
-### Rota B: Unbrick Cirúrgico In-Circuit via DWire32A (Sem Dessoldar)
-* **Ferramenta:** Raspberry Pi Pico (RP2040) conectado ao conector `CN55001`.
+### Rota B: Inspeção e Recuperação Assistida In-Circuit via `P7501` (Sem Dessoldar)
+* **Ferramenta:** Raspberry Pi Pico (`RP2040` / `RP2350`) conectado ao conector **`P7501`** (`UART 115200 8N1` + controle discreto `SW_UART` / `XRESET`).
 * **Escopo:** Focado exclusivamente nos últimos 64 KB de calibração (`0x807F0000..0x807FFFFF`).
 * **Por que o Bootloader é protegido contra escrita in-circuit?**
-  1. **Risco de Hard Brick por Ruído:** Em circuito, quem grava a Flash é a própria CPU AM34 executando um `ram_loader` na SRAM. Se o usuário tentar apagar o setor `SA0` (vetor de reset) e houver ruído no chicote ou queda de energia, o bootloader é corrompido e a CPU **nunca mais acorda** para permitir novas tentativas in-circuit.
+  1. **Risco de Hard Brick por Ruído:** Se uma escrita em circuito atingir o setor `SA0` (vetor de reset) durante falha de barramento ou queda de energia, o bootloader é corrompido e a CPU AM34 **nunca mais acorda** para permitir novas tentativas sem dessolda.
   2. **Origem do Erro U99:** Em 99.9% dos casos, o Bootloader de fábrica da Panasonic está intacto. Apenas os parâmetros de calibração da NVRAM foram corrompidos.
-  3. **Airbag Configurável:** A proteção em `dwire32a_jtag_research/gdb_rsp.c` (`is_valid_write_range`) atua como airbag de segurança, podendo ser desativada no código C caso o engenheiro queira forçar a gravação completa em circuito.
+  3. **Airbag Configurável:** A proteção em `firmware/pico-p7501/gdb/gdb_rsp_memory.c` (`is_valid_write_range`) atua como airbag de segurança, bloqueando qualquer escrita fora da faixa autorizada (`E05`).
 
 ---
 

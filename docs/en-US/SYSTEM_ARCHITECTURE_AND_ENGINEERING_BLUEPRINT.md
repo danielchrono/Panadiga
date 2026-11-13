@@ -9,7 +9,7 @@
 
 ## 1. Ecosystem Architectural Overview
 
-**Panadiga** is an integrated software and hardware suite for reverse engineering, storage forensics, firmware recovery (specifically addressing the critical **`U99`** panics), and low-level in-circuit debugging for **Panasonic DIGA (DMR-EH55)** DVD/HDD recorders powered by the **Matsushita MN2DS0016 (UniPhier / AM34)** SoC.
+**Panadiga** is an integrated software and hardware suite for reverse engineering, storage forensics, firmware recovery (specifically addressing the critical **`U99`** panics), and low-level in-circuit telemetry for **Panasonic DIGA (DMR-EH55)** DVD/HDD recorders powered by the **Matsushita AM34 / MN103S (`VEP79138`)** platform.
 
 The system is architected as **Decoupled Layers with Restricted Unidirectional Communication**:
 
@@ -44,19 +44,19 @@ flowchart TD
     subgraph HAL["4. Hardware Abstraction Layer (HAL & Protocols)"]
         USB_SERIAL["CDC Serial Driver (USB OTG / Virtual COM)"]
         BLE_NUS["Nordic UART Service Driver (Bluetooth Low Energy)"]
-        DW_TRANS["Half-Duplex DWire32A Transceiver (C11 PIO)"]
+        P7501_TRANS["P7501 Async UART 115200 8N1 (C11 PIO)"]
         GDB_BRIDGE --> USB_SERIAL
         GDB_BRIDGE --> BLE_NUS
-        USB_SERIAL --> DW_TRANS
-        BLE_NUS --> DW_TRANS
+        USB_SERIAL --> P7501_TRANS
+        BLE_NUS --> P7501_TRANS
     end
 
     subgraph TargetHW["5. Target Physical Silicon (Panasonic DMR-EH55)"]
-        P7501["P7501 Header (JST ZR 6-Pin 'TO WRITE JIGU')"]
-        SOC["Matsushita MN2DS0016 SoC (AM34 @ 162 MHz)"]
-        FLASH["Spansion S29JL064H NOR Flash (8 MB TSOP-48)"]
+        P7501["P7501 Header (JST ZR 6-Pin 'TO JIGU')"]
+        SOC["Matsushita AM34 / MN103S (VEP79138)"]
+        FLASH["IC5001 Spansion S29JL064H NOR Flash (8 MB TSOP-48)"]
         HDD["PATA/IDE Drive (MEIHDFS Layout / 'SH' Superblock)"]
-        DW_TRANS <-->|"Synchronous 3.3V Bus"| P7501
+        P7501_TRANS <-->|"Async UART 3.3V / NSW5V Hi-Z"| P7501
         P7501 <--> SOC
         SOC <--> FLASH
         SOC <--> HDD
@@ -92,7 +92,7 @@ In-circuit debugging over the P7501 header requires resilient telemetry handling
 - **Formal RSP Packet Checksum Verification**: Every frame (`$<data>#<checksum>`) undergoes strict lexical verification. Corrupted frames trigger immediate retransmission requests (`-`), shielding the session against electrical noise.
 
 ### 2.4 SSOT (Single Source of Truth) & Zero Clones
-- **Central Constants**: [`src/panadiga/constants.rs`](file:///C:/Users/danie/Documents/Panadiga/src/panadiga/constants.rs) provides the authoritative definition for AM34 memory layouts, candidate file paths, and hardware pinouts.
+- **Central Constants**: [`crates/panadiga-core/src/constants.rs`](../../crates/panadiga-core/src/constants.rs) provides the authoritative definition for AM34 memory layouts, candidate file paths, and hardware pinouts.
 - **Zero Duplication Policy (`jscpd`)**: Frontend codebase maintains a strict **0.00% duplication** rate across 10,000+ lines of TypeScript code.
 
 ### 2.5 Structured Logging Subsystem
@@ -103,7 +103,7 @@ In-circuit debugging over the P7501 header requires resilient telemetry handling
 
 ## 3. Silicon Blueprint & Panasonic DMR-EH55 Invariants
 
-### 3.1 Matsushita MN2DS0016 (AM34) Physical Address Map
+### 3.1 Matsushita AM34 (`MN103S` / `VEP79138`) Physical Address Map
 
 | Physical Address Range | Size | Memory / Peripheral Type | Purpose in Matsushita Firmware |
 | :--- | :---: | :--- | :--- |
@@ -128,9 +128,9 @@ graph TD
     
     CHECK_REG -- "0x80000000..0x807EFFFF" --> ABORT_BOOT["WRITE LOCKED (Error E05)<br/>Bootloader/IPL is Immutable"]
     CHECK_REG -- "0x807F0000..0x807FFFFF" --> ALLOW_NVRAM["WRITE PERMITTED<br/>Sanitizing 64 KB NVRAM (U99 Fix)"]
-    CHECK_REG -- "P7501 Pin 6 (VDD)" --> ABORT_PWR["POWER LOCK<br/>Never source power from P7501"]
+    CHECK_REG -- "P7501 Pin 5 (NSW5V)" --> ABORT_PWR["Hi-Z ONLY (GP3)<br/>Never drive push-pull or power Pico from P7501"]
 ```
 
-1. **Invariant 1: Maximum 3.3V Voltage**: The MN2DS0016 SoC is fabricated on a sensitive 130 nm CMOS process. Sourcing 5.0V destroys internal gate junctions.
-2. **Invariant 2: P7501 Header Power Isolation**: Header Pin 6 is strictly a voltage sensing input. Drawing excessive current trips the Panasonic supervisor and aborts operation.
+1. **Invariant 1: Maximum 3.3V Logic & `NSW5V` Hi-Z Protection**: The `AM34 / MN103S` UART/control pins operate at 3.3V LVTTL; Pin 5 (`NSW5V` / `GP3`) is wired via `D7510` to `~5.15V` and MUST remain `Hi-Z Input` with pulls disabled.
+2. **Invariant 2: P7501 Header Power Isolation**: Never source power from `P7501` (`SW_UART` Pin 1 / `NSW5V` Pin 5 are sense lines only); keep the Pico powered via USB/VSYS.
 3. **Invariant 3: Immutability of Forensic Evidence**: Original disk dumps and Spansion Flash images are never edited in place; operations execute on working copies verified with SHA-256 hashes.

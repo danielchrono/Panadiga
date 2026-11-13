@@ -13,7 +13,6 @@
     "build:android": "python scripts/build.py --android",
     "build:all": "python scripts/build.py --all",
     "build:pico": "python scripts/build.py --pico",
-    "audit-bundle": "python tools/generate_audit_bundle.py",
     "tauri": "npx @tauri-apps/cli"
   }
 }

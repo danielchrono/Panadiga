@@ -1,12 +1,49 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ManualSearchResult, ManualDocumentMetadata } from '@/models';
+import {
+  ManualSearchResult,
+  ManualDocumentMetadata,
+  ServiceManualCatalogItem,
+} from '@/models';
 import { invokeCommand } from '@/services/ipc';
-import { mockManualDocuments } from '@/services/mockData';
 import { useTranslation, TranslationKey } from '@/i18n/useTranslation';
+
+function inferManualMetadata(item: ServiceManualCatalogItem, index: number): ManualDocumentMetadata {
+  const lower = item.file_name.toLowerCase();
+  const category: ManualDocumentMetadata['category'] = lower.includes('schematic')
+    ? 'schematic'
+    : lower.includes('operating') || lower.includes('user')
+    ? 'operating_instructions'
+    : lower.includes('quick') || lower.includes('guide') || lower.includes('bulletin')
+    ? 'bulletin'
+    : 'service_manual';
+
+  const cleanTitle = item.file_name
+    .replace(/\.pdf$/i, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+
+  const keyIcs: string[] = [];
+  if (lower.includes('eh55')) keyIcs.push('AM34', 'S29JL064H', 'P7501');
+  if (lower.includes('mn103') || lower.includes('am3')) keyIcs.push('MN103S', 'AM34');
+  if (lower.includes('schematic')) keyIcs.push('VEP79138', 'IC5001', 'Q7514');
+  if (keyIcs.length === 0) keyIcs.push('PDF');
+
+  return {
+    id: String(index + 1),
+    file_name: item.file_name,
+    file_path: item.relative_path,
+    title: cleanTitle,
+    description: `${item.relative_path} (${item.formatted_size})`,
+    category,
+    size_bytes: item.size_bytes,
+    page_count: 0,
+    key_ics: keyIcs,
+  };
+}
 
 export function useManualsViewModel() {
   const { t } = useTranslation();
-  const [documents] = useState<ManualDocumentMetadata[]>(mockManualDocuments);
+  const [documents, setDocuments] = useState<ManualDocumentMetadata[]>([]);
   const [searchResults, setSearchResults] = useState<ManualSearchResult[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('U99');
   const [errorKey, setErrorKey] = useState<TranslationKey | null>(null);
@@ -14,18 +51,36 @@ export function useManualsViewModel() {
   const [activeTerms] = useState<string[]>([
     'U99',
     'S29JL064',
-    'MN2DS',
-    'CN55001',
+    'MN103S',
+    'P7501',
     'IC5001',
-    'IC55007',
+    'NSW5V',
     'HDD FORMAT',
     'SELF-CHECK',
     'RAM DISK',
     'VEP79138',
   ]);
-  const [selectedDoc, setSelectedDoc] = useState<ManualDocumentMetadata | null>(mockManualDocuments[0]);
+  const [selectedDoc, setSelectedDoc] = useState<ManualDocumentMetadata | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+
+  useEffect(() => {
+    let mounted = true;
+    invokeCommand<ServiceManualCatalogItem[]>('list_service_manuals')
+      .then(items => {
+        if (!mounted) return;
+        const mapped = items.map(inferManualMetadata);
+        setDocuments(mapped);
+        setSelectedDoc(prev => prev ?? mapped[0] ?? null);
+      })
+      .catch(err => {
+        if (!mounted) return;
+        setRawError(err instanceof Error ? err.message : String(err));
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const executeSearch = useCallback(
     async (queryParam?: string) => {

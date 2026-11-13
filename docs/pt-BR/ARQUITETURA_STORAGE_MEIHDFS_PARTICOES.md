@@ -6,7 +6,7 @@
 
 ## 1. Identificação Geral do Sistema e Escopo de Engenharia de Armazenamento
 
-O gravador digital de DVD/HDD **Panasonic DMR-EH55** (pertencente à conceituada família DIGA da Matsushita Electric Industrial Co., Ltd.) utiliza uma arquitetura de armazenamento híbrida não-convencional. Diferente de PCs ou gravadores baseados em sistemas operacionais genéricos (como Linux embarcado), o DMR-EH55 baseia-se no processador proprietário **Matsushita UniPhier MN2DS0016** (núcleo RISC de 32 bits **AM34**) e delega o armazenamento persistente a dois componentes complementares:
+O gravador digital de DVD/HDD **Panasonic DMR-EH55** (pertencente à conceituada família DIGA da Matsushita Electric Industrial Co., Ltd.) utiliza uma arquitetura de armazenamento híbrida não-convencional. Diferente de PCs ou gravadores baseados em sistemas operacionais genéricos (como Linux embarcado), o DMR-EH55 baseia-se no processador proprietário **Matsushita AM34** (núcleo RISC de 32 bits da família **MN103S**) e delega o armazenamento persistente a dois componentes complementares:
 
 1. **Memória Flash NOR On-Board (Spansion S29JL064H — 8 MBytes TSOP-48):**
    Contém o bootloader primário (*IPL - Initial Program Loader*), rotinas mínimas de inicialização de hardware, vetores de interrupção e os blocos de parâmetros de calibração emulados em Flash (`EEMUL` / NVRAM).
@@ -21,7 +21,7 @@ Se um disco rígido virgem (sem inicialização Panasonic) for instalado na máq
  │                              PLACA PRINCIPAL (VEP79138)                                │
  │                                                                                        │
  │   ┌──────────────────────────┐                  ┌──────────────────────────────────┐   │
- │   │  Matsushita MN2DS0016    │   Boot Inicial   │      Spansion S29JL064H          │   │
+ │   │  Matsushita AM34/MN103S  │   Boot Inicial   │      Spansion S29JL064H          │   │
  │   │  (UniPhier / AM34 Core)  │◄─────────────────│  (8 MB Flash NOR TSOP-48)        │   │
  │   │   108 MHz / 162 MHz      │   (Fase 1 IPL)   │  - Initial Program Loader (IPL)  │   │
  │   └────────────┬─────────────┘                  │  - Bootloader Mínimo             │   │

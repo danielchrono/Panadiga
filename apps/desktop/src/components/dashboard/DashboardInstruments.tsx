@@ -76,7 +76,7 @@ export const DashboardInstruments: React.FC<DashboardInstrumentsProps> = ({ onNa
         <div
           role="button"
           tabIndex={0}
-          aria-label="Abrir Bancada PicoBench DWire32A"
+          aria-label="Abrir Bancada PicoBench P7501 UART"
           onClick={() => onNavigate('picobench')}
           onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onNavigate('picobench')}
           className="group cursor-pointer p-4 rounded-xl bg-bench-900 border border-slate-800 hover:border-emerald-500/50 hover:bg-bench-850 transition-all duration-150 shadow-lg flex flex-col justify-between focus:outline-none focus:ring-1 focus:ring-emerald-500/50"
@@ -89,15 +89,15 @@ export const DashboardInstruments: React.FC<DashboardInstrumentsProps> = ({ onNa
               <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all" />
             </div>
             <h4 className="text-xs font-bold font-mono text-slate-200 group-hover:text-emerald-300">
-              Bancada PicoBench DWire32A
+              Bancada PicoBench (P7501 UART / OCD)
             </h4>
             <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-              Controle do Raspberry Pi Pico via USB CDC, monitoramento ADC0 VDD, Cold Break-In Modo 0..3 e injeção do RAM Loader in-circuit.
+              Captura UART P7501 (115200 8N1), matriz elétrica de 6 pinos, monitoramento ADC0 SW_UART e modo legado Cold Break-In / RAM Loader.
             </p>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono text-emerald-400">
-            <span>AM34 OCD Bus Master</span>
-            <span className="text-slate-500">In-Circuit Erase</span>
+            <span>P7501 Async UART</span>
+            <span className="text-slate-500">Boot &amp; Recovery</span>
           </div>
         </div>
       </div>

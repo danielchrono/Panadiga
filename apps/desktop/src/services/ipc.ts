@@ -6,19 +6,22 @@
 
 import { isTauri } from '@tauri-apps/api/core';
 import { logger } from '@/utils/logger';
-import { handleMockCommand, subscribeMockEventStream } from './mockDispatcher';
+export interface PanadigaTestIpcBridge {
+  invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T>;
+  listen<T>(eventName: string, handler: (payload: T) => void): (() => void) | Promise<() => void>;
+}
+
+declare global {
+  interface Window {
+    __PANADIGA_TEST_IPC__?: PanadigaTestIpcBridge;
+  }
+}
 
 export const isTauriEnvironment = (): boolean => {
   return isTauri();
 };
 
-let demoModeActive = false;
-
-export const isDemoModeActive = (): boolean => demoModeActive;
-
-export const setDemoMode = (active: boolean): void => {
-  demoModeActive = active;
-};
+// Native Tauri IPC runtime check
 
 function toCamelCaseKey(key: string): string {
   return key.replace(/_([a-z0-9])/g, (_, char: string) => char.toUpperCase());
@@ -51,12 +54,17 @@ export async function invokeCommand<T>(
 ): Promise<T> {
   const normalizedArgs = normalizeArgsForTauri(args);
 
-  if (isTauri() && !demoModeActive) {
+  if (isTauri()) {
     const { invoke } = await import('@tauri-apps/api/core');
     return await invoke<T>(cmd, normalizedArgs);
   }
 
-  return handleMockCommand<T>(cmd, normalizedArgs);
+  const testBridge = typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
+  if (testBridge?.invoke) {
+    return await testBridge.invoke<T>(cmd, normalizedArgs);
+  }
+
+  throw new Error(`Comando IPC '${cmd}' requer execução nativa no runtime Tauri.`);
 }
 
 type EventHandler<T> = (payload: T) => void;
@@ -97,7 +105,7 @@ export async function listenEvent<T>(
   };
 
   let unlistenTauri: (() => void) | undefined;
-  if (isTauri() && !demoModeActive) {
+  if (isTauri()) {
     try {
       const { listen } = await import('@tauri-apps/api/event');
       unlistenTauri = await listen<T>(eventName, event => {
@@ -106,12 +114,15 @@ export async function listenEvent<T>(
     } catch (err) {
       logger.warn('IPC', `Failed registering Tauri event listener for ${eventName}`, err);
     }
-  } else if (!isTauri() || demoModeActive) {
-    const unlistenMock = subscribeMockEventStream(eventName, handler);
-    return () => {
-      unlistenLocal();
-      unlistenMock();
-    };
+  } else {
+    const testBridge = typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
+    if (testBridge?.listen) {
+      const unlistenTest = await testBridge.listen<T>(eventName, handler);
+      return () => {
+        unlistenLocal();
+        unlistenTest();
+      };
+    }
   }
 
   return () => {

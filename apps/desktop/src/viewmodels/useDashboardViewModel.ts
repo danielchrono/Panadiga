@@ -1,13 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SystemOverview } from '@/models';
-import { invokeCommand, isDemoModeActive, setDemoMode } from '@/services/ipc';
+import { invokeCommand } from '@/services/ipc';
 import { logger } from '@/utils/logger';
 
 export function useDashboardViewModel() {
   const [overview, setOverview] = useState<SystemOverview | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [demoMode, setDemoState] = useState<boolean>(isDemoModeActive());
 
   const fetchOverview = useCallback(async () => {
     setLoading(true);
@@ -28,18 +27,10 @@ export function useDashboardViewModel() {
     fetchOverview();
   }, [fetchOverview]);
 
-  const toggleDemoMode = useCallback((val: boolean) => {
-    setDemoMode(val);
-    setDemoState(val);
-    fetchOverview();
-  }, [fetchOverview]);
-
   return {
     overview,
     loading,
     error,
-    demoMode,
-    toggleDemoMode,
     refresh: fetchOverview,
   };
 }

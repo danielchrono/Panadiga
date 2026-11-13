@@ -5,7 +5,7 @@ title Panadiga - Inicializador do Ghidra
 
 echo ====================================================================
 echo    PANADIGA: ENGENHARIA REVERSA MATSUSHITA AM34 COM NSA GHIDRA
-echo    Pasta de Scripts e Extensões: %~dp0
+echo    Pasta de Scripts e Extensões: %~dp0ghidra\
 echo ====================================================================
 echo.
 
@@ -54,7 +54,7 @@ echo Para abrir o Ghidra automaticamente:
 echo   1. Baixe o Ghidra em https://ghidra-sre.org/ (Requer Java JDK 21+)
 echo   2. Defina a variável de ambiente GHIDRA_HOME apontando para a pasta extraída.
 echo.
-echo Abrindo a pasta tools\ no Explorer com os 5 scripts de mapeamento de memória AM34...
+echo Abrindo a pasta tools\ghidra\ no Explorer com os scripts de mapeamento de memória AM34...
 echo.
-start "" explorer "%~dp0"
+start "" explorer "%~dp0ghidra"
 pause

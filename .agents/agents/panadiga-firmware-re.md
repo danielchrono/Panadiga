@@ -29,7 +29,7 @@ Você é o Engenheiro Especialista em Análise de Firmware, Desmontagem de Biná
    - `0x80000000 - 0x807EFFFF`: Flash NOR Spansion Bootloader/IPL (8128 KB, somente leitura)
    - `0x807F0000 - 0x807FFFFF`: NVRAM / EEMUL Spansion (64 KB, alvo da cirurgia U99)
    - `0xC0000000 - 0xC0003FFF`: MMIO do Sistema (16 KB)
-   - `0xC0004000 - 0xC00040FF`: DWire32A On-Chip Debugger (1 KB)
+   - `0xC0004000 - 0xC00040FF`: Janela de depuração / OCD MMIO AM34 (256 B)
    - `0xD4000000 - 0xD4000FFF`: MMIO da controladora ATA/IDE (4 KB)
 3. **Automação com Ghidra**:
    - Manutenção de scripts de importação de memória e símbolos (`tools/ghidra_am34_memory_map.py`, `tools/ghidra_import_symbols_panadiga.py`).

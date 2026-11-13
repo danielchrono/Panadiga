@@ -1,18 +1,59 @@
 import { useCallback } from 'react';
+import type { PicoDiagnosticResult } from '@/models';
+import { PICO_MIN_VDD_THRESHOLD_VOLTS } from '@/constants';
+import { isTargetPowered } from '@/utils/formatters';
+import { useHardwareSsot } from './useHardwareSsot';
 import { usePicoDevice } from './usePicoDevice';
+import { usePicoDiagnostics } from './usePicoDiagnostics';
 import { useGdbBridge } from './useGdbBridge';
 import { useInCircuitErase } from './useInCircuitErase';
 import { useSerialConsole } from './useSerialConsole';
 
 /**
- * Coordinating ViewModel: Composes specialized domain hooks
- * following MVVM and Single Responsibility principles.
+ * Coordinating ViewModel: Composes SSOT spec, Pico connection/transport,
+ * Granular Diagnostic Studio, GDB RSP Bridge, In-Circuit Erase, and Reactive Console.
  */
 export function usePicoBenchViewModel() {
+  const { ssot, isLoaded: isSsotLoaded } = useHardwareSsot();
   const console = useSerialConsole();
 
   const device = usePicoDevice({
     onLog: console.addLog,
+  });
+  const { setDeviceStatus } = device;
+
+  const handleDiagnosticTelemetry = useCallback(
+    (result: PicoDiagnosticResult) => {
+      if (result.vdd_volts !== null && result.vdd_volts !== undefined) {
+        const vdd = result.vdd_volts;
+        const powered = isTargetPowered(vdd, PICO_MIN_VDD_THRESHOLD_VOLTS);
+        setDeviceStatus(prev =>
+          prev
+            ? {
+                ...prev,
+                vdd_volts: vdd,
+                target_powered: powered,
+                core_state:
+                  result.command_id === 'HANDSHAKE' && result.success
+                    ? 'HALTED'
+                    : powered
+                      ? prev.core_state === 'DISCONNECTED'
+                        ? 'RUNNING'
+                        : prev.core_state
+                      : 'RESET',
+              }
+            : prev
+        );
+      }
+    },
+    [setDeviceStatus]
+  );
+
+  const diagnostics = usePicoDiagnostics({
+    selectedPort: device.selectedPort,
+    ssot,
+    onLog: console.addLog,
+    onTelemetryUpdate: handleDiagnosticTelemetry,
   });
 
   const gdb = useGdbBridge({
@@ -24,8 +65,8 @@ export function usePicoBenchViewModel() {
     selectedPort: device.selectedPort,
     onLog: console.addLog,
     onSuccess: useCallback(() => {
-      device.setDeviceStatus(prev => (prev ? { ...prev, ram_loader_injected: true } : null));
-    }, [device]),
+      setDeviceStatus(prev => (prev ? { ...prev, ram_loader_injected: true } : null));
+    }, [setDeviceStatus]),
   });
 
   const handleSendCommand = useCallback(() => {
@@ -33,11 +74,16 @@ export function usePicoBenchViewModel() {
   }, [console, device.selectedPort]);
 
   return {
+    // Hardware/Firmware SSOT Spec
+    ssot,
+    isSsotLoaded,
+
     // Device & Connection Subsystem
     deviceStatus: device.deviceStatus,
     availablePorts: device.availablePorts,
     selectedPort: device.selectedPort,
     setSelectedPort: device.setSelectedPort,
+    transportMode: device.transportMode,
     modelCatalog: device.modelCatalog,
     selectedModel: device.selectedModel,
     selectTargetModel: device.selectTargetModel,
@@ -47,6 +93,17 @@ export function usePicoBenchViewModel() {
     refreshStatus: device.pollDeviceStatus,
     isVoltageSafe: device.isVoltageSafe,
     isHardwareReady: device.isHardwareReady,
+
+    // Granular Pico Diagnostic Studio
+    diagnosticHistory: diagnostics.history,
+    latestDiagnostic: diagnostics.latestResult,
+    runningCommandId: diagnostics.runningCommandId,
+    isDiagnosticRunning: diagnostics.isExecuting,
+    diagnosticError: diagnostics.error,
+    diagnosticCategory: diagnostics.selectedCategory,
+    setDiagnosticCategory: diagnostics.setSelectedCategory,
+    executeDiagnostic: diagnostics.executeCommand,
+    clearDiagnosticHistory: diagnostics.clearHistory,
 
     // GDB Remote RSP Server Subsystem
     gdbStatus: gdb.gdbStatus,

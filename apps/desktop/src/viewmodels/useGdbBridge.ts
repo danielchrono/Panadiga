@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GdbBridgeStatus, Am34RegisterState } from '@/models';
+import { GdbBridgeStatus, Am34RegisterState, SerialLogEntry } from '@/models';
+import { GDB_DEFAULT_LISTEN_ADDR } from '@/constants';
 import { invokeCommand } from '@/services/ipc';
 import { logger } from '@/utils/logger';
 
 export interface UseGdbBridgeOptions {
   selectedPort: string;
-  onLog?: (level: 'info' | 'warn' | 'error' | 'success', source: 'HOST' | 'PICO', message: string) => void;
+  onLog?: (level: SerialLogEntry['level'], source: SerialLogEntry['source'], message: string) => void;
 }
 
 /**
@@ -48,7 +49,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     }
   }, []);
 
-  const startGdbServer = useCallback(async (listenAddr = '127.0.0.1:3333') => {
+  const startGdbServer = useCallback(async (listenAddr = GDB_DEFAULT_LISTEN_ADDR) => {
     setState({ status: 'starting', listenAddr });
     onLog?.('info', 'HOST', `Iniciando Servidor Ponte GDB RSP em ${listenAddr} (Porta: ${selectedPort})...`);
     try {
@@ -87,7 +88,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
   }, [onLog]);
 
   const launchTool = useCallback(
-    async (tool: 'gdb' | 'openocd' | 'ghidra' | 'hxd' | 'terminal') => {
+    async (tool: 'gdb' | 'ghidra' | 'hxd' | 'terminal') => {
       onLog?.('info', 'HOST', `Disparando ferramenta externa: ${tool.toUpperCase()}...`);
       try {
         const msg = await invokeCommand<string>('launch_external_tool_command', { tool });

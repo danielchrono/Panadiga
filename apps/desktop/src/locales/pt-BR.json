@@ -16,7 +16,7 @@
     "hdd": "Armazenamento HD",
     "hdd.sub": "Partições MEIHDFS & MBR",
     "picobench": "Bancada Pico",
-    "picobench.sub": "DWire32A & Servidor GDB",
+    "picobench.sub": "UART P7501 115200 8N1",
     "frmcrypto": "Cripto PANA_DVD",
     "frmcrypto.sub": "Dicionário ECB & Entropia",
     "manuals": "Manuais Técnicos",
@@ -37,8 +37,8 @@
     "metricFrm": "Entropia PANA_DVD.FRM",
     "metricFrmSub": "Cifra ECB Feistel 64-bits KPA",
     "metricFrmBadge": "3 CPUs TOC",
-    "metricDwire": "Interface DWire32A",
-    "metricDwireSub": "Mestre OCD Síncrono RP2040",
+    "metricDwire": "Interface UART P7501",
+    "metricDwireSub": "RP2040/RP2350 UART Assíncrona 115200 8N1",
     "metricDwireBadge": "3.28V LVTTL OK",
     "loading": "Carregando telemetria e integridade da bancada DMR-EH55..."
   },
@@ -156,7 +156,7 @@
     "bookmarks": "Marcadores Rápidos:"
   },
   "pico": {
-    "title": "Bancada Raspberry Pi Pico & DWire32A OCD Master",
+    "title": "Bancada Raspberry Pi Pico — P7501 UART (115200 8N1)",
     "port": "Porta Serial COM",
     "connect": "Conectar",
     "disconnect": "Desconectar",
@@ -175,7 +175,6 @@
     "gdbClientActive": "CLIENTE ATIVO",
     "extTools": "Ecossistema & Ferramentas Externas:",
     "launchGdb": "GDB Multiarch",
-    "launchOpenocd": "OpenOCD AM34",
     "launchGhidra": "Scripts Ghidra",
     "launchHxd": "HxD Editor",
     "launchTerminal": "PowerShell"
@@ -191,13 +190,13 @@
   },
   "manuals": {
     "header": {
-      "title": "Biblioteca Técnica & Esquemas Elétricos (15 Manuais em PDF)",
+      "title": "Biblioteca Técnica & Esquemas Elétricos (30 Manuais em PDF)",
       "badge": "INDEXAÇÃO LOCAL RÁPIDA",
       "subtitle": "Busca instantânea de CIs, conectores de teste, rotinas de auto-teste e códigos de erro de bancada",
       "size": "62.1 MB de Documentação Indexada"
     },
     "search": {
-      "placeholder": "Pesquisar por código (U99, S29JL064, CN55001, IC5001)...",
+      "placeholder": "Pesquisar por código (U99, S29JL064, P7501, IC5001)...",
       "emptyQuery": "Por favor, digite uma palavra-chave ou código de componente.",
       "button": "Pesquisar Manuais"
     },
@@ -244,7 +243,7 @@
     "emptyPrompt": "Faça qualquer pergunta técnica de hardware, firmware ou armazenamento. O motor RAG impede qualquer extrapolação."
   },
   "terminal": {
-    "title": "Monitor de Barramento DWire32A / Console CDC OCD",
+    "title": "Monitor UART P7501 & Console CDC",
     "events": "{{count}} eventos",
     "clear": "Limpar",
     "empty": "Nenhum evento registrado no canal serial. Aguardando atividade de barramento...",

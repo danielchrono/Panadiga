@@ -1,16 +1,84 @@
+# Default safe text auto-detection with LF normalization
 * text=auto eol=lf
+
+# Unix / POSIX shell scripts, Git hooks, Gradle wrapper & C/Firmware sources: strictly LF (no CR)
+*.sh text eol=lf
+.githooks/* text eol=lf
+gradlew text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.pio text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+# Cross-platform source, config & documentation: strictly LF
+*.rs text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.kt text eol=lf
+*.kts text eol=lf
+*.xml text eol=lf
+*.gradle text eol=lf
+*.properties text eol=lf
+*.pro text eol=lf
+
+# Windows-native scripts: CRLF required by cmd.exe / Windows PowerShell
 *.bat text eol=crlf
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
+
+# Bench UART logs / captures: preserve exact raw bytes (ASCII, Shift-JIS, UTF-16LE, CR/LF)
+*.log binary
+
+# Firmware dumps, compiled images, archives, fonts & media: strictly binary (zero EOL conversion)
 *.bin binary
 *.uf2 binary
 *.elf binary
+*.frm binary
 *.FRM binary
+*.img binary
+*.rom binary
+*.dat binary
+*.hex binary
+*.srec binary
+*.dis binary
+*.map binary
 *.png binary
 *.ico binary
+*.icns binary
 *.jpg binary
+*.jpeg binary
+*.jp2 binary
+*.webp binary
+*.gif binary
 *.pdf binary
 *.gz binary
 *.7z binary
 *.zip binary
+*.xz binary
+*.tar binary
 *.jar binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.a binary
+*.lib binary
+*.db binary
+*.sqlite binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary

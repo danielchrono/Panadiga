@@ -182,7 +182,23 @@ def load_msvc_env(base_env: Mapping[str, str]) -> dict[str, str]:
     if vcvars is None:
         return env
     probe_env = dict(env)
-    for sys_key in ("SystemRoot", "WINDIR", "ComSpec", "TEMP", "TMP"):
+    for sys_key in (
+        "SystemDrive",
+        "SystemRoot",
+        "WINDIR",
+        "ComSpec",
+        "TEMP",
+        "TMP",
+        "ProgramData",
+        "ALLUSERSPROFILE",
+        "ProgramFiles",
+        "ProgramFiles(x86)",
+        "CommonProgramFiles",
+        "CommonProgramFiles(x86)",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+    ):
         if sys_key not in probe_env and sys_key in os.environ:
             probe_env[sys_key] = os.environ[sys_key]
     sys_root = probe_env.get("SystemRoot") or r"C:\Windows"

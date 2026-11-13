@@ -55,62 +55,83 @@ pub struct ScanReport {
     pub matches: Vec<StringMatch>,
 }
 
-/// Scans a byte slice for ASCII strings and filters against target keywords.
-pub fn scan_data_strings(
+const SCAN_PARALLEL_CHUNK_BYTES: usize = 512 * 1024;
+
+const fn build_ascii_lut() -> [bool; 256] {
+    let mut lut = [false; 256];
+    let mut i = 0usize;
+    while i < 256 {
+        let b = i as u8;
+        lut[i] = b.is_ascii_alphanumeric() || matches!(b, b'_' | b'-' | b'.' | b'/' | b' ' | b':');
+        i += 1;
+    }
+    lut
+}
+
+const ASCII_STR_LUT: [bool; 256] = build_ascii_lut();
+
+#[inline]
+fn contains_ascii_ci(haystack: &[u8], needle_lower: &[u8]) -> bool {
+    if needle_lower.is_empty() {
+        return true;
+    }
+    if haystack.len() < needle_lower.len() {
+        return false;
+    }
+    haystack
+        .windows(needle_lower.len())
+        .any(|win| win.eq_ignore_ascii_case(needle_lower))
+}
+
+fn scan_data_chunk(
     data: &[u8],
+    base_offset: usize,
     min_length: usize,
-    keywords: &[String],
+    kw_lower: &[String],
     limit: usize,
 ) -> (usize, Vec<StringMatch>) {
     let mut matches = Vec::new();
-    let mut total_found = 0;
-    let mut current_start = None;
-
-    let kw_lower: Vec<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
+    let mut total_found = 0usize;
+    let mut current_start: Option<usize> = None;
 
     let evaluate_candidate =
         |start: usize, end: usize, total: &mut usize, acc: &mut Vec<StringMatch>| {
-            let len = end - start;
-            if len >= min_length {
+            if end - start < min_length {
+                return;
+            }
+            let slice = &data[start..end];
+            if let Ok(text) = std::str::from_utf8(slice) {
                 *total += 1;
-                let slice = &data[start..end];
-                if let Ok(text) = std::str::from_utf8(slice) {
-                    let text_lower = text.to_lowercase();
-                    let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
-
-                    if !kw_lower.is_empty() {
-                        if let Some(kw) = matched_kw
-                            && (limit == 0 || acc.len() < limit)
-                        {
-                            acc.push(StringMatch {
-                                offset: start,
-                                offset_hex: format!("0x{:08X}", start),
-                                text: text.to_string(),
-                                matched_keyword: Some(kw.clone()),
-                            });
-                        }
-                    } else if limit == 0 || acc.len() < limit {
-                        acc.push(StringMatch {
-                            offset: start,
-                            offset_hex: format!("0x{:08X}", start),
-                            text: text.to_string(),
-                            matched_keyword: None,
-                        });
-                    }
+                if limit != 0 && acc.len() >= limit {
+                    return;
+                }
+                if kw_lower.is_empty() {
+                    let abs_off = base_offset + start;
+                    acc.push(StringMatch {
+                        offset: abs_off,
+                        offset_hex: format!("0x{:08X}", abs_off),
+                        text: text.to_string(),
+                        matched_keyword: None,
+                    });
+                    return;
+                }
+                let matched_kw = kw_lower
+                    .iter()
+                    .find(|kw| kw.is_ascii() && contains_ascii_ci(slice, kw.as_bytes()));
+                if let Some(kw) = matched_kw {
+                    let abs_off = base_offset + start;
+                    acc.push(StringMatch {
+                        offset: abs_off,
+                        offset_hex: format!("0x{:08X}", abs_off),
+                        text: text.to_string(),
+                        matched_keyword: Some(kw.clone()),
+                    });
                 }
             }
         };
 
     for (i, &b) in data.iter().enumerate() {
-        let is_valid_char = b.is_ascii_alphanumeric()
-            || b == b'_'
-            || b == b'-'
-            || b == b'.'
-            || b == b'/'
-            || b == b' '
-            || b == b':';
-
-        if is_valid_char {
+        if ASCII_STR_LUT[b as usize] {
             if current_start.is_none() {
                 current_start = Some(i);
             }
@@ -120,11 +141,60 @@ pub fn scan_data_strings(
         }
     }
 
-    // Check tail
     if let Some(start) = current_start {
         evaluate_candidate(start, data.len(), &mut total_found, &mut matches);
     }
 
+    (total_found, matches)
+}
+
+/// Scans a byte slice for ASCII strings and filters against target keywords (parallelized above 512 KiB).
+pub fn scan_data_strings(
+    data: &[u8],
+    min_length: usize,
+    keywords: &[String],
+    limit: usize,
+) -> (usize, Vec<StringMatch>) {
+    use rayon::prelude::*;
+
+    let kw_lower: Vec<String> = keywords.iter().map(|k| k.to_lowercase()).collect();
+    if data.len() < SCAN_PARALLEL_CHUNK_BYTES * 2 {
+        return scan_data_chunk(data, 0, min_length, &kw_lower, limit);
+    }
+
+    // Partition cleanly at non-string delimiter bytes so runs are never split mid-string.
+    let mut bounds = Vec::with_capacity(data.len() / SCAN_PARALLEL_CHUNK_BYTES + 2);
+    bounds.push(0usize);
+    let mut pos = SCAN_PARALLEL_CHUNK_BYTES;
+    while pos < data.len() {
+        while pos < data.len() && ASCII_STR_LUT[data[pos] as usize] {
+            pos += 1;
+        }
+        if pos < data.len() {
+            bounds.push(pos);
+            pos += SCAN_PARALLEL_CHUNK_BYTES;
+        }
+    }
+    bounds.push(data.len());
+
+    let chunk_results: Vec<(usize, Vec<StringMatch>)> = bounds
+        .windows(2)
+        .collect::<Vec<_>>()
+        .into_par_iter()
+        .map(|w| scan_data_chunk(&data[w[0]..w[1]], w[0], min_length, &kw_lower, limit))
+        .collect();
+
+    let mut total_found = 0usize;
+    let mut matches = Vec::new();
+    for (sub_total, sub_matches) in chunk_results {
+        total_found += sub_total;
+        if limit == 0 {
+            matches.extend(sub_matches);
+        } else if matches.len() < limit {
+            let remaining = limit - matches.len();
+            matches.extend(sub_matches.into_iter().take(remaining));
+        }
+    }
     (total_found, matches)
 }
 

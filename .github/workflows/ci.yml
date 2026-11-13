@@ -55,11 +55,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pytest
 
-      - name: Execute Full 9 Commit Quality Gates
-        run: python scripts/validate.py
-
-      - name: Compile & Package Windows Distribution Archive
-        run: python scripts/build.py --desktop
+      - name: Execute Full 9 Commit Quality Gates & Windows Release Build
+        run: .\build.cmd --ci --desktop --strict-toolchains
 
       - name: Upload Windows Distribution Artifacts
         uses: actions/upload-artifact@v4
@@ -118,17 +115,13 @@ jobs:
         run: |
           cd apps/desktop
           npm ci
-          npm run typecheck
-          npm test
+          npm run check:ci
           npm run build
 
-      - name: Run Cargo Check & Clippy
+      - name: Run Cargo Clippy & Native Rust Workspace Tests
         run: |
-          cargo check --workspace --all-targets
-          cargo clippy --workspace --all-targets -- -D warnings || true
-
-      - name: Run Native Rust Workspace Tests
-        run: cargo test --workspace --verbose
+          cargo clippy --workspace --all-targets --no-deps -- -D warnings || true
+          cargo test --workspace --verbose
 
       - name: Compile Release Binaries
         run: cargo build --release -p panadiga-cli -p panadiga-desktop
@@ -163,10 +156,10 @@ jobs:
         with:
           lfs: true
 
-      - name: Install ARM Embedded Toolchain & Ninja
+      - name: Install ARM Embedded Toolchain, Ninja & CCache
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build ccache
 
       - name: Set up stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -174,46 +167,41 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Cache Pico C/C++ Compilation Objects (ccache)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-pico-${{ runner.os }}-${{ hashFiles('firmware/pico-p7501/**') }}
+          restore-keys: |
+            ccache-pico-${{ runner.os }}-
+
+      - name: Cache Raspberry Pi Pico SDK (2.1.1)
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pico-sdk
+          key: pico-sdk-2.1.1-${{ runner.os }}
+
       - name: Clone Raspberry Pi Pico SDK
         run: |
-          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
-          cd ${{ runner.temp }}/pico-sdk
-          git submodule update --init --depth 1
+          if [ ! -d "${{ runner.temp }}/pico-sdk/.git" ]; then
+            git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
+            cd ${{ runner.temp }}/pico-sdk
+            git submodule update --init --depth 1
+          fi
 
-      - name: Build Firmware for RP2040 (Raspberry Pi Pico / Pico W)
+      - name: Verify POSIX Launcher & Build Firmware in Parallel (RP2040 & RP2350)
         env:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
           CXXFLAGS: "-include cstdint"
         run: |
-          export CMAKE_POLICY_VERSION_MINIMUM=3.5
-          export CXXFLAGS="-include cstdint"
+          sh -n ./build.sh
+          ./build.sh --pico --strict-toolchains --no-cache
           mkdir -p target/pico-build/out
-          cmake -S firmware/pico-p7501 -B target/pico-build/pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build target/pico-build/pico --config Release
-          cp target/pico-build/pico/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
-          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
-
-      - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
-        env:
-          PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
-          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
-          CXXFLAGS: "-include cstdint"
-        run: |
-          export CMAKE_POLICY_VERSION_MINIMUM=3.5
-          export CXXFLAGS="-include cstdint"
-          cmake -S firmware/pico-p7501 -B target/pico-build/pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build target/pico-build/pico2 --config Release
-          cp target/pico-build/pico2/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
-          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
-
-      - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350) via Native Rust CLI
-        run: |
-          cargo run -p panadiga-cli -- pico merge-uf2 \
-            --rp2040 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 \
-            --rp2350 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2 \
-            --out target/pico-build/out/panasonic_p7501_uart_unified.uf2
-          sha256sum target/pico-build/out/panasonic_p7501_uart_unified.uf2
+          cp crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2040.uf2 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
+          cp crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_rp2350.uf2 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+          cp crates/panadiga-core/src/pico/firmware_bins/panasonic_p7501_uart_unified.uf2 target/pico-build/out/panasonic_p7501_uart_unified.uf2
+          sha256sum target/pico-build/out/*.uf2
 
       - name: Upload Compiled Firmware Artifacts (UF2)
         uses: actions/upload-artifact@v4
@@ -256,8 +244,16 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: aarch64-linux-android
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Prebuilt cargo-ndk
+        uses: taiki-e/install-action@cargo-ndk
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4

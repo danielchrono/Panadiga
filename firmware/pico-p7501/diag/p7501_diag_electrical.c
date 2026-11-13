@@ -9,7 +9,6 @@
 #include "hal/p7501_hw.h"
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
-#include "hardware/adc.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -149,20 +148,9 @@ void p7501_diag_cmd_pincheck(void) {
         printf("%-17s |  %d   |     %d     |    %d    | %s\n", names[i], hiz, pd, pu, state);
     }
 
-    p7501_hw_restore_sw_uart_adc0();
-    adc_select_input(P7501_ADC_CH_VDD);
-    gpio_disable_pulls(P7501_PIN_SW_UART_ADC);
-    sleep_us(300);
-    const float vdd_hiz = ((float)adc_read() * P7501_ADC_VREF) / P7501_ADC_RESOLUTION;
-
-    gpio_pull_down(P7501_PIN_SW_UART_ADC);
-    sleep_us(300);
-    const float vdd_pd = ((float)adc_read() * P7501_ADC_VREF) / P7501_ADC_RESOLUTION;
-
-    gpio_pull_up(P7501_PIN_SW_UART_ADC);
-    sleep_us(300);
-    const float vdd_pu = ((float)adc_read() * P7501_ADC_VREF) / P7501_ADC_RESOLUTION;
-    gpio_disable_pulls(P7501_PIN_SW_UART_ADC);
+    const float vdd_hiz = p7501_hw_sample_sw_uart_volts(false, false);
+    const float vdd_pd  = p7501_hw_sample_sw_uart_volts(true, false);
+    const float vdd_pu  = p7501_hw_sample_sw_uart_volts(false, true);
 
     printf("GP26(Pin1 SWUART) | %.2fV|   %.2fV   |  %.2fV  | P7501 SW_UART / Target Sense\n",
            vdd_hiz, vdd_pd, vdd_pu);

@@ -49,17 +49,26 @@ pub struct PureNvramCleanOutput {
     pub report: NvramCleanReport,
 }
 
-/// Computes MD5 and SHA-256 hashes of a byte slice.
+const PARALLEL_HASH_THRESHOLD_BYTES: usize = 64 * 1024;
+
+/// Computes MD5 and SHA-256 hashes of a byte slice (in parallel above 64 KiB).
 pub fn calculate_hashes(data: &[u8]) -> (String, String) {
-    let mut md5_hasher = Md5::new();
-    md5_hasher.update(data);
-    let md5_str = hex::encode(md5_hasher.finalize());
+    let compute_md5 = || {
+        let mut md5_hasher = Md5::new();
+        md5_hasher.update(data);
+        hex::encode(md5_hasher.finalize())
+    };
+    let compute_sha256 = || {
+        let mut sha_hasher = Sha256::new();
+        sha_hasher.update(data);
+        hex::encode(sha_hasher.finalize())
+    };
 
-    let mut sha_hasher = Sha256::new();
-    sha_hasher.update(data);
-    let sha256_str = hex::encode(sha_hasher.finalize());
-
-    (md5_str, sha256_str)
+    if data.len() >= PARALLEL_HASH_THRESHOLD_BYTES {
+        rayon::join(compute_md5, compute_sha256)
+    } else {
+        (compute_md5(), compute_sha256())
+    }
 }
 
 /// Shared helper computing NVRAM microsector breakdown and byte activity counts.

@@ -4,15 +4,20 @@
   "private": true,
   "scripts": {
     "start": "python scripts/build.py --run",
+    "tui": "python scripts/build.py --tui",
     "dev": "npm --prefix apps/desktop run dev",
     "cli": "python scripts/build.py --cli",
     "validate": "python scripts/validate.py",
     "test": "python scripts/validate.py",
+    "check:ui": "npm --prefix apps/desktop run check",
+    "check:ui:all": "npm --prefix apps/desktop run check:all",
     "build": "npm --prefix apps/desktop run build",
     "build:desktop": "python scripts/build.py --desktop",
     "build:android": "python scripts/build.py --android",
     "build:all": "python scripts/build.py --all",
+    "build:ci": "python scripts/build.py --all --ci",
     "build:pico": "python scripts/build.py --pico",
+    "cache:status": "python scripts/build.py --cache-status",
     "tauri": "npx @tauri-apps/cli"
   }
 }

@@ -239,6 +239,33 @@ fn parse_flash_mb(raw_output: &str) -> Option<u32> {
     None
 }
 
+fn parse_voltage_cell(cell: &str) -> Option<f32> {
+    cell.trim()
+        .trim_end_matches(['V', 'v'])
+        .trim()
+        .parse::<f32>()
+        .ok()
+        .filter(|v| v.is_finite())
+}
+
+/// Extracts P7501 Pin 1 (`SW_UART` / `GP26`) target rail voltage from structured `PINCHECK` rows,
+/// prioritizing the Pull-Down test (`< 1.50 V`) so floating/unplugged wires never report false HIGH.
+pub fn extract_pincheck_vdd(rows: &[PincheckRowDto]) -> Option<f32> {
+    let vdd_row = rows.iter().find(|r| {
+        r.pin_label.contains("SWUART")
+            || r.pin_label.contains("GP26")
+            || r.pin_label.contains("VDD")
+    })?;
+    let pd = parse_voltage_cell(&vdd_row.pull_down);
+    let hiz = parse_voltage_cell(&vdd_row.hiz);
+    if let Some(pd_val) = pd
+        && pd_val < 1.50
+    {
+        return Some(pd_val);
+    }
+    hiz.or(pd)
+}
+
 /// Pure structured parser converting raw Pico CLI output into typed diagnostic metrics.
 pub fn parse_diagnostic_output(
     command_id: &str,
@@ -267,7 +294,7 @@ pub fn parse_diagnostic_output(
     };
     let captured_bytes = parse_captured_bytes(raw_output);
     let detected_flash_mb = parse_flash_mb(raw_output);
-    let vdd_volts = parse_vdd_reply(raw_output).filter(|&v| v > 0.01);
+    let vdd_volts = parse_vdd_reply(raw_output).or_else(|| extract_pincheck_vdd(&pincheck_rows));
 
     let summary = if let Some(last_meaningful) = raw_output
         .lines()
@@ -326,6 +353,7 @@ pub fn execute_diagnostic_on_port(
         );
     }
 
+    let _io_guard = crate::pico::serial::lock_serial_io();
     ensure_serial_port_unlocked(&clean)?;
     let mut port = panadiga_core::pico::cdc::open_cdc(&clean, 115200, Duration::from_millis(4000))
         .map_err(|e| format!("Falha ao abrir porta '{}': {}", clean, e))?;
@@ -452,6 +480,7 @@ mod tests {
         assert!(pincheck.success);
         assert_eq!(pincheck.pincheck_rows.len(), 5);
         assert_eq!(pincheck.xreset_rise_us.as_deref(), Some("40 us"));
+        assert!((pincheck.vdd_volts.unwrap() - 3.28).abs() < 0.01);
 
         let dump =
             execute_diagnostic_on_port("MOCK_RP2040", "DUMP", Some("0x807F0000 16")).unwrap();
@@ -463,5 +492,15 @@ mod tests {
         assert!(sniff.success);
         assert_eq!(sniff.transition_rows.len(), 4);
         assert_eq!(sniff.transition_rows[2].transitions, 68);
+    }
+
+    #[test]
+    fn pincheck_vdd_rejects_floating_pulldown_even_when_hiz_is_high() {
+        let floating = "\
+=== P7501 6-PIN ELECTRICAL MATRIX (PINCHECK) ===
+GP26(Pin1 SWUART) | 3.21V|   0.00V   |  3.28V  | P7501 SW_UART / Target Sense
+PINCHECK: OK";
+        let res = parse_diagnostic_output("PINCHECK", "PINCHECK", floating, 40);
+        assert_eq!(res.vdd_volts, Some(0.0));
     }
 }

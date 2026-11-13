@@ -1,4 +1,4 @@
-"""Unified cross-platform build, packaging, Pico UF2, Android APK, and launch runner."""
+"""Unified cross-platform build DAG, CI pipeline, step cache, packaging, and TUI runner."""
 
 from __future__ import annotations
 
@@ -13,15 +13,31 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import argparse
+from concurrent.futures import FIRST_EXCEPTION, Future, ThreadPoolExecutor, wait
 import platform
 import shutil
 import subprocess
 import tarfile
+import threading
+import time
 import zipfile
 from pathlib import Path
-from typing import Final, Mapping, Sequence
+from typing import Any, Callable, Final, Mapping, Sequence
 
+from scripts.panadiga_cache import (
+    clear_caches,
+    copy_if_changed,
+    discover_pico_sdk,
+    discover_workspace_inventory,
+    frontend_digest_and_outputs,
+    ghidra_digest_and_outputs,
+    is_step_fresh,
+    optimize_build_env,
+    pico_digest_and_outputs,
+    record_step_cache,
+)
 from scripts.panadiga_ops import (
+    ProcessTracker,
     ROOT,
     TOOLS_PYCACHE_IGNORE,
     build_env,
@@ -35,7 +51,15 @@ from scripts.panadiga_ops import (
     resolve_executable,
     run_step,
     update_sha256_manifest,
+    use_process_tracker,
 )
+from scripts.tui import (
+    PipelineSelection,
+    default_all_selection,
+    launch_tui,
+    render_inventory_and_cache_report,
+)
+from scripts.validate import run_validation
 
 UF2_NAMES: Final[tuple[str, ...]] = (
     "panasonic_p7501_uart_rp2040.uf2",
@@ -50,6 +74,98 @@ STALE_DIST_ITEMS: Final[tuple[str, ...]] = (
     "firmware",
     "README.md",
 )
+
+
+_FLUSH_LOCK = threading.Lock()
+
+
+def _flush_output(text: str) -> None:
+    if text:
+        with _FLUSH_LOCK:
+            print(text, end="" if text.endswith("\n") else "\n", flush=True)
+
+
+def _run_concurrent_tasks(
+    tasks: Sequence[tuple[str, Callable[[], Any]]],
+) -> dict[str, Any]:
+    """Run independent callables concurrently with fail-fast child cancellation."""
+    if not tasks:
+        return {}
+    if len(tasks) == 1:
+        name, fn = tasks[0]
+        return {name: fn()}
+
+    tracker = ProcessTracker()
+
+    def _wrapped(fn: Callable[[], Any]) -> Any:
+        with use_process_tracker(tracker):
+            return fn()
+
+    results: dict[str, Any] = {}
+    with ThreadPoolExecutor(max_workers=len(tasks)) as pool:
+        fmap: dict[Future[Any], str] = {
+            pool.submit(_wrapped, fn): name for name, fn in tasks
+        }
+        pending: set[Future[Any]] = set(fmap)
+        try:
+            while pending:
+                done, pending = wait(pending, return_when=FIRST_EXCEPTION)
+                for fut in done:
+                    name = fmap[fut]
+                    try:
+                        results[name] = fut.result()
+                    except BaseException:
+                        for p in pending:
+                            p.cancel()
+                        tracker.terminate_all()
+                        raise
+        except KeyboardInterrupt:
+            for p in pending:
+                p.cancel()
+            tracker.terminate_all()
+            raise
+    return results
+
+
+def build_frontend(env: Mapping[str, str], *, use_cache: bool = True, capture_output: bool = False) -> bool:
+    """Build Desktop React/Vite bundle; returns True when satisfied from hash cache."""
+    digest, outputs = frontend_digest_and_outputs(ROOT)
+    if use_cache and is_step_fresh(ROOT, "frontend", digest, outputs):
+        if not capture_output:
+            print_status("CACHE", "Frontend Vite UI cache hit (apps/desktop/dist unchanged).", "36")
+        return True
+
+    out = run_step(
+        ["npm", "--prefix", "apps/desktop", "run", "build"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+    )
+    _flush_output(out)
+    record_step_cache(ROOT, "frontend", digest, outputs)
+    return False
+
+
+def export_ghidra_ssot(
+    cli_bin: Path,
+    env: Mapping[str, str],
+    *,
+    use_cache: bool = True,
+) -> bool:
+    """Export Ghidra Jython SSOT scripts; returns True when satisfied from cache."""
+    digest, outputs = ghidra_digest_and_outputs(ROOT)
+    if use_cache and is_step_fresh(ROOT, "ghidra", digest, outputs):
+        return True
+
+    out = run_step(
+        [str(cli_bin), "ghidra", "export-all", "--dir", "tools/ghidra"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+    )
+    _flush_output(out)
+    record_step_cache(ROOT, "ghidra", digest, outputs)
+    return False
 
 
 def _stage_tools_directory(dist_dir: Path) -> None:
@@ -115,12 +231,29 @@ def _copy_release_binary(bin_name: str, dist_dir: Path) -> Path:
     return dest_bin
 
 
-def build_desktop(env: Mapping[str, str]) -> Path:
-    """Compile frontend bundle, export Ghidra SSOT, build Rust release binaries, and stage dist/."""
-    print_banner("BUILD DESKTOP: Unified Panadiga Engine (React + Tauri + Rust CLI)")
-    run_step(["npm", "--prefix", "apps/desktop", "run", "build"], cwd=ROOT, env=env)
-    run_step(["cargo", "run", "-p", "panadiga-cli", "--", "ghidra", "export-all", "--dir", "tools/ghidra"], cwd=ROOT, env=env)
-    run_step(["cargo", "build", "--release", "-p", "panadiga-cli", "-p", "panadiga-desktop"], cwd=ROOT, env=env)
+def build_desktop(
+    env: Mapping[str, str],
+    *,
+    skip_frontend: bool = False,
+    use_cache: bool = True,
+    capture_output: bool = False,
+) -> Path:
+    """Build CLI & Desktop GUI together in one parallel Cargo DAG, export Ghidra SSOT, and stage dist/."""
+    print_banner("BUILD DESKTOP: Unified Parallel Cargo (CLI + Desktop GUI Release)")
+    if not skip_frontend:
+        build_frontend(env, use_cache=use_cache, capture_output=capture_output)
+
+    cargo_out = run_step(
+        ["cargo", "build", "--release", "-p", "panadiga-cli", "-p", "panadiga-desktop"],
+        cwd=ROOT,
+        env=env,
+        capture_output=capture_output,
+    )
+    _flush_output(cargo_out)
+
+    release_cli = ROOT / "target" / "release" / panadiga_binary_name()
+    if export_ghidra_ssot(release_cli, env, use_cache=use_cache):
+        print_status("CACHE", "Ghidra SSOT scripts unchanged (cache hit).", "36")
 
     dist_dir = ROOT / "dist"
     releases_dir = dist_dir / "releases"
@@ -273,12 +406,11 @@ def _ensure_signed_apk(
     run_step([str(apksigner), "verify", str(dest_apk)], cwd=ROOT, env=env)
 
 
-def build_android(base_env: Mapping[str, str]) -> Path:
-    """Compile, zipalign, and sign Android ARM64 APK directly from panadiga-desktop workspace."""
-    print_banner("BUILD ANDROID: Tauri 2 Mobile APK (AArch64)")
+def _prepare_android_env(base_env: Mapping[str, str]) -> tuple[dict[str, str], Path, Path, Path]:
     sdk_dir, ndk_dir = detect_android_sdk(base_env)
     env = dict(base_env)
     env["ANDROID_HOME"] = str(sdk_dir)
+    env.setdefault("CARGO_TARGET_DIR", str(ROOT / "target" / "android-cargo"))
     if ndk_dir is not None:
         env["NDK_HOME"] = str(ndk_dir)
         env["ANDROID_NDK_ROOT"] = str(ndk_dir)
@@ -289,13 +421,62 @@ def build_android(base_env: Mapping[str, str]) -> Path:
     props_lines = [f"sdk.dir={sdk_dir.as_posix()}"]
     if ndk_dir is not None:
         props_lines.append(f"ndk.dir={ndk_dir.as_posix()}")
-    (gen_android / "local.properties").write_text("\n".join(props_lines) + "\n", encoding="utf-8")
+    props_file = gen_android / "local.properties"
+    desired = "\n".join(props_lines) + "\n"
+    if not props_file.is_file() or props_file.read_text(encoding="utf-8", errors="ignore") != desired:
+        props_file.write_text(desired, encoding="utf-8")
+    return env, sdk_dir, desktop_dir, gen_android
 
-    run_step(["rustup", "target", "add", "aarch64-linux-android"], cwd=ROOT, env=env)
-    run_step(["npm", "--prefix", "apps/desktop", "run", "build"], cwd=ROOT, env=env)
+
+def _install_android_rust_target(env: Mapping[str, str]) -> None:
+    out = run_step(
+        ["rustup", "target", "add", "aarch64-linux-android"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+    )
+    _flush_output(out)
+
+
+def build_android(
+    base_env: Mapping[str, str],
+    *,
+    skip_frontend: bool = False,
+    skip_prep: bool = False,
+    use_cache: bool = True,
+    capture_output: bool = False,
+) -> Path:
+    """Compile, zipalign, and sign Android ARM64 APK directly from panadiga-desktop workspace."""
+    print_banner("BUILD ANDROID: Tauri 2 Mobile APK (AArch64)")
+    env, sdk_dir, desktop_dir, gen_android = _prepare_android_env(base_env)
+
+    prep_tasks: list[tuple[str, Callable[[], Any]]] = []
+    if not skip_prep:
+        prep_tasks.append(("rustup", lambda: _install_android_rust_target(env)))
+    if not skip_frontend:
+        prep_tasks.append(("frontend", lambda: build_frontend(env, use_cache=use_cache, capture_output=capture_output)))
+    _run_concurrent_tasks(prep_tasks)
+
     if not (gen_android / "app").is_dir():
-        run_step(["npx", "@tauri-apps/cli", "android", "init", "--ci", "--skip-targets-install"], cwd=desktop_dir, env=env)
-    run_step(["npx", "@tauri-apps/cli", "android", "build", "--apk", "--target", "aarch64"], cwd=desktop_dir, env=env)
+        init_out = run_step(
+            ["npx", "@tauri-apps/cli", "android", "init", "--ci", "--skip-targets-install"],
+            cwd=desktop_dir,
+            env=env,
+            capture_output=capture_output,
+        )
+        _flush_output(init_out)
+
+    android_cmd = ["npx", "@tauri-apps/cli", "android", "build", "--apk", "--target", "aarch64"]
+    if skip_frontend:
+        skip_cfg = ROOT / "target" / ".panadiga-cache" / "tauri.skip_frontend.json"
+        skip_cfg.parent.mkdir(parents=True, exist_ok=True)
+        desired_cfg = '{"build":{"beforeBuildCommand":""}}\n'
+        if not skip_cfg.is_file() or skip_cfg.read_text(encoding="utf-8", errors="ignore") != desired_cfg:
+            skip_cfg.write_text(desired_cfg, encoding="utf-8")
+        android_cmd.extend(["--config", str(skip_cfg)])
+
+    build_out = run_step(android_cmd, cwd=desktop_dir, env=env, capture_output=capture_output)
+    _flush_output(build_out)
 
     apk_root = gen_android / "app" / "build" / "outputs" / "apk"
     apk_candidates = sorted(apk_root.rglob("*.apk"))
@@ -319,105 +500,148 @@ def build_android(base_env: Mapping[str, str]) -> Path:
 
 def _prepare_pico_env(base_env: Mapping[str, str]) -> dict[str, str]:
     """Augment build environment with MSVC host env, Pico SDK, and ARM embedded toolchain."""
-    pico_env = load_msvc_env(base_env)
+    pico_env, _ = optimize_build_env(load_msvc_env(base_env), root=ROOT, use_cache=True)
     pico_env.setdefault("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
-
     if not pico_env.get("PICO_SDK_PATH"):
-        sdk_candidates = [
-            Path(r"C:\Program Files\Raspberry Pi\Pico SDK v2.0.0\pico-sdk"),
-            Path(r"C:\Program Files\Raspberry Pi\Pico SDK v1.5.1\pico-sdk"),
-            Path(r"C:\pico\pico-sdk"),
-            Path(r"C:\pico-sdk"),
-            Path.home() / "pico-sdk",
-            Path.home() / ".pico-sdk" / "sdk" / "2.0.0",
-            Path.home() / ".pico-sdk" / "sdk" / "1.5.1",
-            ROOT / "pico-sdk",
-        ]
-        for cand in sdk_candidates:
-            if cand.is_dir():
-                pico_env["PICO_SDK_PATH"] = str(cand.resolve())
-                break
-
-    if sys.platform == "win32" and not shutil.which("arm-none-eabi-gcc", path=pico_env.get("PATH")):
-        for root_dir in (
-            Path(r"C:\Program Files (x86)\Arm GNU Toolchain arm-none-eabi"),
-            Path(r"C:\Program Files\Arm GNU Toolchain arm-none-eabi"),
-        ):
-            if root_dir.is_dir():
-                bins = sorted(root_dir.glob("*/bin"), reverse=True)
-                for b in bins:
-                    if (b / "arm-none-eabi-gcc.exe").is_file():
-                        pico_env["PATH"] = f"{b}{os.pathsep}{pico_env.get('PATH', '')}"
-                        break
-
-    if sys.platform == "win32":
-        extra_dirs: list[Path] = []
-        vs_cmake_base = Path(
-            r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\IDE\CommonExtensions\Microsoft\CMake"
-        )
-        if not shutil.which("cmake", path=pico_env.get("PATH")):
-            extra_dirs.append(vs_cmake_base / "CMake" / "bin")
-        if not shutil.which("ninja", path=pico_env.get("PATH")):
-            extra_dirs.append(vs_cmake_base / "Ninja")
-        for d in extra_dirs:
-            if d.is_dir():
-                pico_env["PATH"] = f"{d}{os.pathsep}{pico_env.get('PATH', '')}"
+        sdk = discover_pico_sdk(ROOT, pico_env)
+        if sdk is not None:
+            pico_env["PICO_SDK_PATH"] = str(sdk)
     return pico_env
 
 
-def build_pico(env: Mapping[str, str]) -> None:
-    """Compile RP2040 + RP2350 + Unified UF2 Pico firmware out-of-tree and sync firmware_bins/."""
-    print_banner("BUILD PICO: P7501 Async UART RP2040 + RP2350 + Unified UF2")
+def _build_single_pico_board(
+    board: str,
+    fw_dir: Path,
+    build_root: Path,
+    pico_env: Mapping[str, str],
+) -> tuple[str, Path, str]:
+    """Configure and compile one Pico board target cleanly out-of-tree."""
+    bdir = build_root / board
+    cmake_cmd = [
+        "cmake",
+        "-S",
+        str(fw_dir),
+        "-B",
+        str(bdir),
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Release",
+        f"-DPICO_BOARD={board}",
+        "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
+    ]
+    ccache_bin = pico_env.get("PANADIGA_CCACHE")
+    if ccache_bin:
+        cmake_cmd.extend(
+            [
+                f"-DCMAKE_C_COMPILER_LAUNCHER={ccache_bin}",
+                f"-DCMAKE_CXX_COMPILER_LAUNCHER={ccache_bin}",
+            ]
+        )
+
+    log_a = run_step(cmake_cmd, cwd=ROOT, env=pico_env, capture_output=True)
+    log_b = run_step(
+        ["cmake", "--build", str(bdir), "--config", "Release", "--parallel"],
+        cwd=ROOT,
+        env=pico_env,
+        capture_output=True,
+    )
+    built_uf2 = bdir / "panasonic_p7501_uart.uf2"
+    if not built_uf2.is_file():
+        raise FileNotFoundError(f"Expected compiled UF2 missing: {built_uf2}")
+    return board, built_uf2, f"{log_a}{log_b}"
+
+
+def _compile_pico_boards_parallel(pico_env: Mapping[str, str]) -> tuple[Path, Path]:
+    """Build RP2040 and RP2350 CMake/Ninja targets simultaneously."""
     fw_dir = ROOT / "firmware" / "pico-p7501"
+    build_root = ROOT / "target" / "pico-build"
+    results = _run_concurrent_tasks(
+        [
+            ("pico", lambda: _build_single_pico_board("pico", fw_dir, build_root, pico_env)),
+            ("pico2", lambda: _build_single_pico_board("pico2", fw_dir, build_root, pico_env)),
+        ]
+    )
+    rp2040_uf2 = Path(results["pico"][1])
+    rp2350_uf2 = Path(results["pico2"][1])
+    for key in ("pico", "pico2"):
+        logs = str(results[key][2])
+        if logs:
+            _flush_output(f"[{key.upper()}]\n{logs}")
+    return rp2040_uf2, rp2350_uf2
+
+
+def _merge_and_sync_pico_uf2(
+    rp2040_uf2: Path,
+    rp2350_uf2: Path,
+    pico_env: Mapping[str, str],
+    digest: str,
+    outputs: Sequence[Path],
+    *,
+    prefer_release_merge: bool = False,
+) -> None:
+    """Merge dual UF2s and sync firmware_bins/ only where SHA-256 changed."""
     build_root = ROOT / "target" / "pico-build"
     dest_dir = ROOT / "crates" / "panadiga-core" / "src" / "pico" / "firmware_bins"
     dest_dir.mkdir(parents=True, exist_ok=True)
-    pico_env = _prepare_pico_env(env)
+    staged_unified = build_root / "panasonic_p7501_uart_unified.uf2"
 
-    for board, out_name in (("pico", "panasonic_p7501_uart_rp2040.uf2"), ("pico2", "panasonic_p7501_uart_rp2350.uf2")):
-        bdir = build_root / board
-        run_step(
-            [
-                "cmake",
-                "-S",
-                str(fw_dir),
-                "-B",
-                str(bdir),
-                "-G",
-                "Ninja",
-                "-DCMAKE_BUILD_TYPE=Release",
-                f"-DPICO_BOARD={board}",
-                "-DCMAKE_POLICY_VERSION_MINIMUM=3.5",
-            ],
-            cwd=ROOT,
-            env=pico_env,
-        )
-        run_step(["cmake", "--build", str(bdir), "--config", "Release"], cwd=ROOT, env=pico_env)
-        built_uf2 = bdir / "panasonic_p7501_uart.uf2"
-        if not built_uf2.is_file():
-            raise FileNotFoundError(f"Expected compiled UF2 missing: {built_uf2}")
-        shutil.copy2(built_uf2, dest_dir / out_name)
+    existing_cli = locate_panadiga_binary()
+    if existing_cli is not None:
+        merge_cmd: list[str] = [str(existing_cli)]
+    elif prefer_release_merge:
+        merge_cmd = ["cargo", "run", "--release", "-p", "panadiga-cli", "--"]
+    else:
+        merge_cmd = ["cargo", "run", "-p", "panadiga-cli", "--"]
 
     run_step(
         [
-            "cargo",
-            "run",
-            "-p",
-            "panadiga-cli",
-            "--",
+            *merge_cmd,
             "pico",
             "merge-uf2",
             "--rp2040",
-            str(dest_dir / "panasonic_p7501_uart_rp2040.uf2"),
+            str(rp2040_uf2),
             "--rp2350",
-            str(dest_dir / "panasonic_p7501_uart_rp2350.uf2"),
+            str(rp2350_uf2),
             "--out",
-            str(dest_dir / "panasonic_p7501_uart_unified.uf2"),
+            str(staged_unified),
         ],
         cwd=ROOT,
         env=pico_env,
     )
-    print_status("OK", f"Synced UF2 binaries into {dest_dir}", "32")
+    changed_rp2040 = copy_if_changed(rp2040_uf2, dest_dir / "panasonic_p7501_uart_rp2040.uf2")
+    changed_rp2350 = copy_if_changed(rp2350_uf2, dest_dir / "panasonic_p7501_uart_rp2350.uf2")
+    changed_unified = copy_if_changed(staged_unified, dest_dir / "panasonic_p7501_uart_unified.uf2")
+    record_step_cache(ROOT, "pico", digest, outputs)
+    if changed_rp2040 or changed_rp2350 or changed_unified:
+        print_status("OK", f"Synced updated UF2 binaries into {dest_dir}", "32")
+    else:
+        print_status("CACHE", "Rebuilt UF2 bytes identical to firmware_bins/ (zero-touch skip).", "36")
+
+
+def build_pico(
+    env: Mapping[str, str],
+    *,
+    prefer_release_merge: bool = False,
+    use_cache: bool = True,
+) -> bool:
+    """Compile RP2040 + RP2350 Pico firmwares in parallel, merge UF2, and sync firmware_bins/."""
+    print_banner("BUILD PICO: Parallel RP2040 + RP2350 + Unified UF2")
+    pico_env = _prepare_pico_env(env)
+    digest, outputs = pico_digest_and_outputs(ROOT, pico_env)
+    if use_cache and is_step_fresh(ROOT, "pico", digest, outputs):
+        print_status("CACHE", "Pico firmware UF2 cache hit (firmware_bins unchanged).", "36")
+        return True
+
+    rp2040_uf2, rp2350_uf2 = _compile_pico_boards_parallel(pico_env)
+    _merge_and_sync_pico_uf2(
+        rp2040_uf2,
+        rp2350_uf2,
+        pico_env,
+        digest,
+        outputs,
+        prefer_release_merge=prefer_release_merge,
+    )
+    return False
 
 
 def launch_gui(env: Mapping[str, str], rebuild: bool = False) -> None:
@@ -445,12 +669,159 @@ def run_cli(cli_args: Sequence[str], env: Mapping[str, str]) -> int:
     return proc.returncode
 
 
+def run_build_pipeline(
+    selection: PipelineSelection,
+    base_env: Mapping[str, str],
+    *,
+    strict_toolchains: bool = False,
+) -> list[tuple[str, str, float]]:
+    """Execute dependency-aware build & CI DAG: parallel when independent, serial at locks."""
+    total_start = time.monotonic()
+    env, accel = optimize_build_env(base_env, root=ROOT, use_cache=selection.use_cache)
+    accel_desc = ", ".join(f"{k}={v}" for k, v in accel.items())
+    print_banner(f"PANADIGA PIPELINE DAG | {accel_desc}")
+
+    summary: list[tuple[str, str, float]] = []
+    need_frontend = selection.frontend or selection.desktop or selection.android
+    pico_env = _prepare_pico_env(env) if selection.pico else env
+    pico_digest = ""
+    pico_outputs: tuple[Path, ...] = ()
+    pico_cached = False
+    run_pico = False
+    if selection.pico:
+        has_arm = bool(shutil.which("arm-none-eabi-gcc", path=pico_env.get("PATH"))) and bool(
+            pico_env.get("PICO_SDK_PATH")
+        )
+        if not has_arm:
+            if strict_toolchains:
+                raise FileNotFoundError("arm-none-eabi-gcc or PICO_SDK_PATH missing for --pico build.")
+            print_status("INFO", "Pico toolchain/SDK absent; skipping RP2040/RP2350 firmware rebuild.", "33")
+            summary.append(("Pico Firmware", "SKIP", 0.0))
+        else:
+            pico_digest, pico_outputs = pico_digest_and_outputs(ROOT, pico_env)
+            if selection.use_cache and is_step_fresh(ROOT, "pico", pico_digest, pico_outputs):
+                print_status("CACHE", "Pico firmware UF2 cache hit (firmware_bins unchanged).", "36")
+                summary.append(("Pico Firmware", "CACHE HIT", 0.0))
+                pico_cached = True
+            else:
+                run_pico = True
+
+    run_android = False
+    if selection.android:
+        try:
+            _prepare_android_env(env)
+            run_android = True
+        except FileNotFoundError as exc:
+            if strict_toolchains:
+                raise
+            print_status("INFO", f"{exc} Skipping Android APK.", "33")
+            summary.append(("Android APK", "SKIP", 0.0))
+
+    # Wave 1: Parallel independent build & preparation tasks.
+    wave1_tasks: list[tuple[str, Callable[[], Any]]] = []
+    wave1_t0 = time.monotonic()
+    if need_frontend:
+        wave1_tasks.append(
+            (
+                "frontend",
+                lambda: build_frontend(env, use_cache=selection.use_cache, capture_output=True),
+            )
+        )
+    if run_pico and not pico_cached:
+        wave1_tasks.append(("pico_boards", lambda: _compile_pico_boards_parallel(pico_env)))
+    if run_android:
+        wave1_tasks.append(("android_prep", lambda: _install_android_rust_target(env)))
+
+    if wave1_tasks:
+        w1 = _run_concurrent_tasks(wave1_tasks)
+        w1_dt = time.monotonic() - wave1_t0
+        if "frontend" in w1:
+            fe_hit = bool(w1["frontend"])
+            summary.append(("Frontend Vite UI", "CACHE HIT" if fe_hit else "BUILT", w1_dt))
+        if "pico_boards" in w1:
+            t_merge = time.monotonic()
+            rp2040_uf2, rp2350_uf2 = w1["pico_boards"]
+            _merge_and_sync_pico_uf2(
+                rp2040_uf2,
+                rp2350_uf2,
+                pico_env,
+                pico_digest,
+                pico_outputs,
+                prefer_release_merge=True,
+            )
+            summary.append(("Pico UF2 Dual+Merge", "BUILT", (time.monotonic() - wave1_t0)))
+            _ = t_merge
+
+    # Wave 2: Parallel 9-gate CI validation (after UF2/frontend sync, before heavy release/APK).
+    if selection.ci:
+        ci_dt = run_validation(env)
+        gh_digest, gh_outs = ghidra_digest_and_outputs(ROOT)
+        record_step_cache(ROOT, "ghidra", gh_digest, gh_outs)
+        summary.append(("CI 9 Quality Gates", "PASS", ci_dt))
+
+    # Wave 3: Compile Desktop Release (CLI+GUI unified Cargo DAG) and Android APK in parallel!
+    wave3_tasks: list[tuple[str, Callable[[], Any]]] = []
+    both_native = selection.desktop and run_android
+    wave3_t0 = time.monotonic()
+
+    def _run_desktop_lane() -> tuple[str, Path, float]:
+        dt0 = time.monotonic()
+        out = build_desktop(
+            env,
+            skip_frontend=True,
+            use_cache=selection.use_cache,
+            capture_output=both_native,
+        )
+        return ("Desktop Release + dist/", out, time.monotonic() - dt0)
+
+    def _run_android_lane() -> tuple[str, Path, float]:
+        dt0 = time.monotonic()
+        out = build_android(
+            env,
+            skip_frontend=True,
+            skip_prep=True,
+            use_cache=selection.use_cache,
+            capture_output=both_native,
+        )
+        return ("Android ARM64 APK", out, time.monotonic() - dt0)
+
+    if selection.desktop:
+        wave3_tasks.append(("desktop", _run_desktop_lane))
+    if run_android:
+        wave3_tasks.append(("android", _run_android_lane))
+
+    if wave3_tasks:
+        w3 = _run_concurrent_tasks(wave3_tasks)
+        for key in ("desktop", "android"):
+            if key in w3:
+                lbl, _, lane_dt = w3[key]
+                summary.append((lbl, "BUILT", lane_dt))
+        _ = wave3_t0
+
+    total_dt = time.monotonic() - total_start
+    print_banner(f"PANADIGA PIPELINE COMPLETE (Elapsed: {total_dt:.1f}s)", ansi_color="32")
+    for label, status, dt in summary:
+        print_status(status, f"{label:<26} ({dt:.2f}s)", "32" if status != "SKIP" else "33")
+
+    if selection.run_after and selection.desktop:
+        launch_gui(env, rebuild=False)
+    return summary
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Panadiga unified build, packaging, and launcher pipeline.")
+    parser = argparse.ArgumentParser(description="Panadiga unified build, CI, cache, and TUI orchestrator.")
+    parser.add_argument("--tui", action="store_true", help="Launch interactive TUI menu to choose targets, CI, and cache.")
+    parser.add_argument("--ci", action="store_true", help="Execute 9 parallel Quality Gates in the pipeline.")
+    parser.add_argument("--frontend", action="store_true", help="Build only the React/Vite desktop UI bundle.")
     parser.add_argument("--desktop", action="store_true", help="Build Desktop release binary, staging dist/ and release archive.")
     parser.add_argument("--android", action="store_true", help="Build Android ARM64 APK via Tauri Mobile.")
     parser.add_argument("--pico", action="store_true", help="Build RP2040, RP2350, and unified Pico UF2 firmwares.")
-    parser.add_argument("--all", action="store_true", help="Build Desktop and Android (plus Pico when ARM GCC exists).")
+    parser.add_argument("--all", action="store_true", help="Build Pico (if toolchain exists), Desktop, and Android (if SDK/NDK exists).")
+    parser.add_argument("--no-cache", action="store_true", help="Disable Panadiga hash cache and force rebuild of selected steps.")
+    parser.add_argument("--cache-status", action="store_true", help="Print recursive workspace discovery, toolchains, and cache sizes.")
+    parser.add_argument("--clean-cache", action="store_true", help="Clear Panadiga step/pico/vite caches.")
+    parser.add_argument("--clean-all-caches", action="store_true", help="Clear all caches including Cargo target/debug and target/release.")
+    parser.add_argument("--strict-toolchains", action="store_true", help="Fail instead of skipping if Pico/Android toolchains are absent in --all.")
     parser.add_argument("--run", action="store_true", help="Launch Desktop GUI (auto-builds if missing).")
     parser.add_argument("--rebuild-run", action="store_true", help="Force rebuild Desktop release and launch GUI.")
     parser.add_argument("--cli", nargs=argparse.REMAINDER, help="Forward remaining arguments to the native Panadiga CLI.")
@@ -458,38 +829,73 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch build/run/cli actions according to CLI flags."""
+    """Dispatch build/CI/cache/TUI/run actions according to CLI flags."""
     args = parse_args(argv)
-    env = build_env()
+    base_env = build_env()
+    use_cache = not args.no_cache
+    env, _ = optimize_build_env(base_env, root=ROOT, use_cache=use_cache)
 
     try:
+        if args.clean_all_caches or args.clean_cache:
+            removed = clear_caches(ROOT, include_cargo=bool(args.clean_all_caches))
+            print_status("OK", f"Cleared {len(removed)} cache directories.", "32")
+            if not any((args.tui, args.ci, args.frontend, args.desktop, args.pico, args.android, args.all)):
+                return 0
+
+        if args.cache_status:
+            inv = discover_workspace_inventory(ROOT, env)
+            print(render_inventory_and_cache_report(ROOT, inv, env))
+            return 0
+
+        if args.tui:
+            inv = discover_workspace_inventory(ROOT, env)
+            chosen = launch_tui(inv, env)
+            if chosen is None:
+                return 0
+            run_build_pipeline(chosen, env, strict_toolchains=args.strict_toolchains)
+            return 0
+
         if args.cli is not None:
             return run_cli(args.cli, env)
         if args.rebuild_run:
             launch_gui(env, rebuild=True)
             return 0
-        if args.run:
+        if args.run and not any((args.ci, args.desktop, args.pico, args.android, args.all, args.frontend)):
             launch_gui(env, rebuild=False)
             return 0
+
         if args.all:
-            if shutil.which("arm-none-eabi-gcc", path=env.get("PATH")):
-                build_pico(env)
-            build_desktop(env)
-            build_android(env)
-            return 0
-        if args.pico:
-            build_pico(env)
-            if not args.desktop and not args.android:
-                return 0
-        if args.android and not args.desktop:
-            build_android(env)
+            sel = PipelineSelection(
+                ci=bool(args.ci),
+                frontend=True,
+                pico=True,
+                desktop=True,
+                android=True,
+                use_cache=use_cache,
+                run_after=bool(args.run),
+            )
+            run_build_pipeline(sel, env, strict_toolchains=args.strict_toolchains)
             return 0
 
-        build_desktop(env)
-        if args.android:
-            build_android(env)
+        explicit = any((args.ci, args.frontend, args.desktop, args.pico, args.android))
+        sel = PipelineSelection(
+            ci=bool(args.ci),
+            frontend=bool(args.frontend),
+            pico=bool(args.pico),
+            desktop=bool(args.desktop) or not explicit,
+            android=bool(args.android),
+            use_cache=use_cache,
+            run_after=bool(args.run),
+        )
+        run_build_pipeline(sel, env, strict_toolchains=True)
         return 0
     except (subprocess.CalledProcessError, FileNotFoundError, RuntimeError) as exc:
+        if isinstance(exc, subprocess.CalledProcessError):
+            raw_diag: object = exc.output if exc.output else (exc.stdout if exc.stdout else exc.stderr)
+            if isinstance(raw_diag, bytes):
+                _flush_output(raw_diag.decode("utf-8", errors="replace").strip())
+            elif isinstance(raw_diag, str) and raw_diag.strip():
+                _flush_output(raw_diag.strip())
         print_status("FAIL", f"Build pipeline failed: {exc}", "31")
         return 1
 

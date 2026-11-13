@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { PicoDiagnosticResult } from '@/models';
 import { PICO_MIN_VDD_THRESHOLD_VOLTS } from '@/constants';
 import { isTargetPowered } from '@/utils/formatters';
@@ -15,7 +15,12 @@ import { useSerialConsole } from './useSerialConsole';
  */
 export function usePicoBenchViewModel() {
   const { ssot, isLoaded: isSsotLoaded } = useHardwareSsot();
-  const console = useSerialConsole();
+  const telemetryRef = useRef<((result: PicoDiagnosticResult) => void) | undefined>(undefined);
+  const console = useSerialConsole({
+    onCommandTelemetry: useCallback((result: PicoDiagnosticResult) => {
+      telemetryRef.current?.(result);
+    }, []),
+  });
 
   const device = usePicoDevice({
     onLog: console.addLog,
@@ -48,6 +53,7 @@ export function usePicoBenchViewModel() {
     },
     [setDeviceStatus]
   );
+  telemetryRef.current = handleDiagnosticTelemetry;
 
   const diagnostics = usePicoDiagnostics({
     selectedPort: device.selectedPort,

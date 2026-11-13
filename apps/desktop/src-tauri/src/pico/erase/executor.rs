@@ -11,21 +11,15 @@ use super::backup::{
 };
 use super::parser::parse_autodetected_nvram_base;
 use crate::pico::serial::read_serial_response_complete;
-use crate::pico::types::{InCircuitNvramEraseResult, extract_port_name};
+use crate::pico::types::InCircuitNvramEraseResult;
 
 pub(crate) fn query_port_vdd(port: &mut dyn serialport::SerialPort) -> f32 {
     let _ = port.write_all(b"STATUS\r\n");
     let _ = port.flush();
-    if let Ok(resp) = read_serial_response_complete(port, Duration::from_millis(600)) {
-        for token in resp.split_whitespace() {
-            if let Ok(v) = token
-                .trim_end_matches('V')
-                .trim_end_matches('v')
-                .parse::<f32>()
-            {
-                return v;
-            }
-        }
+    if let Ok(resp) = read_serial_response_complete(port, Duration::from_millis(600))
+        && let Some(v) = panadiga_core::pico::cdc::parse_vdd_reply(&resp)
+    {
+        return v;
     }
     3.30
 }
@@ -39,11 +33,7 @@ pub fn pico_execute_in_circuit_erase_full(
     port_name: String,
 ) -> Result<InCircuitNvramEraseResult, String> {
     let start_ts = Instant::now();
-    let clean = extract_port_name(&port_name);
-
-    crate::pico::types::reject_mock_port(&clean)?;
-
-    let (mut port, hs_out) = open_and_handshake_p7501(&clean)?;
+    let (_io_guard, mut port, hs_out) = open_and_handshake_p7501(&port_name)?;
     let voltage_before = query_port_vdd(&mut *port);
     let nvram_base_hex = parse_autodetected_nvram_base(&hs_out);
     let mut log_lines = vec![format!("[HANDSHAKE] {}", hs_out)];

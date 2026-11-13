@@ -36,7 +36,10 @@ void p7501_hw_sw_uart_set_low(bool assert_low);
 /** Restore GP26 cleanly from SIO digital mode back to High-Z ADC0 without sticky OE latch. */
 void p7501_hw_restore_sw_uart_adc0(void);
 
-/** Sample Pin 1 (SW_UART / GP26) voltage via ADC0 with active pull-down check. */
+/** Sample Pin 1 (SW_UART / GP26) voltage via ADC0 with selectable internal pull state. */
+float p7501_hw_sample_sw_uart_volts(bool pull_down, bool pull_up);
+
+/** Sample Pin 1 (SW_UART / GP26) voltage via ADC0 with active pull-down discrimination + Hi-Z read. */
 float p7501_hw_read_vdd(void);
 
 /** Check whether P7501 Pin 1 voltage exceeds P7501_VDD_THRESHOLD_V (2.5V). */

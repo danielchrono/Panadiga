@@ -65,6 +65,15 @@ typedef enum p7501_adc_channel p7501_adc_channel_t;
 #define P7501_VDD_THRESHOLD_V        2.5f
 
 /**
+ * @brief Pull-down discrimination floor on GP26 (ADC0).
+ *
+ * Connected P7501 Pin 1 clamps around 2.68-2.70 V under RP2 internal pull-down
+ * (~50 kOhm against Q7510/R7562/R7559), while a floating or unpowered wire drops
+ * below 1.50 V (~0.00 V).
+ */
+#define P7501_VDD_PULLDOWN_PRESENT_V 1.50f
+
+/**
  * @brief Upper sanity boundary for SW_UART ADC0 sense (3.3V VREF domain).
  *
  * Floating-pin discrimination inside p7501_hw_read_vdd() engages internal

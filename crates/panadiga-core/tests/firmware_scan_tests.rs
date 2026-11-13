@@ -106,3 +106,36 @@ fn test_manuals_search_pdf() {
     let r = &res[0];
     assert!(r.file_name.contains("eh55"));
 }
+
+#[test]
+fn test_scan_strings_parallel_boundary_and_limit() {
+    // 1.5 MiB buffer exceeds the 1 MiB parallel split threshold; place one keyword
+    // right across the 512 KiB (0x80000) chunk boundary plus additional hits after.
+    let mut blob = vec![0u8; 1536 * 1024];
+    let boundary_offset = 0x80000 - 4;
+    let boundary_text = b"PANASONIC_BOUNDARY_HIT";
+    blob[boundary_offset..boundary_offset + boundary_text.len()].copy_from_slice(boundary_text);
+
+    let second_offset = 0x100200;
+    let second_text = b"DIGA_SECOND_MATCH";
+    blob[second_offset..second_offset + second_text.len()].copy_from_slice(second_text);
+
+    let third_offset = 0x160400;
+    let third_text = b"PANASONIC_THIRD_HIT";
+    blob[third_offset..third_offset + third_text.len()].copy_from_slice(third_text);
+
+    let kws = vec!["panasonic".to_string(), "diga".to_string()];
+    let (total_all, all_hits) = scan_data_strings(&blob, 6, &kws, 0);
+    assert_eq!(total_all, 3);
+    assert_eq!(all_hits.len(), 3);
+    assert_eq!(all_hits[0].offset, boundary_offset);
+    assert_eq!(all_hits[0].text, "PANASONIC_BOUNDARY_HIT");
+    assert_eq!(all_hits[1].offset, second_offset);
+    assert_eq!(all_hits[2].offset, third_offset);
+
+    let (total_limited, limited_hits) = scan_data_strings(&blob, 6, &kws, 2);
+    assert_eq!(total_limited, 3);
+    assert_eq!(limited_hits.len(), 2);
+    assert_eq!(limited_hits[0].offset, boundary_offset);
+    assert_eq!(limited_hits[1].offset, second_offset);
+}

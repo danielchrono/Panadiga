@@ -2431,6 +2431,7 @@ dependencies = [
  "lopdf",
  "md-5 0.10.6",
  "memmap2",
+ "rayon",
  "serde",
  "serde_json",
  "serialport",
@@ -2473,6 +2474,7 @@ version = "0.1.0"
 dependencies = [
  "lopdf",
  "panadiga-core",
+ "rayon",
  "regex",
  "serde",
  "serde_json",

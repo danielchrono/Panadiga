@@ -26,18 +26,45 @@ impl Deref for ImageBuffer {
     }
 }
 
-/// Shannon entropy calculator (0.0000 to 8.0000 bits/byte).
+const ENTROPY_PARALLEL_CHUNK_BYTES: usize = 256 * 1024;
+
+/// Shannon entropy calculator (0.0000 to 8.0000 bits/byte), sharded in parallel for large slices.
 pub fn calculate_entropy(data: &[u8]) -> f64 {
+    use rayon::prelude::*;
+
     if data.is_empty() {
         return 0.0;
     }
-    let mut counts = [0usize; 256];
-    for &b in data {
-        counts[b as usize] += 1;
-    }
+    let counts = if data.len() >= ENTROPY_PARALLEL_CHUNK_BYTES * 2 {
+        data.par_chunks(ENTROPY_PARALLEL_CHUNK_BYTES)
+            .fold(
+                || [0usize; 256],
+                |mut local, chunk| {
+                    for &b in chunk {
+                        local[b as usize] += 1;
+                    }
+                    local
+                },
+            )
+            .reduce(
+                || [0usize; 256],
+                |mut acc, local| {
+                    for (dst, src) in acc.iter_mut().zip(local) {
+                        *dst += src;
+                    }
+                    acc
+                },
+            )
+    } else {
+        let mut local = [0usize; 256];
+        for &b in data {
+            local[b as usize] += 1;
+        }
+        local
+    };
     let total = data.len() as f64;
     let mut entropy = 0.0;
-    for &c in &counts {
+    for c in counts {
         if c > 0 {
             let p = c as f64 / total;
             entropy -= p * p.log2();

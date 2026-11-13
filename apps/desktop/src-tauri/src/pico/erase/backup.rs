@@ -18,11 +18,21 @@ pub(crate) fn sha256_hex(data: &[u8]) -> String {
 }
 
 pub(crate) fn open_and_handshake_p7501(
-    clean_port: &str,
-) -> Result<(Box<dyn serialport::SerialPort>, String), String> {
-    ensure_serial_port_unlocked(clean_port)?;
+    port_name: &str,
+) -> Result<
+    (
+        std::sync::MutexGuard<'static, ()>,
+        Box<dyn serialport::SerialPort>,
+        String,
+    ),
+    String,
+> {
+    let clean_port = extract_port_name(port_name);
+    crate::pico::types::reject_mock_port(&clean_port)?;
+    let io_guard = crate::pico::serial::lock_serial_io();
+    ensure_serial_port_unlocked(&clean_port)?;
     let mut port =
-        panadiga_core::pico::cdc::open_cdc(clean_port, 115200, Duration::from_millis(10000))
+        panadiga_core::pico::cdc::open_cdc(&clean_port, 115200, Duration::from_millis(10000))
             .map_err(|e| format!("Falha ao conectar na porta serial {}: {}", clean_port, e))?;
 
     port.write_all(b"HANDSHAKE\r\n")
@@ -35,7 +45,7 @@ pub(crate) fn open_and_handshake_p7501(
             hs_out.trim()
         ));
     }
-    Ok((port, hs_out))
+    Ok((io_guard, port, hs_out))
 }
 
 pub(crate) fn dump_p7501_region_bytes(
@@ -90,11 +100,7 @@ pub(crate) fn is_uniform_bus_pattern(data: &[u8]) -> bool {
 pub fn pico_execute_first_contact_backup(
     port_name: String,
 ) -> Result<FirstContactBackupResult, String> {
-    let clean = extract_port_name(&port_name);
-
-    crate::pico::types::reject_mock_port(&clean)?;
-
-    let (mut port, hs_out) = open_and_handshake_p7501(&clean)?;
+    let (_io_guard, mut port, hs_out) = open_and_handshake_p7501(&port_name)?;
     let nvram_base_hex = parse_autodetected_nvram_base(&hs_out);
     let mut log_lines = vec![hs_out];
 

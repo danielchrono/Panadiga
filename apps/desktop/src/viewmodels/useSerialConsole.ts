@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import type { ReactiveSerialEvent, SerialLogEntry } from '@/models';
+import type { PicoDiagnosticResult, ReactiveSerialEvent, SerialLogEntry } from '@/models';
 import { invokeCommand, isTauriEnvironment, listenEvent } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
 import { sendAndroidUsbOtgCommand } from '@/services/androidBridge';
@@ -16,13 +16,27 @@ export type SerialConsoleState =
 export interface UseSerialConsoleOptions {
   selectedPort?: string;
   initialLogs?: SerialLogEntry[];
+  onCommandTelemetry?: (result: PicoDiagnosticResult) => void;
 }
+
+const TELEMETRY_RELEVANT_VERBS = new Set([
+  'STATUS',
+  'VDD',
+  'PINCHECK',
+  'HANDSHAKE',
+  'ISOLATE',
+  'HIZ',
+]);
 
 /**
  * Single Responsibility: Manages interactive serial CDC / BLE / USB-OTG console logs
  * and reactive `pico://serial-log` streaming events.
  */
-export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialConsoleOptions = {}) {
+export function useSerialConsole({
+  selectedPort,
+  initialLogs = [],
+  onCommandTelemetry,
+}: UseSerialConsoleOptions = {}) {
   const [logs, setLogs] = useState<SerialLogEntry[]>(initialLogs);
   const [commandInput, setCommandInput] = useState<string>('');
   const [consoleState, setConsoleState] = useState<SerialConsoleState>({ status: 'idle' });
@@ -88,6 +102,22 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
     };
   }, []);
 
+  const emitConsoleEffects = useCallback(
+    (cmd: string, reply: string, transportTag: string, targetPort: string) => {
+      if (cmd.startsWith('DUMP')) {
+        void ingestP7501DumpOutput(reply, transportTag, targetPort).catch(() => {});
+      }
+      const verb = cmd.split(/\s+/)[0] || cmd;
+      if (onCommandTelemetry && TELEMETRY_RELEVANT_VERBS.has(verb)) {
+        const parsed = parseDiagnosticOutput(verb, cmd, reply, 0);
+        if (parsed.vdd_volts !== null && parsed.vdd_volts !== undefined) {
+          onCommandTelemetry(parsed);
+        }
+      }
+    },
+    [onCommandTelemetry]
+  );
+
   const sendCommand = useCallback(
     async (overridePort?: string) => {
       if (!commandInput.trim()) return;
@@ -101,8 +131,8 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
         try {
           const res = sendAndroidUsbOtgCommand(cmd, 4000);
           addLog(res.ok ? 'rx' : 'error', 'PICO', res.output);
-          if (res.ok && cmd.startsWith('DUMP')) {
-            void ingestP7501DumpOutput(res.output, 'ANDROID_USB_OTG', targetPort).catch(() => {});
+          if (res.ok) {
+            emitConsoleEffects(cmd, res.output, 'ANDROID_USB_OTG', targetPort);
           }
         } catch (err) {
           addLog('error', 'HOST', `Erro USB-OTG: ${err instanceof Error ? err.message : String(err)}`);
@@ -117,7 +147,7 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
           if (cmd.startsWith('DUMP')) {
             const reply = await bleService.sendAndAwaitReply(cmd, 5000);
             addLog('rx', 'PICO', reply);
-            void ingestP7501DumpOutput(reply, 'BLE_NUS', targetPort || 'BLE_PICO_W').catch(() => {});
+            emitConsoleEffects(cmd, reply, 'BLE_NUS', targetPort || 'BLE_PICO_W');
           } else {
             await bleService.send(cmd);
           }
@@ -149,9 +179,7 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
         });
         const source = cmd === 'RESET' ? 'TARGET' : 'PICO';
         addLog('rx', source, response);
-        if (cmd.startsWith('DUMP')) {
-          void ingestP7501DumpOutput(response, 'USB_CDC', targetPort).catch(() => {});
-        }
+        emitConsoleEffects(cmd, response, 'USB_CDC', targetPort);
       } catch (err) {
         addLog(
           'error',
@@ -162,7 +190,7 @@ export function useSerialConsole({ selectedPort, initialLogs = [] }: UseSerialCo
         setConsoleState({ status: 'idle' });
       }
     },
-    [commandInput, selectedPort, addLog]
+    [commandInput, selectedPort, addLog, emitConsoleEffects]
   );
 
   const clearLogs = useCallback(() => {

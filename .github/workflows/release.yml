@@ -81,11 +81,11 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libayatana-appindicator3-dev librsvg2-dev libudev-dev pkg-config
 
       - name: Install Node Dependencies & Build Frontend
+        shell: bash
         run: |
           cd apps/desktop
           npm ci
-          npm run typecheck
-          npm test
+          npm run check:ci
           npm run build
 
       - name: Run Rust Workspace Tests
@@ -121,7 +121,11 @@ jobs:
           }
           Copy-Item "LICENSE" -Destination "$staging\LICENSE"
           
-          Compress-Archive -Path "$staging\*" -DestinationPath "${{ matrix.platform.archive_name }}" -CompressionLevel Optimal
+          if (Get-Command 7z -ErrorAction SilentlyContinue) {
+              7z a -tzip -mx=5 "${{ matrix.platform.archive_name }}" ".\$staging\*"
+          } else {
+              Compress-Archive -Path "$staging\*" -DestinationPath "${{ matrix.platform.archive_name }}" -CompressionLevel Optimal
+          }
           Get-FileHash -Algorithm SHA256 "${{ matrix.platform.archive_name }}" | Out-File -FilePath "${{ matrix.platform.archive_name }}.sha256"
 
       - name: Package Unix Artifacts (Linux / macOS)
@@ -214,37 +218,39 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Cache Raspberry Pi Pico SDK (2.1.1)
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/pico-sdk
+          key: pico-sdk-2.1.1-${{ runner.os }}
+
       - name: Clone Raspberry Pi Pico SDK
         run: |
-          git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
-          cd ${{ runner.temp }}/pico-sdk
-          git submodule update --init --depth 1
+          if [ ! -d "${{ runner.temp }}/pico-sdk/.git" ]; then
+            git clone --depth 1 --branch 2.1.1 https://github.com/raspberrypi/pico-sdk.git ${{ runner.temp }}/pico-sdk
+            cd ${{ runner.temp }}/pico-sdk
+            git submodule update --init --depth 1
+          fi
 
-      - name: Build Firmware for RP2040 (Raspberry Pi Pico / Pico W)
+      - name: Build Firmware in Parallel (RP2040 & RP2350)
         env:
           PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
           CMAKE_POLICY_VERSION_MINIMUM: "3.5"
           CXXFLAGS: "-include cstdint"
         run: |
-          export CMAKE_POLICY_VERSION_MINIMUM=3.5
-          export CXXFLAGS="-include cstdint"
           mkdir -p target/pico-build/out
-          cmake -S firmware/pico-p7501 -B target/pico-build/pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build target/pico-build/pico --config Release
+          (
+            cmake -S firmware/pico-p7501 -B target/pico-build/pico -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            cmake --build target/pico-build/pico --config Release --parallel
+          ) & p_rp2040=$!
+          (
+            cmake -S firmware/pico-p7501 -B target/pico-build/pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+            cmake --build target/pico-build/pico2 --config Release --parallel
+          ) & p_rp2350=$!
+          wait "$p_rp2040" && wait "$p_rp2350"
           cp target/pico-build/pico/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2040.uf2
-          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 > target/pico-build/out/panasonic_p7501_uart_rp2040.uf2.sha256
-
-      - name: Build Firmware for RP2350 (Raspberry Pi Pico 2 ARM Cortex-M33)
-        env:
-          PICO_SDK_PATH: ${{ runner.temp }}/pico-sdk
-          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
-          CXXFLAGS: "-include cstdint"
-        run: |
-          export CMAKE_POLICY_VERSION_MINIMUM=3.5
-          export CXXFLAGS="-include cstdint"
-          cmake -S firmware/pico-p7501 -B target/pico-build/pico2 -G Ninja -DCMAKE_BUILD_TYPE=Release -DPICO_BOARD=pico2 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-          cmake --build target/pico-build/pico2 --config Release
           cp target/pico-build/pico2/panasonic_p7501_uart.uf2 target/pico-build/out/panasonic_p7501_uart_rp2350.uf2
+          sha256sum target/pico-build/out/panasonic_p7501_uart_rp2040.uf2 > target/pico-build/out/panasonic_p7501_uart_rp2040.uf2.sha256
           sha256sum target/pico-build/out/panasonic_p7501_uart_rp2350.uf2 > target/pico-build/out/panasonic_p7501_uart_rp2350.uf2.sha256
 
       - name: Merge Unified Multi-Family UF2 (RP2040 + RP2350) via Native Rust CLI
@@ -308,8 +314,16 @@ jobs:
         with:
           targets: aarch64-linux-android
 
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: aarch64-linux-android
+
+      - name: Setup Gradle Cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Prebuilt cargo-ndk
+        uses: taiki-e/install-action@cargo-ndk
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4

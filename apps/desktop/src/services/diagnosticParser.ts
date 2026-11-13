@@ -144,10 +144,19 @@ export function parseDiagnosticOutput(
 
   const directVdd = parseVddVolts(rawOutput);
   const vddRow = pinData.rows.find(
-    r => r.pin_label.includes('SWUART') || r.pin_label.includes('VDD'),
+    r => r.pin_label.includes('SWUART') || r.pin_label.includes('GP26') || r.pin_label.includes('VDD'),
   );
-  const pinVddParsed = vddRow ? parseFloat(vddRow.hiz) : NaN;
-  const vddVolts = directVdd ?? (Number.isFinite(pinVddParsed) ? pinVddParsed : null);
+  const pinPdParsed = vddRow ? Number.parseFloat(vddRow.pull_down) : NaN;
+  const pinHizParsed = vddRow ? Number.parseFloat(vddRow.hiz) : NaN;
+  let pinVddParsed: number | null = null;
+  if (Number.isFinite(pinPdParsed) && pinPdParsed < 1.5) {
+    pinVddParsed = pinPdParsed;
+  } else if (Number.isFinite(pinHizParsed)) {
+    pinVddParsed = pinHizParsed;
+  } else if (Number.isFinite(pinPdParsed)) {
+    pinVddParsed = pinPdParsed;
+  }
+  const vddVolts = directVdd ?? pinVddParsed;
 
   return {
     command_id: norm,

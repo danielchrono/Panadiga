@@ -107,3 +107,21 @@ pub struct CodebookReport {
     pub is_ecb_leak_confirmed: bool,
     pub cross_medium_key_identity_proven: bool,
 }
+
+/// Decrypted 48-byte (`0x30`) `"Firm list"` TOC entry inside `PANA_DVD.FRM`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DecryptedFrmTocEntry {
+    pub index: usize,
+    pub entry_offset_hex: String,
+    pub module_name: String,
+    pub version_u16_hex: String,
+    pub module_offset: u32,
+    pub module_size: u32,
+    pub hardware_family: String,
+    pub target_flag: u8,
+    pub model_group: String,
+    pub fvu_checksum_u32: u32,
+    pub list_sum_u16: u16,
+    pub calculated_list_sum_u16: u16,
+    pub list_sum_valid: bool,
+}

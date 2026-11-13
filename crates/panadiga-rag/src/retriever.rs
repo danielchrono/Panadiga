@@ -1,6 +1,6 @@
 //! Hybrid retriever combining BM25, TF-IDF vector ranking, and entity-specific boosting.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use super::config::{DEFAULT_TOP_K, RRF_K};
 use super::indexer::{HierarchicalIndexer, technical_tokenize};
@@ -8,6 +8,20 @@ use super::models::{Query, RetrievalResult};
 
 pub struct HybridRetriever<'a> {
     pub indexer: &'a HierarchicalIndexer,
+}
+
+fn dense_ranks(scores: &[f64]) -> Vec<usize> {
+    let mut ranked: Vec<usize> = (0..scores.len()).collect();
+    ranked.sort_unstable_by(|&a, &b| {
+        scores[b]
+            .partial_cmp(&scores[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut ranks = vec![usize::MAX; scores.len()];
+    for (rank, &doc_idx) in ranked.iter().enumerate() {
+        ranks[doc_idx] = rank;
+    }
+    ranks
 }
 
 impl<'a> HybridRetriever<'a> {
@@ -26,34 +40,13 @@ impl<'a> HybridRetriever<'a> {
             return Vec::new();
         }
 
-        let bm25_scores = self.indexer.bm25.score(&tokens);
-        let vector_scores = self.indexer.vector.score(&tokens);
+        let (bm25_scores, vector_scores) = rayon::join(
+            || self.indexer.bm25.score(&tokens),
+            || self.indexer.vector.score(&tokens),
+        );
 
-        let mut bm25_ranked: Vec<usize> = (0..chunks.len()).collect();
-        bm25_ranked.sort_by(|&a, &b| {
-            bm25_scores[b]
-                .partial_cmp(&bm25_scores[a])
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        let mut vector_ranked: Vec<usize> = (0..chunks.len()).collect();
-        vector_ranked.sort_by(|&a, &b| {
-            vector_scores[b]
-                .partial_cmp(&vector_scores[a])
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
-
-        let bm25_ranks: HashMap<usize, usize> = bm25_ranked
-            .into_iter()
-            .enumerate()
-            .map(|(rank, doc_idx)| (doc_idx, rank))
-            .collect();
-
-        let vector_ranks: HashMap<usize, usize> = vector_ranked
-            .into_iter()
-            .enumerate()
-            .map(|(rank, doc_idx)| (doc_idx, rank))
-            .collect();
+        let (bm25_ranks, vector_ranks) =
+            rayon::join(|| dense_ranks(&bm25_scores), || dense_ranks(&vector_scores));
 
         let query_entity_names: HashSet<String> = query
             .extracted_entities
@@ -72,8 +65,8 @@ impl<'a> HybridRetriever<'a> {
                 continue;
             }
 
-            let r_bm = *bm25_ranks.get(&idx).unwrap_or(&usize::MAX);
-            let r_vec = *vector_ranks.get(&idx).unwrap_or(&usize::MAX);
+            let r_bm = bm25_ranks[idx];
+            let r_vec = vector_ranks[idx];
 
             let bm_comp = if lex > 0.0 {
                 1.0 / (RRF_K as f64 + r_bm as f64 + 1.0)
@@ -91,17 +84,19 @@ impl<'a> HybridRetriever<'a> {
 
             // Exact entity boost (+0.10 for direct hardware entity match)
             let mut boost = 0.0;
-            let chunk_upper = chunk.text.to_uppercase();
-            let chunk_entities: HashSet<String> = chunk
-                .metadata
-                .extracted_entities
-                .iter()
-                .map(|e| e.name.to_uppercase())
-                .collect();
+            if !query_entity_names.is_empty() {
+                let chunk_upper = chunk.text.to_uppercase();
+                let chunk_entities: HashSet<String> = chunk
+                    .metadata
+                    .extracted_entities
+                    .iter()
+                    .map(|e| e.name.to_uppercase())
+                    .collect();
 
-            for ent_name in &query_entity_names {
-                if chunk_entities.contains(ent_name) || chunk_upper.contains(ent_name) {
-                    boost += 0.10;
+                for ent_name in &query_entity_names {
+                    if chunk_entities.contains(ent_name) || chunk_upper.contains(ent_name) {
+                        boost += 0.10;
+                    }
                 }
             }
 

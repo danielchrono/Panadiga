@@ -1,5 +1,6 @@
 //! Okapi BM25 lexical scoring index over tokenized technical chunks.
 
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 use super::super::config::{BM25_B, BM25_K1};
@@ -36,27 +37,36 @@ impl BM25Index {
         }
     }
 
-    pub fn fit(&mut self, tokenized_docs: &[Vec<String>]) {
+    pub fn fit<T: AsRef<[String]> + Sync>(&mut self, tokenized_docs: &[T]) {
         self.corpus_size = tokenized_docs.len();
+        self.doc_lens.clear();
+        self.term_freqs.clear();
+        self.doc_freqs.clear();
+        self.idf.clear();
+
         if self.corpus_size == 0 {
             return;
         }
 
-        let mut total_len = 0;
-        self.doc_lens.clear();
-        self.term_freqs.clear();
-        self.doc_freqs.clear();
+        let per_doc: Vec<(usize, HashMap<String, usize>)> = tokenized_docs
+            .par_iter()
+            .map(|entry| {
+                let doc = entry.as_ref();
+                let mut counts = HashMap::with_capacity(doc.len());
+                for term in doc {
+                    *counts.entry(term.clone()).or_insert(0) += 1;
+                }
+                (doc.len(), counts)
+            })
+            .collect();
 
-        for doc in tokenized_docs {
-            let d_len = doc.len();
-            self.doc_lens.push(d_len);
+        let mut total_len = 0usize;
+        self.doc_lens.reserve(self.corpus_size);
+        self.term_freqs.reserve(self.corpus_size);
+
+        for (d_len, counts) in per_doc {
             total_len += d_len;
-
-            let mut counts = HashMap::new();
-            for term in doc {
-                *counts.entry(term.clone()).or_insert(0) += 1;
-            }
-
+            self.doc_lens.push(d_len);
             for term in counts.keys() {
                 *self.doc_freqs.entry(term.clone()).or_insert(0) += 1;
             }
@@ -65,9 +75,9 @@ impl BM25Index {
 
         self.avg_doc_len = (total_len as f64 / self.corpus_size as f64).max(1.0);
 
-        self.idf.clear();
+        let n = self.corpus_size as f64;
+        self.idf.reserve(self.doc_freqs.len());
         for (term, freq) in &self.doc_freqs {
-            let n = self.corpus_size as f64;
             let f = *freq as f64;
             let val = ((n - f + 0.5) / (f + 0.5) + 1.0).ln();
             self.idf.insert(term.clone(), val.max(0.01));
@@ -79,22 +89,35 @@ impl BM25Index {
             return vec![0.0; self.corpus_size];
         }
 
-        let mut scores = vec![0.0; self.corpus_size];
-        for term in query_tokens {
-            if let Some(&idf_val) = self.idf.get(term) {
-                for (idx, score) in scores.iter_mut().enumerate().take(self.corpus_size) {
-                    let tf = *self.term_freqs[idx].get(term).unwrap_or(&0) as f64;
-                    if tf == 0.0 {
-                        continue;
-                    }
-                    let d_len = self.doc_lens[idx] as f64;
-                    let denom = tf + self.k1 * (1.0 - self.b + self.b * (d_len / self.avg_doc_len));
-                    let term_score = idf_val * ((tf * (self.k1 + 1.0)) / denom);
-                    *score += term_score;
-                }
-            }
+        let query_idf: Vec<(&String, f64)> = query_tokens
+            .iter()
+            .filter_map(|t| self.idf.get(t).map(|&idf_val| (t, idf_val)))
+            .collect();
+        if query_idf.is_empty() {
+            return vec![0.0; self.corpus_size];
         }
 
-        scores
+        let score_doc = |idx: usize| -> f64 {
+            let tf_map = &self.term_freqs[idx];
+            let d_len = self.doc_lens[idx] as f64;
+            let base_norm = self.k1 * (1.0 - self.b + self.b * (d_len / self.avg_doc_len));
+            let mut doc_score = 0.0;
+            for &(term, idf_val) in &query_idf {
+                let tf = *tf_map.get(term).unwrap_or(&0) as f64;
+                if tf > 0.0 {
+                    doc_score += idf_val * ((tf * (self.k1 + 1.0)) / (tf + base_norm));
+                }
+            }
+            doc_score
+        };
+
+        if self.corpus_size >= 128 {
+            (0..self.corpus_size)
+                .into_par_iter()
+                .map(score_doc)
+                .collect()
+        } else {
+            (0..self.corpus_size).map(score_doc).collect()
+        }
     }
 }

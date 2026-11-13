@@ -8,19 +8,44 @@ use crate::constants::*;
 use crate::hdd::calculate_entropy;
 use crate::nvram::calculate_hashes;
 
-/// Analyzes 64-bit (8-byte) block frequencies in an aligned byte slice.
-pub fn analyze_8byte_frequencies(data: &[u8], top_n: usize) -> Vec<BlockFrequency> {
-    let mut counts: HashMap<[u8; CIPHER_BLOCK_SIZE], usize> = HashMap::new();
-    let num_blocks = data.len() / CIPHER_BLOCK_SIZE;
+use rayon::prelude::*;
 
-    for i in 0..num_blocks {
-        let start = i * CIPHER_BLOCK_SIZE;
-        let mut blk = [0u8; CIPHER_BLOCK_SIZE];
-        blk.copy_from_slice(&data[start..start + CIPHER_BLOCK_SIZE]);
-        *counts.entry(blk).or_insert(0) += 1;
+const BLOCK_COUNT_PARALLEL_CHUNK_BLOCKS: usize = 32 * 1024;
+
+/// Counts aligned 64-bit cipher blocks in parallel across cores for large buffers.
+fn count_8byte_blocks(data: &[u8]) -> HashMap<[u8; CIPHER_BLOCK_SIZE], usize> {
+    let (blocks, _) = data.as_chunks::<CIPHER_BLOCK_SIZE>();
+
+    if blocks.len() >= BLOCK_COUNT_PARALLEL_CHUNK_BLOCKS * 2 {
+        blocks
+            .par_chunks(BLOCK_COUNT_PARALLEL_CHUNK_BLOCKS)
+            .fold(HashMap::new, |mut local, chunk| {
+                for &blk in chunk {
+                    *local.entry(blk).or_insert(0) += 1;
+                }
+                local
+            })
+            .reduce(HashMap::new, |mut acc, local| {
+                for (k, v) in local {
+                    *acc.entry(k).or_insert(0) += v;
+                }
+                acc
+            })
+    } else {
+        let mut counts = HashMap::new();
+        for &blk in blocks {
+            *counts.entry(blk).or_insert(0) += 1;
+        }
+        counts
     }
+}
 
-    let mut sorted: Vec<([u8; CIPHER_BLOCK_SIZE], usize)> = counts.into_iter().collect();
+fn rank_top_blocks(
+    counts: &HashMap<[u8; CIPHER_BLOCK_SIZE], usize>,
+    top_n: usize,
+) -> Vec<BlockFrequency> {
+    let mut sorted: Vec<([u8; CIPHER_BLOCK_SIZE], usize)> =
+        counts.iter().map(|(&k, &v)| (k, v)).collect();
     sorted.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     sorted
@@ -50,6 +75,12 @@ pub fn analyze_8byte_frequencies(data: &[u8], top_n: usize) -> Vec<BlockFrequenc
         .collect()
 }
 
+/// Analyzes 64-bit (8-byte) block frequencies in an aligned byte slice.
+pub fn analyze_8byte_frequencies(data: &[u8], top_n: usize) -> Vec<BlockFrequency> {
+    let counts = count_8byte_blocks(data);
+    rank_top_blocks(&counts, top_n)
+}
+
 /// Pure Functional Transformation: Executes cryptographic analysis on an in-memory FRM slice
 /// and cross-references with an optional HDD slice without performing any disk I/O.
 pub fn analyze_frm_slices(
@@ -60,26 +91,19 @@ pub fn analyze_frm_slices(
     top_n: usize,
 ) -> CryptanalysisReport {
     let file_size = frm_slice.len();
-    let global_entropy = calculate_entropy(frm_slice);
-    let (md5_str, sha256_str) = calculate_hashes(frm_slice);
+    let ((global_entropy, (md5_str, sha256_str)), (all_blocks_map, toc_analysis)) = rayon::join(
+        || {
+            rayon::join(
+                || calculate_entropy(frm_slice),
+                || calculate_hashes(frm_slice),
+            )
+        },
+        || rayon::join(|| count_8byte_blocks(frm_slice), || analyze_toc(frm_slice)),
+    );
 
-    // 1. Frequency Analysis of 64-bit blocks
-    let top_blocks = analyze_8byte_frequencies(frm_slice, top_n);
+    let top_blocks = rank_top_blocks(&all_blocks_map, top_n);
 
-    // Build fast lookup map for all blocks
-    let mut all_blocks_map: HashMap<[u8; CIPHER_BLOCK_SIZE], usize> = HashMap::new();
-    let num_blocks = file_size / CIPHER_BLOCK_SIZE;
-    for i in 0..num_blocks {
-        let start = i * CIPHER_BLOCK_SIZE;
-        let mut blk = [0u8; CIPHER_BLOCK_SIZE];
-        blk.copy_from_slice(&frm_slice[start..start + CIPHER_BLOCK_SIZE]);
-        *all_blocks_map.entry(blk).or_insert(0) += 1;
-    }
-
-    // 2. TOC Descriptors Analysis
-    let toc_analysis = analyze_toc(frm_slice);
-
-    // 3. Cross-reference with HDD Image
+    // Cross-reference with HDD Image
     let mut hdd_correlations = Vec::new();
     if let Some(hdd_data) = hdd_slice {
         hdd_correlations = correlate_hdd_partitions(Some(hdd_data), &all_blocks_map);

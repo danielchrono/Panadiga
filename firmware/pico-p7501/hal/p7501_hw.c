@@ -102,14 +102,21 @@ void p7501_hw_sw_uart_set_low(bool assert_low) {
     }
 }
 
-float p7501_hw_read_vdd(void) {
+float p7501_hw_sample_sw_uart_volts(bool pull_down, bool pull_up) {
     p7501_hw_restore_sw_uart_adc0();
     adc_select_input(P7501_ADC_CH_VDD);
 
-    /* Brief pull-down discriminates an open floating pin (~0V) from a connected P7501 (~2.68V via Q7510) */
-    gpio_pull_down(P7501_PIN_SW_UART_ADC);
+    if (pull_down) {
+        gpio_pull_down(P7501_PIN_SW_UART_ADC);
+    } else if (pull_up) {
+        gpio_pull_up(P7501_PIN_SW_UART_ADC);
+    } else {
+        gpio_disable_pulls(P7501_PIN_SW_UART_ADC);
+    }
     sleep_us(P7501_ADC_PULLDOWN_SETTLE_US);
 
+    /* Discard first conversion after mux/pull switch before averaging */
+    (void)adc_read();
     uint32_t accumulator = 0U;
     for (uint8_t i = 0U; i < P7501_ADC_SAMPLE_COUNT; ++i) {
         accumulator += (uint32_t)adc_read();
@@ -118,6 +125,16 @@ float p7501_hw_read_vdd(void) {
     gpio_disable_pulls(P7501_PIN_SW_UART_ADC);
     const float averaged = (float)accumulator / (float)P7501_ADC_SAMPLE_COUNT;
     return (averaged * P7501_ADC_VREF) / P7501_ADC_RESOLUTION;
+}
+
+float p7501_hw_read_vdd(void) {
+    /* Brief pull-down discriminates an open floating pin (~0V) from a connected P7501 (~2.68V via Q7510) */
+    const float v_pd = p7501_hw_sample_sw_uart_volts(true, false);
+    if (v_pd < P7501_VDD_PULLDOWN_PRESENT_V) {
+        return v_pd;
+    }
+    /* Return unloaded Hi-Z rail potential (~3.24V) so STATUS matches PINCHECK Hi-Z exactly */
+    return p7501_hw_sample_sw_uart_volts(false, false);
 }
 
 bool p7501_hw_is_target_powered(void) {

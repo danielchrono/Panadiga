@@ -25,6 +25,27 @@ describe('diagnosticParser & Hardware SSOT Consistency', () => {
     expect(res.pincheck_rows).toHaveLength(5);
     expect(res.xreset_rise_us).toBe('40 us');
     expect(res.vdd_volts).toBeCloseTo(3.28, 2);
+
+    const liveHardwareOut = [
+      '=== P7501 6-PIN ELECTRICAL MATRIX (PINCHECK) ===',
+      'GP2 (Pin6 RXD   ) |  1   |     1     |    1    | STRONG HIGH (External Pull-Up / 3.3V Active)',
+      'GP3 (Pin5 NSW5V ) |  1   |     1     |    1    | NSW5V HI-Z SENSE (Pulls Disabled Safe Rail)',
+      'GP4 (Pin3 TXD   ) |  1   |     1     |    1    | STRONG HIGH (External Pull-Up / 3.3V Active)',
+      'GP5 (Pin2 XRESET) |  1   |     1     |    1    | STRONG HIGH (Open-Drain Control)',
+      'GP26(Pin1 SWUART) | 3.24V|   2.70V   |  3.26V  | P7501 SW_UART / Target Sense',
+      'XRESET Release Rise Time (Hi-Z)     : 10 us',
+      'PINCHECK: OK',
+    ].join('\n');
+    const liveParsed = parseDiagnosticOutput('PINCHECK', 'PINCHECK', liveHardwareOut, 393);
+    expect(liveParsed.vdd_volts).toBeCloseTo(3.24, 2);
+    expect(liveParsed.xreset_rise_us).toBe('10 us');
+
+    const floatingOut = [
+      'GP26(Pin1 SWUART) | 3.21V|   0.00V   |  3.28V  | P7501 SW_UART / Target Sense',
+      'PINCHECK: OK',
+    ].join('\n');
+    const floatingParsed = parseDiagnosticOutput('PINCHECK', 'PINCHECK', floatingOut, 50);
+    expect(floatingParsed.vdd_volts).toBe(0);
   });
 
   it('parses DUMP 32-bit words and little-endian ASCII representation', () => {

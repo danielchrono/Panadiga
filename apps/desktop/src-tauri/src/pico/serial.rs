@@ -6,11 +6,23 @@
 
 use serialport::SerialPortType;
 use std::io::Write;
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
 use super::gdb_bridge::is_gdb_bridge_active;
 use super::types::{PicoDeviceStatusDto, PicoStatusResponse, extract_port_name};
-use panadiga_core::pico::cdc::parse_vdd_reply;
+use panadiga_core::pico::cdc::{parse_vdd_reply, strip_leading_prompts};
+
+/// Serializes host-side CDC command sessions so the 2s telemetry poller never
+/// collides on the same COM/tty device while `PINCHECK`, `BOOTCAP`, or `DUMP` runs.
+static SERIAL_IO_MUTEX: Mutex<()> = Mutex::new(());
+
+/// Acquires the foreground serial I/O mutex cleanly (recovering from any poisoned lock).
+pub fn lock_serial_io() -> MutexGuard<'static, ()> {
+    SERIAL_IO_MUTEX
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 /// Verifies that the serial port is not currently owned by the active GDB RSP bridge thread.
 pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
@@ -22,6 +34,51 @@ pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+/// Checks whether a complete multi-chunk response has arrived, ignoring any bare
+/// leading CLI prompt (`PANADIGA>` / `P7501>`) leftover from a prior command.
+fn serial_response_has_completed(out: &str) -> bool {
+    let body = strip_leading_prompts(out);
+    if body.is_empty() {
+        return false;
+    }
+    body.contains("PANADIGA>")
+        || body.contains("P7501>")
+        || body.contains("DUMP: OK")
+        || body.contains("PINCHECK: OK")
+        || body.contains("BUSDIAG: OK")
+        || body.contains("CFI: OK")
+        || body.contains("CFI: FAILED")
+        || body.contains("BOOTCAP: OK")
+        || body.contains("UARTMON: OK")
+        || body.contains("JIGBOOT: OK")
+        || body.contains("UARTSEND: OK")
+        || body.contains("UARTPROBE: OK")
+        || body.contains("FMUSCAN: OK")
+        || body.contains("FMUTEST: OK")
+        || body.contains("FMUBATCH: OK")
+        || body.contains("ERASE_NVRAM: OK")
+        || body.contains("ERASE_NVRAM: ERROR")
+        || body.contains("INJECT_LOADER: OK")
+        || body.contains("INJECT_LOADER: ERROR")
+        || body.contains("SAFETY INTERLOCK")
+        || body.contains("BREAK_IN: OK")
+        || body.contains("SCAN: COMPLETED")
+        || body.contains("SNIFF: OK")
+        || body.contains("ISOLATE: OK")
+        || body.contains("ENGAGE: OK")
+        || body.contains("AUTODETECT: OK")
+        || body.contains("FLASH_SIZE: OK")
+        || body.contains("FLASH_SIZE: ERROR")
+        || body.contains("[HANDSHAKE] SUCCESS")
+        || body.contains("[HANDSHAKE] FAILED")
+        || body.contains("[HANDSHAKE] ABORT")
+        || body.contains("[HANDSHAKE] ACTIVE")
+        || body.contains("Auto-ready")
+        || body.contains("PONG")
+        || body.contains("VDD:")
+        || body.contains("VDD=")
 }
 
 /// Reads multi-chunk USB CDC serial output until a terminal prompt (`PANADIGA>` / `P7501>`),
@@ -40,43 +97,7 @@ pub fn read_serial_response_complete(
         match port.read(&mut chunk) {
             Ok(n) if n > 0 => {
                 out.push_str(&String::from_utf8_lossy(&chunk[..n]));
-                if out.contains("PANADIGA>")
-                    || out.contains("P7501>")
-                    || out.contains("DUMP: OK")
-                    || out.contains("PINCHECK: OK")
-                    || out.contains("BUSDIAG: OK")
-                    || out.contains("CFI: OK")
-                    || out.contains("CFI: FAILED")
-                    || out.contains("BOOTCAP: OK")
-                    || out.contains("UARTMON: OK")
-                    || out.contains("JIGBOOT: OK")
-                    || out.contains("UARTSEND: OK")
-                    || out.contains("UARTPROBE: OK")
-                    || out.contains("FMUSCAN: OK")
-                    || out.contains("FMUTEST: OK")
-                    || out.contains("FMUBATCH: OK")
-                    || out.contains("ERASE_NVRAM: OK")
-                    || out.contains("ERASE_NVRAM: ERROR")
-                    || out.contains("INJECT_LOADER: OK")
-                    || out.contains("INJECT_LOADER: ERROR")
-                    || out.contains("SAFETY INTERLOCK")
-                    || out.contains("BREAK_IN: OK")
-                    || out.contains("SCAN: COMPLETED")
-                    || out.contains("SNIFF: OK")
-                    || out.contains("ISOLATE: OK")
-                    || out.contains("ENGAGE: OK")
-                    || out.contains("AUTODETECT: OK")
-                    || out.contains("FLASH_SIZE: OK")
-                    || out.contains("FLASH_SIZE: ERROR")
-                    || out.contains("[HANDSHAKE] SUCCESS")
-                    || out.contains("[HANDSHAKE] FAILED")
-                    || out.contains("[HANDSHAKE] ABORT")
-                    || out.contains("[HANDSHAKE] ACTIVE")
-                    || out.contains("Auto-ready")
-                    || out.contains("PONG")
-                    || out.contains("VDD:")
-                    || out.contains("VDD=")
-                {
+                if serial_response_has_completed(&out) {
                     break;
                 }
             }
@@ -85,14 +106,21 @@ pub fn read_serial_response_complete(
                 if e.kind() == std::io::ErrorKind::TimedOut
                     || e.kind() == std::io::ErrorKind::WouldBlock =>
             {
-                if !out.is_empty() && start.elapsed() > Duration::from_millis(350) {
+                if !strip_leading_prompts(&out).is_empty()
+                    && start.elapsed() > Duration::from_millis(350)
+                {
                     break;
                 }
             }
             Err(e) => return Err(format!("Erro de leitura USB CDC: {}", e)),
         }
     }
-    Ok(out.trim().to_string())
+    let clean = strip_leading_prompts(&out).trim();
+    if clean.is_empty() {
+        Ok(out.trim().to_string())
+    } else {
+        Ok(clean.to_string())
+    }
 }
 
 /// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
@@ -143,12 +171,13 @@ fn open_validated_cdc(
     Ok((clean, port))
 }
 
-/// Connects to a hardware Pico CDC port and retrieves device telemetry.
-pub fn pico_connect_and_test(
-    port_name: String,
+/// Connects to a hardware Pico CDC port and retrieves device telemetry while holding `SERIAL_IO_MUTEX`.
+fn pico_connect_and_test_with_guard(
+    port_name: &str,
     baud_rate: u32,
+    _guard: &MutexGuard<'_, ()>,
 ) -> Result<PicoStatusResponse, String> {
-    let (clean, mut port) = open_validated_cdc(&port_name, baud_rate, 1500)?;
+    let (clean, mut port) = open_validated_cdc(port_name, baud_rate, 1500)?;
 
     let response_text = panadiga_core::pico::cdc::send_and_read_until(
         &mut *port,
@@ -156,15 +185,26 @@ pub fn pico_connect_and_test(
         &["PONG"],
         Duration::from_millis(1500),
     );
-    let vdd_text = panadiga_core::pico::cdc::send_and_read_until(
+    let mut vdd_text = panadiga_core::pico::cdc::send_and_read_until(
         &mut *port,
         "STATUS",
         &["VDD:"],
         Duration::from_millis(1500),
     );
-    let vdd_reading = parse_vdd_reply(&vdd_text);
+    let mut vdd_reading = parse_vdd_reply(&vdd_text);
+    if vdd_reading.is_none() {
+        std::thread::sleep(Duration::from_millis(40));
+        vdd_text = panadiga_core::pico::cdc::send_and_read_until(
+            &mut *port,
+            "STATUS",
+            &["VDD:"],
+            Duration::from_millis(1500),
+        );
+        vdd_reading = parse_vdd_reply(&vdd_text);
+    }
 
-    if response_text.is_empty() && vdd_reading.is_none() {
+    let has_pong = response_text.contains("PONG") || response_text.contains("PANADIGA");
+    if (!has_pong && vdd_reading.is_none()) || (response_text.is_empty() && vdd_reading.is_none()) {
         return Err(format!(
             "O Pico em {} abriu a porta mas não respondeu a PING/STATUS (firmware Panadiga ausente ou DTR não aceito). \
              Grave o firmware pelo botão \"Flash Pico (BOOTSEL)\" ou reconecte o cabo USB.",
@@ -177,7 +217,7 @@ pub fn pico_connect_and_test(
     // Sanity ceiling: the firmware discriminates a floating GP26 actively (internal pull-down),
     // so a legitimate ~3.24 V rail is a POWERED target and must never be treated as floating.
     const VDD_FLOATING_CEIL: f32 = 3.45;
-    // Lower threshold to 2.5V to accommodate standby rails and the 1k series resistor divider drop.
+    // Lower threshold to 2.5V to accommodate standby rails and Q7510 series impedance drop.
     const VDD_MIN_THRESHOLD: f32 = 2.5;
     let probe_floating = vdd_volts >= VDD_FLOATING_CEIL;
     let target_powered = !probe_floating && vdd_volts >= VDD_MIN_THRESHOLD;
@@ -224,6 +264,15 @@ pub fn pico_connect_and_test(
     })
 }
 
+/// Connects to a hardware Pico CDC port and retrieves device telemetry.
+pub fn pico_connect_and_test(
+    port_name: String,
+    baud_rate: u32,
+) -> Result<PicoStatusResponse, String> {
+    let guard = lock_serial_io();
+    pico_connect_and_test_with_guard(&port_name, baud_rate, &guard)
+}
+
 static RAM_LOADER_INJECTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 static SCAN_TOTAL_PROBES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
@@ -239,39 +288,40 @@ pub fn is_ram_loader_injected() -> bool {
     RAM_LOADER_INJECTED.load(std::sync::atomic::Ordering::SeqCst)
 }
 
-/// Retrieves full `PicoDeviceStatusDto` matching the React Frontend `PicoDeviceStatus` interface.
-pub fn pico_get_device_status_dto(
+fn build_disconnected_status_dto() -> PicoDeviceStatusDto {
+    PicoDeviceStatusDto {
+        connected: false,
+        port: "".to_string(),
+        baud_rate: 0,
+        vdd_volts: 0.0,
+        target_powered: false,
+        breakin_mode: 2,
+        core_state: "DISCONNECTED".to_string(),
+        bus_freq_hz: 0,
+        firmware_version: "".to_string(),
+        chip_id: "".to_string(),
+        total_probes: 0,
+        hits_detected: 0,
+        open_bus_high: 0,
+        open_bus_low: 0,
+        ram_loader_injected: false,
+        last_keepalive: "".to_string(),
+    }
+}
+
+fn pico_get_device_status_dto_with_guard(
     port_name: String,
     mode_override: Option<u8>,
+    guard: &MutexGuard<'_, ()>,
 ) -> Result<PicoDeviceStatusDto, String> {
-    // If no port name provided, return a disconnected status DTO.
     if port_name.trim().is_empty() {
-        return Ok(PicoDeviceStatusDto {
-            connected: false,
-            port: "".to_string(),
-            baud_rate: 0,
-            vdd_volts: 0.0,
-            target_powered: false,
-            breakin_mode: 2,
-            core_state: "DISCONNECTED".to_string(),
-            bus_freq_hz: 0,
-            firmware_version: "".to_string(),
-            chip_id: "".to_string(),
-            total_probes: 0,
-            hits_detected: 0,
-            open_bus_high: 0,
-            open_bus_low: 0,
-            ram_loader_injected: false,
-            last_keepalive: "".to_string(),
-        });
+        return Ok(build_disconnected_status_dto());
     }
-    let status = pico_connect_and_test(port_name.clone(), 115_200)?;
+    let status = pico_connect_and_test_with_guard(&port_name, 115_200, guard)?;
     let is_rp2350 = status.port_name.contains("2350") || status.firmware_banner.contains("2350");
 
     let probes = SCAN_TOTAL_PROBES.load(std::sync::atomic::Ordering::SeqCst);
     let hits = SCAN_HITS_DETECTED.load(std::sync::atomic::Ordering::SeqCst);
-    let open_high = 0;
-
     let firmware_ver = if !status.firmware_banner.is_empty() {
         status.firmware_banner.clone()
     } else {
@@ -303,11 +353,37 @@ pub fn pico_get_device_status_dto(
         },
         total_probes: probes,
         hits_detected: hits,
-        open_bus_high: open_high,
+        open_bus_high: 0,
         open_bus_low: 0,
         ram_loader_injected: is_ram_loader_injected(),
         last_keepalive: "OK".to_string(),
     })
+}
+
+/// Retrieves full `PicoDeviceStatusDto` matching the React Frontend `PicoDeviceStatus` interface.
+pub fn pico_get_device_status_dto(
+    port_name: String,
+    mode_override: Option<u8>,
+) -> Result<PicoDeviceStatusDto, String> {
+    if port_name.trim().is_empty() {
+        return Ok(build_disconnected_status_dto());
+    }
+    let guard = lock_serial_io();
+    pico_get_device_status_dto_with_guard(port_name, mode_override, &guard)
+}
+
+/// Non-blocking status poll for the background telemetry worker: skips quietly if
+/// another foreground serial command or GDB bridge holds the device.
+pub fn try_pico_get_device_status_dto(
+    port_name: String,
+) -> Option<Result<PicoDeviceStatusDto, String>> {
+    if port_name.trim().is_empty() || is_gdb_bridge_active() {
+        return None;
+    }
+    let guard = SERIAL_IO_MUTEX.try_lock().ok()?;
+    Some(pico_get_device_status_dto_with_guard(
+        port_name, None, &guard,
+    ))
 }
 
 /// Sends an arbitrary interactive command to the USB CDC serial port and returns the response.
@@ -316,6 +392,7 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
     let trimmed = command.trim().to_uppercase();
     super::types::reject_mock_port(&clean)?;
 
+    let _guard = lock_serial_io();
     ensure_serial_port_unlocked(&clean)?;
 
     if trimmed == "ISOLATE" || trimmed == "HIZ" {
@@ -355,6 +432,7 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
 
 /// Executes Cold Break-In sequence on the DMR-EH55 via RP2040 PIO state machine.
 pub fn pico_execute_cold_break_in(port_name: String, mode: u8) -> Result<String, String> {
+    let _guard = lock_serial_io();
     let (_, mut port) = open_validated_cdc(&port_name, 115200, 3000)?;
 
     let cmd = format!("BREAK_IN {}\r\n", mode);
@@ -370,6 +448,7 @@ pub fn pico_switch_to_gdb_mode(port_name: String) -> Result<String, String> {
     let clean = extract_port_name(&port_name);
     crate::pico::types::reject_mock_port(&clean)?;
 
+    let _guard = lock_serial_io();
     ensure_serial_port_unlocked(&clean)?;
 
     let mut port = panadiga_core::pico::cdc::open_cdc(&clean, 115200, Duration::from_millis(2000))

@@ -134,6 +134,43 @@ pub fn parse_pico_dump_hex_to_bytes(ascii_dump: &str) -> Vec<u8> {
     binary
 }
 
+/// Strips leading CLI prompt tokens (`PANADIGA>`, `P7501>`) and surrounding whitespace
+/// left in-flight from prior commands so prompt-only bursts never truncate active replies.
+pub fn strip_leading_prompts(mut raw: &str) -> &str {
+    loop {
+        let trimmed = raw.trim_start();
+        if let Some(rest) = trimmed
+            .strip_prefix("PANADIGA>")
+            .or_else(|| trimmed.strip_prefix("P7501>"))
+        {
+            raw = rest;
+        } else {
+            return trimmed;
+        }
+    }
+}
+
+/// Checks whether a buffered serial reply contains a matched stop token or a prompt
+/// preceded by real command payload (never a bare stale leading prompt).
+pub fn reply_has_completed(raw: &str, stop_tokens: &[&str]) -> bool {
+    let body = strip_leading_prompts(raw);
+    if body.is_empty() {
+        return false;
+    }
+    if stop_tokens.iter().any(|tok| {
+        if matches!(*tok, "PANADIGA>" | "P7501>") {
+            body.contains(tok)
+        } else {
+            body.find(tok).is_some_and(|idx| body[idx..].contains('\n'))
+        }
+    }) {
+        return true;
+    }
+    body.rsplit_once("PANADIGA>")
+        .or_else(|| body.rsplit_once("P7501>"))
+        .is_some_and(|(prefix, _)| !prefix.trim().is_empty())
+}
+
 /// Sends a single command line over CDC and collects the reply until any stop token or timeout.
 pub fn send_and_read_until(
     port: &mut dyn SerialPort,
@@ -143,7 +180,7 @@ pub fn send_and_read_until(
 ) -> String {
     let _ = port.clear(ClearBuffer::Input);
     if port
-        .write_all(format!("\r\n{}\r\n", command).as_bytes())
+        .write_all(format!("{}\r\n", command).as_bytes())
         .is_err()
     {
         return String::new();
@@ -159,22 +196,22 @@ pub fn send_and_read_until(
             && n > 0
         {
             out.push_str(&String::from_utf8_lossy(&buf[..n]));
-            if stop_tokens
-                .iter()
-                .any(|tok| out.find(tok).is_some_and(|idx| out[idx..].contains('\n')))
-                || out.contains("PANADIGA>")
-                || out.contains("P7501>")
-            {
+            if reply_has_completed(&out, stop_tokens) {
                 break;
             }
         }
     }
-    out.trim().to_string()
+    let clean = strip_leading_prompts(&out).trim();
+    if clean.is_empty() {
+        out.trim().to_string()
+    } else {
+        clean.to_string()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_vdd_reply;
+    use super::{parse_vdd_reply, reply_has_completed, strip_leading_prompts};
 
     #[test]
     fn parses_vdd_with_unit_and_status() {
@@ -197,5 +234,23 @@ mod tests {
     fn mute_device_yields_none() {
         assert_eq!(parse_vdd_reply(""), None);
         assert_eq!(parse_vdd_reply("PONG"), None);
+    }
+
+    #[test]
+    fn stale_leading_prompt_does_not_abort_status_read() {
+        assert_eq!(
+            strip_leading_prompts("PANADIGA> \r\nVDD: 3.24V (OK)\r\n"),
+            "VDD: 3.24V (OK)\r\n"
+        );
+        assert!(!reply_has_completed("PANADIGA> ", &["VDD:"]));
+        assert!(!reply_has_completed("P7501> \r\n", &["VDD:"]));
+        assert!(reply_has_completed(
+            "PANADIGA> \r\nVDD: 3.24V (OK)\r\nPANADIGA> ",
+            &["VDD:"]
+        ));
+        assert!(reply_has_completed(
+            "[CLI] Unknown command\r\nPANADIGA> ",
+            &["VDD:"]
+        ));
     }
 }

@@ -22,8 +22,6 @@ struct CachedPdfEntry {
 static PDF_MEMORY_CACHE: LazyLock<Mutex<HashMap<String, CachedPdfEntry>>> =
     LazyLock::new(|| Mutex::new(load_disk_cache()));
 
-/// Serializes concurrent PDF extraction across threads so each manual is parsed at most once.
-static PDF_EXTRACT_LOCK: Mutex<()> = Mutex::new(());
 static PDF_CACHE_DIRTY: AtomicBool = AtomicBool::new(false);
 
 pub fn flush_disk_cache() {
@@ -99,11 +97,6 @@ pub fn chunk_pdf_file(
 ) -> Vec<Chunk> {
     let (key, len, mtime) = file_signature(file_path);
 
-    if let Some(chunks) = lookup_cached_chunks(&key, len, mtime) {
-        return chunks;
-    }
-
-    let _extract_guard = PDF_EXTRACT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(chunks) = lookup_cached_chunks(&key, len, mtime) {
         return chunks;
     }

@@ -220,9 +220,27 @@ pub async fn pico_execute_diagnostic(
 
     if matches!(
         result.command_id.as_str(),
-        "STATUS" | "HANDSHAKE" | "RESET" | "AUTODETECT" | "FLASH_SIZE" | "ISOLATE" | "ENGAGE"
-    ) && let Ok(status) = pico_get_status(Some(port_name))
+        "STATUS"
+            | "VDD"
+            | "PINCHECK"
+            | "HANDSHAKE"
+            | "RESET"
+            | "AUTODETECT"
+            | "FLASH_SIZE"
+            | "ISOLATE"
+            | "ENGAGE"
+    ) && let Ok(mut status) = pico_get_status(Some(port_name))
     {
+        if let Some(diag_vdd) = result.vdd_volts
+            && status.vdd_volts <= 0.01
+            && diag_vdd > 0.01
+        {
+            status.vdd_volts = diag_vdd;
+            status.target_powered = diag_vdd >= 2.5 && diag_vdd < 3.45;
+            if status.target_powered && status.core_state == "RESET" {
+                status.core_state = "RUNNING".to_string();
+            }
+        }
         let _ = app.emit("pico://telemetry", &status);
     }
 
@@ -265,7 +283,7 @@ pub fn set_pico_telemetry_stream(
                 if port.starts_with("BLE") || port.starts_with("ANDROID-USB-OTG") {
                     continue;
                 }
-                if let Ok(status) = pico_get_status(Some(port)) {
+                if let Some(Ok(status)) = crate::pico::try_pico_get_device_status_dto(port) {
                     let _ = app_clone.emit("pico://telemetry", &status);
                 }
             }

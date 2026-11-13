@@ -1,4 +1,6 @@
+use panadiga_core::crypto::analyze_8byte_frequencies;
 use panadiga_core::hdd::calculate_entropy;
+use panadiga_core::nvram::calculate_hashes;
 
 #[test]
 fn test_entropy_calculation() {
@@ -47,4 +49,30 @@ fn test_entropy_mathematical_boundaries() {
     }
     let ent_uni = calculate_entropy(&uniform);
     assert!((ent_uni - 8.0).abs() < 1e-4);
+}
+
+#[test]
+fn test_parallel_large_buffer_entropy_hashes_and_ecb_blocks() {
+    // >= 1 MiB exercises parallel paths in entropy (>= 512 KiB), hashes (>= 64 KiB),
+    // and 8-byte ECB frequency counting (>= 512 KiB).
+    let size = 1024 * 1024;
+    let constant = vec![0xA5u8; size];
+    assert_eq!(calculate_entropy(&constant), 0.0);
+
+    let (md5_a, sha_a) = calculate_hashes(&constant);
+    let (md5_b, sha_b) = calculate_hashes(&constant);
+    assert_eq!(md5_a.len(), 32);
+    assert_eq!(sha_a.len(), 64);
+    assert_eq!((md5_a, sha_a), (md5_b, sha_b));
+
+    let blocks_const = analyze_8byte_frequencies(&constant, 4);
+    assert_eq!(blocks_const.len(), 1);
+    assert_eq!(blocks_const[0].hex, "A5A5A5A5A5A5A5A5");
+    assert_eq!(blocks_const[0].count, size / 8);
+
+    let ramp: Vec<u8> = (0..size).map(|idx| (idx & 0xFF) as u8).collect();
+    assert!((calculate_entropy(&ramp) - 8.0).abs() < 1e-6);
+    let blocks_ramp = analyze_8byte_frequencies(&ramp, 32);
+    assert_eq!(blocks_ramp.len(), 32);
+    assert_eq!(blocks_ramp[0].count, size / 256);
 }

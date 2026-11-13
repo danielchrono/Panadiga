@@ -12,6 +12,7 @@ pub use tokenizer::{STOPWORDS, technical_tokenize};
 pub use vector::VectorIndex;
 
 use panadiga_core::constants::resolve_workspace_root;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -19,6 +20,14 @@ use std::path::{Path, PathBuf};
 
 use super::guardrails::QueryGuard;
 use super::models::{Chunk, ChunkMetadata, SubsystemType};
+
+enum IndexedBucket {
+    Markdown(Vec<Chunk>),
+    Pdf(Vec<Chunk>),
+    Code(Vec<Chunk>),
+    Ghidra(Vec<Chunk>),
+    Skipped,
+}
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CorpusIndexStats {
@@ -120,13 +129,12 @@ impl HierarchicalIndexer {
             ..Default::default()
         };
 
-        let mut all_chunks = Vec::new();
         let mut seen_canonical = HashSet::new();
-        let mut pdf_files = HashSet::new();
+        let mut candidate_files = Vec::new();
 
         if let Some(custom_dirs) = directories {
             for d in custom_dirs {
-                self.scan_entry(d, &mut seen_canonical, &mut all_chunks, &mut pdf_files);
+                Self::collect_entry(d, &mut seen_canonical, &mut candidate_files);
             }
         } else {
             let default_entries = [
@@ -146,23 +154,51 @@ impl HierarchicalIndexer {
                 root.join("README.md"),
             ];
             for entry in &default_entries {
-                self.scan_entry(entry, &mut seen_canonical, &mut all_chunks, &mut pdf_files);
+                Self::collect_entry(entry, &mut seen_canonical, &mut candidate_files);
+            }
+        }
+
+        let per_file: Vec<IndexedBucket> = candidate_files
+            .par_iter()
+            .map(|path| self.index_single_file(path))
+            .collect();
+
+        let mut all_chunks = Vec::new();
+        for bucket in per_file {
+            match bucket {
+                IndexedBucket::Markdown(added) => {
+                    self.stats.markdown_chunks += added.len();
+                    all_chunks.extend(added);
+                }
+                IndexedBucket::Pdf(added) => {
+                    if !added.is_empty() {
+                        self.stats.pdf_files_indexed += 1;
+                        self.stats.pdf_chunks += added.len();
+                        all_chunks.extend(added);
+                    }
+                }
+                IndexedBucket::Code(added) => {
+                    self.stats.code_chunks += added.len();
+                    all_chunks.extend(added);
+                }
+                IndexedBucket::Ghidra(added) => {
+                    self.stats.ghidra_chunks += added.len();
+                    all_chunks.extend(added);
+                }
+                IndexedBucket::Skipped => {}
             }
         }
 
         pdf::flush_disk_cache();
-        self.stats.pdf_files_indexed = pdf_files.len();
         self.chunks = all_chunks;
         self.reindex_models();
         self.chunks.len()
     }
 
-    fn scan_entry(
-        &mut self,
+    fn collect_entry(
         entry: &Path,
         seen_canonical: &mut HashSet<PathBuf>,
-        acc: &mut Vec<Chunk>,
-        pdf_files: &mut HashSet<PathBuf>,
+        files: &mut Vec<PathBuf>,
     ) {
         if !entry.exists() {
             return;
@@ -173,41 +209,27 @@ impl HierarchicalIndexer {
             return;
         }
         if entry.is_file() {
-            self.index_single_file(entry, acc, pdf_files);
+            files.push(entry.to_path_buf());
         } else if entry.is_dir() {
-            self.scan_recursive(entry, acc, pdf_files);
+            Self::collect_recursive(entry, files);
         }
     }
 
-    fn index_single_file(
-        &mut self,
-        path: &Path,
-        acc: &mut Vec<Chunk>,
-        pdf_files: &mut HashSet<PathBuf>,
-    ) {
+    fn index_single_file(&self, path: &Path) -> IndexedBucket {
         let fname = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
         let path_lower = path.to_string_lossy().to_lowercase();
 
         if fname.starts_with("AI_GUIDELINES") || fname.starts_with("AUDIT_DOSSIER") {
-            return;
+            return IndexedBucket::Skipped;
         }
 
         if fname.ends_with(".md") || fname.ends_with(".txt") {
-            let added = self.chunk_markdown_file(path);
-            self.stats.markdown_chunks += added.len();
-            acc.extend(added);
+            IndexedBucket::Markdown(self.chunk_markdown_file(path))
         } else if fname == "visual_manifest.json" {
-            let added = self.chunk_visual_manifest(path);
-            self.stats.markdown_chunks += added.len();
-            acc.extend(added);
+            IndexedBucket::Markdown(self.chunk_visual_manifest(path))
         } else if fname.to_lowercase().ends_with(".pdf") {
             let subsystem = self.determine_subsystem(path, "");
-            let added = pdf::chunk_pdf_file(&self.guard, subsystem, path);
-            if !added.is_empty() {
-                pdf_files.insert(path.to_path_buf());
-                self.stats.pdf_chunks += added.len();
-                acc.extend(added);
-            }
+            IndexedBucket::Pdf(pdf::chunk_pdf_file(&self.guard, subsystem, path))
         } else if code::is_supported_source_file(path)
             && !path_lower.contains("\\tests\\")
             && !path_lower.contains("/tests/")
@@ -215,28 +237,25 @@ impl HierarchicalIndexer {
             let subsystem = self.determine_subsystem(path, "");
             let added = code::chunk_source_file(&self.guard, subsystem, path);
             if path_lower.contains("ghidra") {
-                self.stats.ghidra_chunks += added.len();
+                IndexedBucket::Ghidra(added)
             } else {
-                self.stats.code_chunks += added.len();
+                IndexedBucket::Code(added)
             }
-            acc.extend(added);
+        } else {
+            IndexedBucket::Skipped
         }
     }
 
     fn reindex_models(&mut self) {
-        let tokenized: Vec<Vec<String>> = self.chunks.iter().map(|c| c.tokens.clone()).collect();
-        self.bm25.fit(&tokenized);
-        self.vector.fit(&tokenized);
+        let doc_refs: Vec<&[String]> = self.chunks.iter().map(|c| c.tokens.as_slice()).collect();
+        let bm25 = &mut self.bm25;
+        let vector = &mut self.vector;
+        rayon::join(|| bm25.fit(&doc_refs), || vector.fit(&doc_refs));
         self.stats.total_chunks = self.chunks.len();
         self.stats.vocab_size = self.vector.vocab.len();
     }
 
-    fn scan_recursive(
-        &mut self,
-        dir: &Path,
-        acc: &mut Vec<Chunk>,
-        pdf_files: &mut HashSet<PathBuf>,
-    ) {
+    fn collect_recursive(dir: &Path, files: &mut Vec<PathBuf>) {
         let dir_name = dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
         if matches!(
             dir_name,
@@ -260,9 +279,9 @@ impl HierarchicalIndexer {
 
             for path in paths {
                 if path.is_dir() {
-                    self.scan_recursive(&path, acc, pdf_files);
+                    Self::collect_recursive(&path, files);
                 } else if path.is_file() {
-                    self.index_single_file(&path, acc, pdf_files);
+                    files.push(path);
                 }
             }
         }

@@ -221,10 +221,9 @@ pub async fn pico_execute_diagnostic(
     if matches!(
         result.command_id.as_str(),
         "STATUS" | "HANDSHAKE" | "RESET" | "AUTODETECT" | "FLASH_SIZE" | "ISOLATE" | "ENGAGE"
-    ) {
-        if let Ok(status) = pico_get_status(Some(port_name)) {
-            let _ = app.emit("pico://telemetry", &status);
-        }
+    ) && let Ok(status) = pico_get_status(Some(port_name))
+    {
+        let _ = app.emit("pico://telemetry", &status);
     }
 
     Ok(result)
@@ -238,10 +237,10 @@ pub fn set_pico_telemetry_stream(
     port_name: Option<String>,
 ) -> Result<bool, String> {
     let state = stream_state();
-    if let Some(port) = port_name.filter(|p| !p.trim().is_empty()) {
-        if let Ok(mut guard) = state.port_name.lock() {
-            *guard = port;
-        }
+    if let Some(port) = port_name.filter(|p| !p.trim().is_empty())
+        && let Ok(mut guard) = state.port_name.lock()
+    {
+        *guard = port;
     }
     state.active.store(active, Ordering::Relaxed);
 

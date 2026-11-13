@@ -59,22 +59,19 @@ fn collect_pdf_files(
         let p = entry.path();
         if p.is_dir() {
             collect_pdf_files(&p, filter, files)?;
-        } else if p.is_file() {
-            if let Some(ext) = p.extension() {
-                if ext.to_string_lossy().eq_ignore_ascii_case("pdf") {
-                    if let Some(filt) = filter {
-                        let path_str = p.to_string_lossy().to_lowercase();
-                        let norm_path = path_str.replace('_', "-");
-                        let norm_filt = filt.to_lowercase().replace('_', "-");
-                        if !path_str.contains(&filt.to_lowercase())
-                            && !norm_path.contains(&norm_filt)
-                        {
-                            continue;
-                        }
-                    }
-                    files.push(p);
+        } else if p.is_file()
+            && let Some(ext) = p.extension()
+            && ext.to_string_lossy().eq_ignore_ascii_case("pdf")
+        {
+            if let Some(filt) = filter {
+                let path_str = p.to_string_lossy().to_lowercase();
+                let norm_path = path_str.replace('_', "-");
+                let norm_filt = filt.to_lowercase().replace('_', "-");
+                if !path_str.contains(&filt.to_lowercase()) && !norm_path.contains(&norm_filt) {
+                    continue;
                 }
             }
+            files.push(p);
         }
     }
     Ok(())

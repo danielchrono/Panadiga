@@ -143,12 +143,12 @@ pub fn resolve_default_flash_path(input_path: Option<String>) -> String {
         firmware_roots.insert(0, found_fw_dir);
     }
 
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            firmware_roots.push(exe_dir.join("firmware_and_images"));
-            if let Some(parent) = exe_dir.parent() {
-                firmware_roots.push(parent.join("firmware_and_images"));
-            }
+    if let Ok(exe_path) = std::env::current_exe()
+        && let Some(exe_dir) = exe_path.parent()
+    {
+        firmware_roots.push(exe_dir.join("firmware_and_images"));
+        if let Some(parent) = exe_dir.parent() {
+            firmware_roots.push(parent.join("firmware_and_images"));
         }
     }
 

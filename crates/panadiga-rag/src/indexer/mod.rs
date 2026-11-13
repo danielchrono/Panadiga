@@ -167,10 +167,10 @@ impl HierarchicalIndexer {
         if !entry.exists() {
             return;
         }
-        if let Ok(canon) = fs::canonicalize(entry) {
-            if !seen_canonical.insert(canon) {
-                return;
-            }
+        if let Ok(canon) = fs::canonicalize(entry)
+            && !seen_canonical.insert(canon)
+        {
+            return;
         }
         if entry.is_file() {
             self.index_single_file(entry, acc, pdf_files);

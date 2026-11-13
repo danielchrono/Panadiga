@@ -23,10 +23,9 @@ pub fn paths_refer_to_same_file(a: &Path, b: &Path) -> bool {
         return ca == cb;
     }
     if let (Ok(ca), Some(b_parent), Some(b_name)) = (fs::canonicalize(a), b.parent(), b.file_name())
+        && let Ok(cp) = fs::canonicalize(b_parent)
     {
-        if let Ok(cp) = fs::canonicalize(b_parent) {
-            return ca == cp.join(b_name);
-        }
+        return ca == cp.join(b_name);
     }
     false
 }

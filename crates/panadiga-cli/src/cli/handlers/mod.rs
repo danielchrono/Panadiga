@@ -32,10 +32,10 @@ pub fn launch_desktop_executable() -> Result<()> {
     };
 
     let mut candidates: Vec<PathBuf> = Vec::new();
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(dir) = exe.parent() {
-            candidates.push(dir.join(bin_name));
-        }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        candidates.push(dir.join(bin_name));
     }
     let root = panadiga_core::constants::resolve_workspace_root();
     candidates.push(root.join("target").join("release").join(bin_name));

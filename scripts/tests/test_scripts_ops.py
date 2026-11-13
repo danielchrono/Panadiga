@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import pytest
 
-from scripts.build import _detect_android_sdk, _parse_args
+from scripts.build import detect_android_sdk, parse_args
 from scripts.panadiga_ops import (
     find_msvc_vcvars64,
     load_msvc_env,
@@ -39,7 +39,7 @@ def test_detect_android_sdk_from_environment(tmp_path: Path) -> None:
     ndk_v1.mkdir(parents=True)
     ndk_v2.mkdir(parents=True)
 
-    detected_sdk, detected_ndk = _detect_android_sdk({"ANDROID_HOME": str(sdk_dir)})
+    detected_sdk, detected_ndk = detect_android_sdk({"ANDROID_HOME": str(sdk_dir)})
     assert detected_sdk == sdk_dir
     assert detected_ndk == ndk_v2
 
@@ -50,7 +50,7 @@ def test_resolve_executable_raises_for_missing_command() -> None:
 
 
 def test_build_cli_arg_parsing() -> None:
-    args = _parse_args(["--desktop", "--pico"])
+    args = parse_args(["--desktop", "--pico"])
     assert args.desktop is True
     assert args.pico is True
     assert args.android is False

@@ -53,7 +53,7 @@ pub struct PicoFlashReport {
 
 /// Validates that every 512-byte block in a buffer conforms to the UF2 specification.
 pub fn validate_uf2_buffer(data: &[u8]) -> Result<(usize, String)> {
-    if data.len() < UF2_BLOCK_SIZE || (data.len() % UF2_BLOCK_SIZE != 0) {
+    if data.len() < UF2_BLOCK_SIZE || !data.len().is_multiple_of(UF2_BLOCK_SIZE) {
         bail!(
             "Invalid UF2 payload length: {} bytes (must be a positive multiple of 512 bytes)",
             data.len()
@@ -67,7 +67,7 @@ pub fn validate_uf2_buffer(data: &[u8]) -> Result<(usize, String)> {
     let mut has_rp2350_abs = false;
     let mut first_other_family = None;
 
-    for (blk_idx, blk) in data.chunks_exact(UF2_BLOCK_SIZE).enumerate() {
+    for (blk_idx, blk) in data.as_chunks::<UF2_BLOCK_SIZE>().0.iter().enumerate() {
         let start0 = u32::from_le_bytes(blk[0..4].try_into().unwrap());
         let start1 = u32::from_le_bytes(blk[4..8].try_into().unwrap());
         let end_magic = u32::from_le_bytes(blk[508..512].try_into().unwrap());
@@ -189,11 +189,7 @@ pub fn detect_bootsel_drives() -> Vec<PathBuf> {
 /// The RP2040 typically appears as `RPI-RP2` mass storage within 600–800 ms of the reset.
 pub fn trigger_1200_baud_bootsel(port_name: &str) -> Result<()> {
     // Extract the raw port name (e.g. "COM10") from descriptive UI labels like "COM10 [Raspberry Pi Pico...]"
-    let clean = port_name
-        .trim()
-        .split_whitespace()
-        .next()
-        .unwrap_or(port_name);
+    let clean = port_name.split_whitespace().next().unwrap_or(port_name);
 
     // ── Phase 1: Direct CDC BOOTSEL/RESET command probe (fastest path if supported) ──
     {
@@ -330,7 +326,7 @@ pub fn flash_embedded_firmware(target_override: Option<&str>) -> Result<PicoFlas
 pub const UF2_FLAG_FAMILY_ID_PRESENT: u32 = 0x0000_2000;
 
 fn parse_uf2_blocks(bytes: &[u8], label: &str) -> Result<Vec<[u8; UF2_BLOCK_SIZE]>> {
-    if bytes.is_empty() || bytes.len() % UF2_BLOCK_SIZE != 0 {
+    if bytes.is_empty() || !bytes.len().is_multiple_of(UF2_BLOCK_SIZE) {
         bail!(
             "Invalid UF2 image '{}' (size {} bytes must be non-empty multiple of 512)",
             label,
@@ -338,7 +334,7 @@ fn parse_uf2_blocks(bytes: &[u8], label: &str) -> Result<Vec<[u8; UF2_BLOCK_SIZE
         );
     }
     let mut blocks = Vec::with_capacity(bytes.len() / UF2_BLOCK_SIZE);
-    for (idx, chunk) in bytes.chunks_exact(UF2_BLOCK_SIZE).enumerate() {
+    for (idx, chunk) in bytes.as_chunks::<UF2_BLOCK_SIZE>().0.iter().enumerate() {
         let m0 = u32::from_le_bytes(chunk[0..4].try_into().unwrap());
         let m1 = u32::from_le_bytes(chunk[4..8].try_into().unwrap());
         let mend = u32::from_le_bytes(chunk[508..512].try_into().unwrap());
@@ -404,10 +400,10 @@ pub fn merge_unified_uf2(
     combined.extend_from_slice(&rp2040_blocks[rp2040_blocks.len() - 1]);
     combined.extend_from_slice(&rp2350_exec[rp2350_exec.len() - 1]);
 
-    if let Some(parent) = out_path.parent() {
-        if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = out_path.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        fs::create_dir_all(parent)?;
     }
     fs::write(out_path, &combined)
         .with_context(|| format!("Failed writing unified UF2 '{}'", out_path.display()))?;
@@ -550,7 +546,12 @@ mod tests {
         assert!(label.contains("Unified Multi-Family"));
 
         // Order check: E10 abs (0xA0), rp2040[0] (0x11), rp2350_exec[0] (0x21), rp2040[last] (0x12), rp2350_exec[last] (0x22)
-        let tags: Vec<u8> = merged.chunks_exact(UF2_BLOCK_SIZE).map(|b| b[32]).collect();
+        let tags: Vec<u8> = merged
+            .as_chunks::<UF2_BLOCK_SIZE>()
+            .0
+            .iter()
+            .map(|b| b[32])
+            .collect();
         assert_eq!(tags, vec![0xA0, 0x11, 0x21, 0x12, 0x22]);
 
         let _ = fs::remove_dir_all(&dir);

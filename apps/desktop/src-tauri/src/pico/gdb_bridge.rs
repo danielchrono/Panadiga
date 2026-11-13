@@ -62,10 +62,10 @@ pub fn is_gdb_bridge_active() -> bool {
 fn sync_controller_registers(hex_str: &str) {
     let ctrl = get_controller();
     let halted = ctrl.registers.lock().map(|r| r.is_halted).unwrap_or(true);
-    if let Some(updated) = decode_am34_registers_hex(hex_str, halted) {
-        if let Ok(mut regs) = ctrl.registers.lock() {
-            *regs = updated;
-        }
+    if let Some(updated) = decode_am34_registers_hex(hex_str, halted)
+        && let Ok(mut regs) = ctrl.registers.lock()
+    {
+        *regs = updated;
     }
 }
 

@@ -335,10 +335,10 @@ pub fn pico_send_raw_serial_command(port_name: String, command: String) -> Resul
     if trimmed.starts_with("SCAN") {
         if let Some(pos) = response.find("Hits: ") {
             let after = &response[pos + 6..];
-            if let Some(comma) = after.find(',') {
-                if let Ok(h) = after[..comma].trim().parse::<u32>() {
-                    SCAN_HITS_DETECTED.store(h, std::sync::atomic::Ordering::SeqCst);
-                }
+            if let Some(comma) = after.find(',')
+                && let Ok(h) = after[..comma].trim().parse::<u32>()
+            {
+                SCAN_HITS_DETECTED.store(h, std::sync::atomic::Ordering::SeqCst);
             }
         }
         if let Some(pos) = response.find("Probes: ") {

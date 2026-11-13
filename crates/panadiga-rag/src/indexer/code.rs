@@ -63,10 +63,10 @@ pub fn chunk_source_file(
     subsystem: SubsystemType,
     file_path: &Path,
 ) -> Vec<Chunk> {
-    if let Ok(meta) = fs::metadata(file_path) {
-        if meta.len() > MAX_SOURCE_BYTES {
-            return Vec::new();
-        }
+    if let Ok(meta) = fs::metadata(file_path)
+        && meta.len() > MAX_SOURCE_BYTES
+    {
+        return Vec::new();
     }
 
     let Ok(content) = fs::read_to_string(file_path) else {

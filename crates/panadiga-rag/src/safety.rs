@@ -101,29 +101,29 @@ pub fn extract_voltages_volts(text: &str) -> Vec<(f64, usize, usize, String)> {
 
     // 1. Millivolts
     for cap in MV_PATTERN.captures_iter(text) {
-        if let Some(m) = cap.get(0) {
-            if let Some(num_match) = cap.get(1) {
-                let num_str = num_match.as_str().replace(',', ".");
-                if let Ok(num) = num_str.parse::<f64>() {
-                    results.push((
-                        num / 1000.0,
-                        m.start(),
-                        m.end(),
-                        m.as_str().trim().to_string(),
-                    ));
-                }
+        if let Some(m) = cap.get(0)
+            && let Some(num_match) = cap.get(1)
+        {
+            let num_str = num_match.as_str().replace(',', ".");
+            if let Ok(num) = num_str.parse::<f64>() {
+                results.push((
+                    num / 1000.0,
+                    m.start(),
+                    m.end(),
+                    m.as_str().trim().to_string(),
+                ));
             }
         }
     }
 
     // 2. EE RKM notation
     for cap in RKM_PATTERN.captures_iter(text) {
-        if let Some(m) = cap.get(0) {
-            if let (Some(major), Some(minor)) = (cap.get(1), cap.get(2)) {
-                let formatted = format!("{}.{}", major.as_str(), minor.as_str());
-                if let Ok(val) = formatted.parse::<f64>() {
-                    results.push((val, m.start(), m.end(), m.as_str().trim().to_string()));
-                }
+        if let Some(m) = cap.get(0)
+            && let (Some(major), Some(minor)) = (cap.get(1), cap.get(2))
+        {
+            let formatted = format!("{}.{}", major.as_str(), minor.as_str());
+            if let Ok(val) = formatted.parse::<f64>() {
+                results.push((val, m.start(), m.end(), m.as_str().trim().to_string()));
             }
         }
     }

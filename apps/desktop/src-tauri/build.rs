@@ -28,14 +28,12 @@ fn ensure_frontend_built() {
     let dist_index = Path::new("../dist/index.html");
     let mut needs_build = !dist_index.exists();
 
-    if !needs_build {
-        if let Ok(meta) = dist_index.metadata() {
-            if let Ok(dist_time) = meta.modified() {
-                if is_src_newer(dist_time) {
-                    needs_build = true;
-                }
-            }
-        }
+    if !needs_build
+        && let Ok(meta) = dist_index.metadata()
+        && let Ok(dist_time) = meta.modified()
+        && is_src_newer(dist_time)
+    {
+        needs_build = true;
     }
 
     if needs_build {
@@ -72,12 +70,11 @@ fn check_dir_newer(dir: &Path, threshold: SystemTime) -> bool {
                 if check_dir_newer(&path, threshold) {
                     return true;
                 }
-            } else if let Ok(meta) = path.metadata() {
-                if let Ok(modified) = meta.modified() {
-                    if modified > threshold {
-                        return true;
-                    }
-                }
+            } else if let Ok(meta) = path.metadata()
+                && let Ok(modified) = meta.modified()
+                && modified > threshold
+            {
+                return true;
             }
         }
     }

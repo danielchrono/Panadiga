@@ -154,7 +154,7 @@ def build_desktop(env: Mapping[str, str]) -> Path:
     return gui_bin
 
 
-def _detect_android_sdk(env: Mapping[str, str]) -> tuple[Path, Path | None]:
+def detect_android_sdk(env: Mapping[str, str]) -> tuple[Path, Path | None]:
     """Detect Android SDK and latest NDK directories cross-platform."""
     sdk_env = env.get("ANDROID_HOME") or env.get("ANDROID_SDK_ROOT")
     if sdk_env and Path(sdk_env).is_dir():
@@ -276,7 +276,7 @@ def _ensure_signed_apk(
 def build_android(base_env: Mapping[str, str]) -> Path:
     """Compile, zipalign, and sign Android ARM64 APK directly from panadiga-desktop workspace."""
     print_banner("BUILD ANDROID: Tauri 2 Mobile APK (AArch64)")
-    sdk_dir, ndk_dir = _detect_android_sdk(base_env)
+    sdk_dir, ndk_dir = detect_android_sdk(base_env)
     env = dict(base_env)
     env["ANDROID_HOME"] = str(sdk_dir)
     if ndk_dir is not None:
@@ -445,7 +445,7 @@ def run_cli(cli_args: Sequence[str], env: Mapping[str, str]) -> int:
     return proc.returncode
 
 
-def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Panadiga unified build, packaging, and launcher pipeline.")
     parser.add_argument("--desktop", action="store_true", help="Build Desktop release binary, staging dist/ and release archive.")
     parser.add_argument("--android", action="store_true", help="Build Android ARM64 APK via Tauri Mobile.")
@@ -459,7 +459,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Dispatch build/run/cli actions according to CLI flags."""
-    args = _parse_args(argv)
+    args = parse_args(argv)
     env = build_env()
 
     try:

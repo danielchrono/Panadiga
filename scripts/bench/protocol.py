@@ -119,6 +119,10 @@ class SerialTransport:
         self._ser.close()
 
 
+def _empty_str_list() -> list[str]:
+    return []
+
+
 @dataclass
 class MockBenchTransport:
     """Deterministic offline simulator matching empirical COM10 DMR-EH55 telemetry."""
@@ -127,7 +131,7 @@ class MockBenchTransport:
     simulate_gp26_sticky_low: bool = False
     target_is_normal_bgo_brick: bool = True
     sd_status_code: int = -91006
-    history: list[str] = field(default_factory=list)
+    history: list[str] = field(default_factory=_empty_str_list)
     _gp26_latched_low: bool = field(init=False, default=False)
 
     def exchange(self, command: str, timeout_s: float = 4.0) -> str:

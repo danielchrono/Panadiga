@@ -132,6 +132,7 @@ fn opt(label: &str, value: &str) -> PicoCommandArgOptionDto {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn cmd(
     id: &str,
     category: &str,
@@ -166,6 +167,7 @@ fn cmd(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pin(
     manual_pin: u8,
     physical_pin: u8,

@@ -112,10 +112,10 @@ pub fn handle_clean_nvram(args: &Value, workspace_root: &Path) -> Result<Value> 
     let mut saved = false;
     if let Some(out_str) = output_raw {
         let out_path = resolve_workspace_path(workspace_root, out_str);
-        if let Some(parent) = out_path.parent() {
-            if !parent.as_os_str().is_empty() {
-                fs::create_dir_all(parent)?;
-            }
+        if let Some(parent) = out_path.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            fs::create_dir_all(parent)?;
         }
         fs::write(&out_path, &cleaned.cleaned_bytes)?;
         saved = true;

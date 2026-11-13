@@ -5,10 +5,10 @@ use anyhow::Result;
 use panadiga_core::log_info;
 
 fn write_ghidra_script(output: &std::path::Path, label: &str, script: &str) -> Result<()> {
-    if let Some(parent) = output.parent() {
-        if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)?;
-        }
+    if let Some(parent) = output.parent()
+        && !parent.as_os_str().is_empty()
+    {
+        std::fs::create_dir_all(parent)?;
     }
     std::fs::write(output, script)?;
     log_info!("[OK] {} script generated at: {:?}", label, output);

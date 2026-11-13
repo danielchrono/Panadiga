@@ -9,10 +9,81 @@ import math
 import os
 import shutil
 import time
+from typing import Any, Mapping, Sequence, cast
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+
+
+def _plot(
+    ax: Axes,
+    x: float | Sequence[float],
+    y: float | Sequence[float],
+    *,
+    color: str = "black",
+    linewidth: float | None = None,
+    solid_capstyle: str | None = None,
+    marker: str | None = None,
+    markersize: float | None = None,
+) -> None:
+    """Strictly typed wrapper for Axes.plot keeping Pyright strict happy."""
+    kwargs: dict[str, Any] = {"color": color}
+    if linewidth is not None:
+        kwargs["linewidth"] = linewidth
+    if solid_capstyle is not None:
+        kwargs["solid_capstyle"] = solid_capstyle
+    if marker is not None:
+        kwargs["marker"] = marker
+    if markersize is not None:
+        kwargs["markersize"] = markersize
+    cast(Any, ax).plot(x, y, **kwargs)
+
+
+def _text(
+    ax: Axes,
+    x: float,
+    y: float,
+    s: str,
+    *,
+    fontsize: float,
+    fontweight: str | None = None,
+    color: str = "#000000",
+    ha: str = "left",
+    va: str = "baseline",
+    fontfamily: str = "sans-serif",
+    linespacing: float | None = None,
+) -> None:
+    """Strictly typed wrapper for Axes.text keeping Pyright strict happy."""
+    kwargs: dict[str, Any] = {
+        "fontsize": fontsize,
+        "color": color,
+        "ha": ha,
+        "va": va,
+        "fontfamily": fontfamily,
+    }
+    if fontweight is not None:
+        kwargs["fontweight"] = fontweight
+    if linespacing is not None:
+        kwargs["linespacing"] = linespacing
+    cast(Any, ax).text(x, y, s, **kwargs)
+
+
+def _annotate(
+    ax: Axes,
+    s: str,
+    *,
+    xy: tuple[float, float],
+    xytext: tuple[float, float],
+    arrowprops: Mapping[str, Any],
+) -> None:
+    """Strictly typed wrapper for Axes.annotate keeping Pyright strict happy."""
+    cast(Any, ax).annotate(s, xy=xy, xytext=xytext, arrowprops=dict(arrowprops))
+
+
+def _savefig(path: str, *, dpi: int, bbox_inches: str, facecolor: Any) -> None:
+    """Strictly typed wrapper for pyplot.savefig keeping Pyright strict happy."""
+    cast(Any, plt).savefig(path, dpi=dpi, bbox_inches=bbox_inches, facecolor=facecolor)
 
 
 def draw_ieee_resistor(
@@ -51,7 +122,7 @@ def draw_ieee_resistor(
     rot_pts = [(x1 + px * cos_a - py * sin_a, y1 + px * sin_a + py * cos_a) for px, py in pts]
 
     xs, ys = zip(*rot_pts)
-    ax.plot(xs, ys, color=color, linewidth=lw, solid_capstyle='round')
+    _plot(ax, xs, ys, color=color, linewidth=lw, solid_capstyle='round')
 
     mid_x = (x1 + x2) / 2.0
     mid_y = (y1 + y2) / 2.0
@@ -61,26 +132,26 @@ def draw_ieee_resistor(
     # Text above resistor
     if label or value:
         top_lbl = f"{label}: {value}" if (label and value) else (label or value)
-        ax.text(mid_x + off_x, mid_y + off_y, top_lbl, fontsize=6.8, fontweight='bold',
+        _text(ax, mid_x + off_x, mid_y + off_y, top_lbl, fontsize=6.8, fontweight='bold',
                 color=color, ha='center', va='bottom', fontfamily='monospace')
 
     # Text below resistor
     if opt_text:
-        ax.text(mid_x - off_x, mid_y - off_y, opt_text, fontsize=5.8, fontweight='bold',
+        _text(ax, mid_x - off_x, mid_y - off_y, opt_text, fontsize=5.8, fontweight='bold',
                 color='#475569', ha='center', va='top', fontfamily='monospace')
 
 
 def draw_chassis_ground(ax: Axes, x: float, y: float, color: str = "black", lw: float = 1.4) -> None:
     """Draws standard IEEE chassis ground symbol (3 diagonal lines)."""
-    ax.plot([x, x], [y, y - 0.20], color=color, linewidth=lw)
-    ax.plot([x - 0.20, x + 0.20], [y - 0.20, y - 0.20], color=color, linewidth=lw)
+    _plot(ax, [x, x], [y, y - 0.20], color=color, linewidth=lw)
+    _plot(ax, [x - 0.20, x + 0.20], [y - 0.20, y - 0.20], color=color, linewidth=lw)
     for off in [-0.16, 0.0, 0.16]:
-        ax.plot([x + off, x + off - 0.10], [y - 0.20, y - 0.35], color=color, linewidth=lw)
+        _plot(ax, [x + off, x + off - 0.10], [y - 0.20, y - 0.35], color=color, linewidth=lw)
 
 
 def draw_signal_ground(ax: Axes, x: float, y: float, color: str = "black", lw: float = 1.4) -> None:
     """Draws standard IEEE signal ground symbol (triangle)."""
-    ax.plot([x, x], [y, y - 0.16], color=color, linewidth=lw)
+    _plot(ax, [x, x], [y, y - 0.16], color=color, linewidth=lw)
     tri = patches.Polygon([[x - 0.16, y - 0.16], [x + 0.16, y - 0.16], [x, y - 0.35]],
                           closed=True, edgecolor=color, facecolor='none', linewidth=lw)
     ax.add_patch(tri)
@@ -107,27 +178,27 @@ def setup_title_block(
 ) -> None:
     """Renders standardized ISO/IEEE border and engineering title block in footer area."""
     # Outer border at y=0.45 to y=9.55
-    ax.plot([0.5, 15.5, 15.5, 0.5, 0.5], [0.45, 0.45, 9.55, 9.55, 0.45], color='#000000', linewidth=2.0)
+    _plot(ax, [0.5, 15.5, 15.5, 0.5, 0.5], [0.45, 0.45, 9.55, 9.55, 0.45], color='#000000', linewidth=2.0)
     # Inner border at y=0.58 to y=9.42
-    ax.plot([0.65, 15.35, 15.35, 0.65, 0.65], [0.58, 0.58, 9.42, 9.42, 0.58], color='#333333', linewidth=0.8)
+    _plot(ax, [0.65, 15.35, 15.35, 0.65, 0.65], [0.58, 0.58, 9.42, 9.42, 0.58], color='#333333', linewidth=0.8)
 
     # Title block rectangle (strictly bounded between y=0.58 and y=1.75)
     tb = patches.Rectangle((9.5, 0.58), 5.85, 1.17, edgecolor='#000000', facecolor='#f8fafc', linewidth=1.2)
     ax.add_patch(tb)
-    ax.plot([9.5, 15.35], [1.36, 1.36], color='#000000', linewidth=0.8)
-    ax.plot([9.5, 15.35], [0.97, 0.97], color='#000000', linewidth=0.8)
-    ax.plot([12.8, 12.8], [0.58, 1.36], color='#000000', linewidth=0.8)
+    _plot(ax, [9.5, 15.35], [1.36, 1.36], color='#000000', linewidth=0.8)
+    _plot(ax, [9.5, 15.35], [0.97, 0.97], color='#000000', linewidth=0.8)
+    _plot(ax, [12.8, 12.8], [0.58, 1.36], color='#000000', linewidth=0.8)
 
-    ax.text(9.65, 1.54, f"{header_org} | {header_sub}", fontsize=6.8, fontweight='bold', fontfamily='monospace')
-    ax.text(9.65, 1.16, title_text, fontsize=7.2, fontweight='bold', fontfamily='sans-serif')
-    ax.text(9.65, 0.77, app_text, fontsize=6.8, fontfamily='sans-serif')
-    ax.text(12.95, 1.16, rev_text, fontsize=6.8, fontweight='bold', fontfamily='monospace')
-    ax.text(12.95, 0.77, date_scale, fontsize=6.8, fontfamily='monospace')
+    _text(ax, 9.65, 1.54, f"{header_org} | {header_sub}", fontsize=6.8, fontweight='bold', fontfamily='monospace')
+    _text(ax, 9.65, 1.16, title_text, fontsize=7.2, fontweight='bold', fontfamily='sans-serif')
+    _text(ax, 9.65, 0.77, app_text, fontsize=6.8, fontfamily='sans-serif')
+    _text(ax, 12.95, 1.16, rev_text, fontsize=6.8, fontweight='bold', fontfamily='monospace')
+    _text(ax, 12.95, 0.77, date_scale, fontsize=6.8, fontfamily='monospace')
 
     if sheet_title:
-        ax.text(8.0, 9.05, sheet_title, fontsize=11.5, fontweight='bold', ha='center', fontfamily='monospace')
+        _text(ax, 8.0, 9.05, sheet_title, fontsize=11.5, fontweight='bold', ha='center', fontfamily='monospace')
     if sheet_subtitle:
-        ax.text(8.0, 8.75, sheet_subtitle, fontsize=8.0, color='#475569', ha='center', fontfamily='sans-serif')
+        _text(ax, 8.0, 8.75, sheet_subtitle, fontsize=8.0, color='#475569', ha='center', fontfamily='sans-serif')
 
 
 def finalize_and_save_drawing(fig: Figure, ax: Axes, output_path: str) -> None:
@@ -140,10 +211,10 @@ def finalize_and_save_drawing(fig: Figure, ax: Axes, output_path: str) -> None:
     os.makedirs(os.path.dirname(abs_path), exist_ok=True)
     tmp_path = abs_path + '.tmp.png'
     try:
-        plt.savefig(tmp_path, dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
+        _savefig(tmp_path, dpi=300, bbox_inches='tight', facecolor=fig.get_facecolor())
         plt.close(fig)
         # Safe atomic replace on Windows with retry
-        for attempt in range(5):
+        for _attempt in range(5):
             try:
                 if os.path.exists(abs_path):
                     os.remove(abs_path)
@@ -167,9 +238,9 @@ def finalize_and_save_drawing(fig: Figure, ax: Axes, output_path: str) -> None:
 def _render_vertical_conductive_vias(ax: Axes, x_coords: list[float]) -> None:
     """Draws vertical conductive FFC vias with contact pads and ribbon traces."""
     for vx in x_coords:
-        ax.plot([vx, vx], [4.80, 6.60], color='#334155', linewidth=1.2)
-        ax.plot(vx, 4.85, marker='s', markersize=2.2, color='#0f172a')
-        ax.plot(vx, 6.55, marker='.', markersize=2.0, color='#64748b')
+        _plot(ax, [vx, vx], [4.80, 6.60], color='#334155', linewidth=1.2)
+        _plot(ax, vx, 4.85, marker='s', markersize=2.2, color='#0f172a')
+        _plot(ax, vx, 6.55, marker='.', markersize=2.0, color='#64748b')
 
 
 def generate_electrical_schematic(output_path: str, lang: str = 'en') -> None:
@@ -199,14 +270,14 @@ def generate_electrical_schematic(output_path: str, lang: str = 'en') -> None:
     ax.add_patch(rp_box)
     rp_lbl = ('BENCH CONTROLLER\nRASPBERRY PI PICO\n(RP2040 3.3V LVTTL)' if is_en
               else 'CONTROLE DE BANCADA\nRASPBERRY PI PICO\n(RP2040 3.3V LVTTL)')
-    ax.text(2.47, 8.00, rp_lbl, fontsize=8.0, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 2.47, 8.00, rp_lbl, fontsize=8.0, fontweight='bold', ha='center', fontfamily='monospace')
 
     # P7501 Box (Right): y from 2.05 to 8.25
     target_box = patches.Rectangle((11.90, 2.05), 3.45, 6.20, edgecolor='#0f172a', facecolor='#f1f5f9', linewidth=1.5)
     ax.add_patch(target_box)
     tgt_lbl = ('DIGITAL BOARD VEP79138\nCONNECTOR P7501\n(JST ZR 1.5mm B6B-ZR)' if is_en
                else 'PLACA DIGITAL VEP79138\nCONECTOR P7501\n(JST ZR 1.5mm B6B-ZR)')
-    ax.text(13.62, 8.00, tgt_lbl, fontsize=8.0, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 13.62, 8.00, tgt_lbl, fontsize=8.0, fontweight='bold', ha='center', fontfamily='monospace')
 
     # Sequential pin layout: Pin 1 (Top, y=7.40) down to Pin 6 (Bottom, y=2.40)
     # Strictly aligned with official Panasonic Service Manual Pinout (Pins 1..6)
@@ -239,52 +310,52 @@ def generate_electrical_schematic(output_path: str, lang: str = 'en') -> None:
 
     for y, p_pin, p_lbl, r_name, r_val, r_opt, has_pu, t_pin, t_lbl, is_gnd, is_od in nets:
         # Pico Pin terminal and text
-        ax.plot([4.10, 4.70], [y, y], color='#000000', linewidth=1.4)
-        ax.plot(4.10, y, marker='o', markersize=3.5, color='#000000')
-        ax.text(3.95, y, f"{p_pin}\n{p_lbl}", fontsize=7.0, fontweight='bold', ha='right', va='center', fontfamily='monospace')
+        _plot(ax, [4.10, 4.70], [y, y], color='#000000', linewidth=1.4)
+        _plot(ax, 4.10, y, marker='o', markersize=3.5, color='#000000')
+        _text(ax, 3.95, y, f"{p_pin}\n{p_lbl}", fontsize=7.0, fontweight='bold', ha='right', va='center', fontfamily='monospace')
 
         # Target Pin terminal and text
-        ax.plot([11.30, 11.90], [y, y], color='#000000', linewidth=1.4)
-        ax.plot(11.90, y, marker='o', markersize=3.5, color='#000000')
-        ax.text(12.05, y, f"{t_pin}\n{t_lbl}", fontsize=7.0, fontweight='bold', ha='left', va='center', fontfamily='monospace')
+        _plot(ax, [11.30, 11.90], [y, y], color='#000000', linewidth=1.4)
+        _plot(ax, 11.90, y, marker='o', markersize=3.5, color='#000000')
+        _text(ax, 12.05, y, f"{t_pin}\n{t_lbl}", fontsize=7.0, fontweight='bold', ha='left', va='center', fontfamily='monospace')
 
         if is_gnd:
             # Direct ground bar
-            ax.plot([4.70, 11.30], [y, y], color='#000000', linewidth=1.8)
+            _plot(ax, [4.70, 11.30], [y, y], color='#000000', linewidth=1.8)
             draw_signal_ground(ax, 5.10, y, color='#000000', lw=1.2)
             draw_chassis_ground(ax, 10.90, y, color='#000000', lw=1.4)
             gnd_msg = ('EQUIPOTENTIAL COMMON GROUND BUS (0.0Ω TO CHASSIS ENCLOSURE)' if is_en
                        else 'MALHA DE TERRA EQUIPOTENCIAL COMUM (0.0Ω COM A LATA DO CHASSI)')
             can_msg = ('CANONICAL MANUAL PIN 4: GROUND CONTINUITY VERIFICATION TARGET' if is_en
                        else 'MANUAL CANÔNICO: PINO 4 = TERRA (PONTO DE TESTE CONTINUIDADE 0.0Ω)')
-            ax.text(8.00, y + 0.22, gnd_msg, fontsize=7.0, fontweight='bold', color='#15803d', ha='center', fontfamily='monospace')
-            ax.text(8.00, y - 0.22, can_msg, fontsize=7.2, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
+            _text(ax, 8.00, y + 0.22, gnd_msg, fontsize=7.0, fontweight='bold', color='#15803d', ha='center', fontfamily='monospace')
+            _text(ax, 8.00, y - 0.22, can_msg, fontsize=7.2, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
         else:
             # Series Resistor branch
-            ax.plot([4.70, 6.20], [y, y], color='#000000', linewidth=1.4)
+            _plot(ax, [4.70, 6.20], [y, y], color='#000000', linewidth=1.4)
             draw_ieee_resistor(ax, 6.20, y, 7.60, y, label=r_name or "", value=r_val or "",
                                opt_text=r_opt or "", color='#000000', lw=1.3)
-            ax.plot([7.60, 11.30], [y, y], color='#000000', linewidth=1.4)
+            _plot(ax, [7.60, 11.30], [y, y], color='#000000', linewidth=1.4)
 
             if has_pu:
                 hiz_msg = ('STRICT Hi-Z INPUT WITHOUT PULLS: IC1506/D7510 ~5.15V rail (~3.29V idle); NEVER drive push-pull!'
                            if is_en
                            else 'ENTRADA Hi-Z ESTRITA SEM PULLS: Linha IC1506/D7510 ~5.15V (~3.29V repouso); NUNCA forçar push-pull!')
-                ax.text(8.00, y - 0.32, hiz_msg, fontsize=5.8, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
+                _text(ax, 8.00, y - 0.32, hiz_msg, fontsize=5.8, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
 
             if is_od:
                 od_msg = ('OPEN-DRAIN MODE: GP5 STRICTLY SINKS TO 0V; RELEASES IN Hi-Z\n'
                           'NEVER DRIVE +3.3V PUSH-PULL (SHORT CIRCUIT HAZARD WITH BOARD RESET SUPERVISOR)' if is_en
                           else 'MODO OPEN-DRAIN: GP5 DRENA EXCLUSIVAMENTE PARA 0V; LIBERA EM Hi-Z\n'
                                'JAMAIS FORÇAR +3.3V PUSH-PULL (RISCO DE CURTO COM CIRCUITO DE RESET DA PLACA)')
-                ax.text(6.90, y - 0.36, od_msg, fontsize=5.8, fontweight='bold', color='#c2410c', ha='center', fontfamily='monospace', linespacing=1.15)
+                _text(ax, 6.90, y - 0.36, od_msg, fontsize=5.8, fontweight='bold', color='#c2410c', ha='center', fontfamily='monospace', linespacing=1.15)
 
     # Engineering Notes Box (Bottom Left)
     nt_box = patches.Rectangle((0.85, 0.58), 8.50, 1.17, edgecolor='#b91c1c', facecolor='#fef2f2', linewidth=1.2)
     ax.add_patch(nt_box)
     nt_hdr = ('BENCH ENGINEERING NOTES & WIRING DIRECTIVE (RESISTORS vs DIRECT WIRE):' if is_en
               else 'NOTAS DE ENGENHARIA DE BANCADA E DIRETRIZ DE LIGAÇÃO (RESISTORES vs FIO DIRETO):')
-    ax.text(0.98, 1.62, nt_hdr, fontsize=7.0, fontweight='bold', color='#991b1b', fontfamily='monospace')
+    _text(ax, 0.98, 1.62, nt_hdr, fontsize=7.0, fontweight='bold', color='#991b1b', fontfamily='monospace')
 
     if is_en:
         notes_str = (
@@ -298,7 +369,7 @@ def generate_electrical_schematic(output_path: str, lang: str = 'en') -> None:
             '• INTERTRAVA SW_UART / Q7514: Pino 1 LOW força XFWE=LOW e corta Q7514 (Pino 3 UARTM2P_T). Mantenha SW_UART=Hi-Z para TX.\n'
             '• PINAGEM VERIFICADA: 1=SW_UART, 2=XRESET, 3=UARTM2P_T, 4=GND (0.0Ω), 5=NSW5V (Hi-Z), 6=UARTP2M_T.'
         )
-    ax.text(0.98, 1.48, notes_str, fontsize=6.2, color='#7f1d1d', ha='left', va='top', fontfamily='sans-serif', linespacing=1.22)
+    _text(ax, 0.98, 1.48, notes_str, fontsize=6.2, color='#7f1d1d', ha='left', va='top', fontfamily='sans-serif', linespacing=1.22)
 
     finalize_and_save_drawing(fig, ax, output_path)
 
@@ -328,7 +399,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     # SECTION 1: Top View of Connector (Mating Face)
     sec1_hdr = ('TOP VIEW: JST ZR HEADER (B6B-ZR-3R4) ON VEP79138 PCB' if is_en
                 else 'VISTA SUPERIOR: CONECTOR JST ZR (B6B-ZR-3R4) NA PLACA VEP79138')
-    ax.text(4.8, 8.20, sec1_hdr, fontsize=8.5, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 4.8, 8.20, sec1_hdr, fontsize=8.5, fontweight='bold', ha='center', fontfamily='monospace')
 
     # Shroud Outer Body: 10.5mm x 4.5mm (y from 4.7 to 7.7)
     shroud = patches.Rectangle((1.0, 4.7), 7.6, 3.0, edgecolor='#000000', facecolor='#f8fafc', linewidth=2.0)
@@ -339,7 +410,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     ax.add_patch(back_wall)
     bw_txt = ('REINFORCED REAR WALL (THICK 0.60mm) [TOWARDS BOARD INTERIOR]' if is_en
               else 'PAREDE TRASEIRA REFORÇADA (GROSSA 0.60mm) [VOLTADA P/ O INTERIOR DA PLACA]')
-    ax.text(4.8, 7.4, bw_txt, fontsize=6.6, fontweight='bold', ha='center', va='center', fontfamily='sans-serif')
+    _text(ax, 4.8, 7.4, bw_txt, fontsize=6.6, fontweight='bold', ha='center', va='center', fontfamily='sans-serif')
 
     # Front Wall with Locking Slot (0.45mm)
     front_wall = patches.Rectangle((1.0, 4.7), 7.6, 0.45, edgecolor='#000000', facecolor='#e2e8f0', linewidth=1.2)
@@ -350,14 +421,14 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     ax.add_patch(lock_notch)
     notch_txt = ('LOCKING NOTCH\n(FRONT BOARD EDGE)' if is_en
                  else 'JANELA DE TRAVA\n(BORDA FRONTAL PCB)')
-    ax.text(4.8, 4.92, notch_txt, fontsize=5.2, fontweight='bold', color='#b91c1c',
+    _text(ax, 4.8, 4.92, notch_txt, fontsize=5.2, fontweight='bold', color='#b91c1c',
             ha='center', va='center', fontfamily='sans-serif', linespacing=1.05)
 
     # Polarization Keying Ribs
-    ax.plot([1.6, 1.6], [4.7, 5.4], color='#000000', linewidth=1.5)
-    ax.plot([8.0, 8.0], [4.7, 5.4], color='#000000', linewidth=1.5)
-    ax.text(1.6, 4.4, 'KEY A' if is_en else 'GUIA A', fontsize=6.5, fontweight='bold', ha='center', fontfamily='monospace')
-    ax.text(8.0, 4.4, 'KEY B' if is_en else 'GUIA B', fontsize=6.5, fontweight='bold', ha='center', fontfamily='monospace')
+    _plot(ax, [1.6, 1.6], [4.7, 5.4], color='#000000', linewidth=1.5)
+    _plot(ax, [8.0, 8.0], [4.7, 5.4], color='#000000', linewidth=1.5)
+    _text(ax, 1.6, 4.4, 'KEY A' if is_en else 'GUIA A', fontsize=6.5, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 8.0, 4.4, 'KEY B' if is_en else 'GUIA B', fontsize=6.5, fontweight='bold', ha='center', fontfamily='monospace')
 
     # Pin 6 Chamfer (Left end)
     chamfer = patches.Polygon([[1.0, 7.1], [1.5, 7.7], [1.0, 7.7]], closed=True,
@@ -365,7 +436,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     ax.add_patch(chamfer)
     ch_lbl = ('45° BODY BEVEL (PIN 6 / UARTP2M_T PAD)' if is_en
               else 'CHANFRO 45° (PAD PINO 6 / UARTP2M_T)')
-    ax.text(1.0, 7.88, ch_lbl, fontsize=6.8, fontweight='bold', color='#b91c1c', ha='left', fontfamily='monospace')
+    _text(ax, 1.0, 7.88, ch_lbl, fontsize=6.8, fontweight='bold', color='#b91c1c', ha='left', fontfamily='monospace')
 
     # 6 Pin Cavities (Pitch 1.5mm) - Strictly Canonical Panasonic Manual Pinout (1 to 6)
     # Left end (x=2.05, near FP50003 10V) is Pin 6 (UARTP2M_T). Right end (x=7.55, near FP50004 8V) is Pin 1 (SW_UART).
@@ -385,23 +456,23 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
             pad_rect = patches.Rectangle((px - 0.25, 5.9), 0.5, 0.5, edgecolor='#b91c1c', facecolor='#fee2e2', linewidth=1.8)
             ax.add_patch(pad_rect)
             pad_txt = 'SQUARE PAD\n(PCB PIN 6)' if is_en else 'PAD QUADRADO\n(PINO 6 PCB)'
-            ax.text(px, 6.62, pad_txt, fontsize=6.0, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
+            _text(ax, px, 6.62, pad_txt, fontsize=6.0, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
         else:
             pad_color = '#dcfce7' if is_gnd else '#ffffff'
             edge_c = '#15803d' if is_gnd else '#000000'
             pad_circ = patches.Circle((px, 6.15), 0.25, edgecolor=edge_c, facecolor=pad_color, linewidth=1.5)
             ax.add_patch(pad_circ)
 
-        ax.plot(px, 6.15, marker='.', markersize=6, color='#000000')
+        _plot(ax, px, 6.15, marker='.', markersize=6, color='#000000')
 
         # Numbering and labels
-        ax.text(px, 5.45, p_num.split()[-1], fontsize=8, fontweight='bold', ha='center', va='center', fontfamily='monospace')
-        ax.text(px, 3.95, p_num, fontsize=6.5, fontweight='bold', ha='center', va='top', fontfamily='monospace')
+        _text(ax, px, 5.45, p_num.split()[-1], fontsize=8, fontweight='bold', ha='center', va='center', fontfamily='monospace')
+        _text(ax, px, 3.95, p_num, fontsize=6.5, fontweight='bold', ha='center', va='top', fontfamily='monospace')
         sig_color = '#15803d' if is_gnd else '#000000'
-        ax.text(px, 3.15, f"{sig_main}\n{sig_sub}", fontsize=6.8, fontweight='bold', color=sig_color, ha='center', va='top', fontfamily='monospace')
+        _text(ax, px, 3.15, f"{sig_main}\n{sig_sub}", fontsize=6.8, fontweight='bold', color=sig_color, ha='center', va='top', fontfamily='monospace')
 
-    ax.annotate('', xy=(3.15, 6.15), xytext=(2.05, 6.15), arrowprops=dict(arrowstyle='<->', color='#2563eb', lw=1.2))
-    ax.text(2.6, 6.25, 'p=1.50mm', fontsize=6.8, color='#2563eb', ha='center', fontweight='bold', fontfamily='monospace')
+    _annotate(ax, '', xy=(3.15, 6.15), xytext=(2.05, 6.15), arrowprops=dict(arrowstyle='<->', color='#2563eb', lw=1.2))
+    _text(ax, 2.6, 6.25, 'p=1.50mm', fontsize=6.8, color='#2563eb', ha='center', fontweight='bold', fontfamily='monospace')
 
     # Highlight GND Column (Canonical Pin 4)
     gnd_box = patches.Rectangle((3.80, 2.85), 0.90, 4.95, edgecolor='#15803d', facecolor='none', linewidth=1.8, linestyle='--')
@@ -409,7 +480,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
 
     # SECTION 2: PCB Placement Context
     sec2_hdr = ('REAL TOPOGRAPHY ON VEP79138 PCB' if is_en else 'TOPOGRAFIA REAL NA PCB VEP79138')
-    ax.text(12.425, 8.20, sec2_hdr, fontsize=8.5, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 12.425, 8.20, sec2_hdr, fontsize=8.5, fontweight='bold', ha='center', fontfamily='monospace')
 
     pcb_ctx = patches.Rectangle((9.5, 3.7), 5.85, 4.0, edgecolor='#000000', facecolor='#f1f5f9', linewidth=1.5)
     ax.add_patch(pcb_ctx)
@@ -418,14 +489,14 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     f10_sock = patches.Rectangle((9.70, 4.60), 1.35, 2.25, edgecolor='#000000', facecolor='#e2e8f0', linewidth=1.2)
     ax.add_patch(f10_sock)
     f10_lbl = 'FP50003\n(Flat 10 Vias)' if is_en else 'FP50003\n(Flat 10 Vias)'
-    ax.text(10.375, 7.00, f10_lbl, fontsize=6.8, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 10.375, 7.00, f10_lbl, fontsize=6.8, fontweight='bold', ha='center', fontfamily='monospace')
     _render_vertical_conductive_vias(ax, [9.82 + i * 0.1233 for i in range(10)])
 
     # Connector P7501 in Center of context - Detailed Male Shrouded Header (B6B-ZR-3R4)
     p75_t1 = 'P7501 [B6B-ZR-3R4]'
     p75_t2 = '"TO WRITE JIGU" (MALE)' if is_en else '"TO WRITE JIGU" (MACHO)'
-    ax.text(12.425, 7.30, p75_t1, fontsize=7.0, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
-    ax.text(12.425, 7.02, p75_t2, fontsize=6.2, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
+    _text(ax, 12.425, 7.30, p75_t1, fontsize=7.0, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
+    _text(ax, 12.425, 7.02, p75_t2, fontsize=6.2, fontweight='bold', color='#b91c1c', ha='center', fontfamily='monospace')
 
     # Shroud Outer Perimeter
     shroud = patches.Rectangle((11.25, 4.60), 2.35, 2.25, edgecolor='#b91c1c', facecolor='#f8fafc', linewidth=1.6)
@@ -435,7 +506,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     rear_wall = patches.Rectangle((11.25, 6.45), 2.35, 0.40, edgecolor='#b91c1c', facecolor='#cbd5e1', linewidth=1.0)
     ax.add_patch(rear_wall)
     wall_txt = 'THICK REAR WALL (INSIDE)' if is_en else 'PAREDE GROSSA (MIOLO)'
-    ax.text(12.425, 6.65, wall_txt, fontsize=5.3, fontweight='bold', ha='center', va='center', fontfamily='sans-serif')
+    _text(ax, 12.425, 6.65, wall_txt, fontsize=5.3, fontweight='bold', ha='center', va='center', fontfamily='sans-serif')
 
     # Thin Front Wall (0.30mm in model)
     front_wall = patches.Rectangle((11.25, 4.60), 2.35, 0.30, edgecolor='#b91c1c', facecolor='#e2e8f0', linewidth=1.0)
@@ -445,7 +516,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
     notch = patches.Rectangle((12.125, 4.55), 0.60, 0.35, edgecolor='#b91c1c', facecolor='#fee2e2', linewidth=1.2)
     ax.add_patch(notch)
     notch_lbl = 'LATCH' if is_en else 'TRAVA'
-    ax.text(12.425, 4.72, notch_lbl, fontsize=5.3, fontweight='bold', color='#b91c1c', ha='center', va='center', fontfamily='monospace')
+    _text(ax, 12.425, 4.72, notch_lbl, fontsize=5.3, fontweight='bold', color='#b91c1c', ha='center', va='center', fontfamily='monospace')
 
     # Pin 6 Polarizing Chamfer (top-left)
     chamfer = patches.Polygon([[11.25, 6.45], [11.60, 6.85], [11.25, 6.85]], closed=True,
@@ -473,30 +544,30 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
             ax.add_patch(post_circ)
 
         p_color = '#15803d' if is_gnd_pin else ('#b91c1c' if is_sq_pin else '#0f172a')
-        ax.plot(px, 5.50, marker='s', markersize=3.6, color=p_color)
-        ax.text(px, 5.95, str(pin_idx), fontsize=6.8, fontweight='bold', ha='center', va='center', fontfamily='monospace')
+        _plot(ax, px, 5.50, marker='s', markersize=3.6, color=p_color)
+        _text(ax, px, 5.95, str(pin_idx), fontsize=6.8, fontweight='bold', ha='center', va='center', fontfamily='monospace')
 
     male_indicator = 'MALE PCB HEADER (PIN POSTS PROTRUDE UP)' if is_en else 'CONECTOR MACHO NA PCB (PINOS P/ CIMA)'
-    ax.text(12.425, 4.38, male_indicator, fontsize=5.6, fontweight='bold', color='#475569', ha='center', fontfamily='monospace')
+    _text(ax, 12.425, 4.38, male_indicator, fontsize=5.6, fontweight='bold', color='#475569', ha='center', fontfamily='monospace')
 
     # Flat 8 Vias Socket (FP50004) on the right - vertical vias side-by-side
     f8_sock = patches.Rectangle((13.80, 4.60), 1.35, 2.25, edgecolor='#000000', facecolor='#e2e8f0', linewidth=1.2)
     ax.add_patch(f8_sock)
     f8_lbl = 'FP50004\n(Flat 8 Vias)' if is_en else 'FP50004\n(Flat 8 Vias)'
-    ax.text(14.475, 7.00, f8_lbl, fontsize=6.8, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 14.475, 7.00, f8_lbl, fontsize=6.8, fontweight='bold', ha='center', fontfamily='monospace')
     _render_vertical_conductive_vias(ax, [13.95 + i * 0.150 for i in range(8)])
 
-    ax.annotate('', xy=(14.80, 4.15), xytext=(10.05, 4.15), arrowprops=dict(arrowstyle='->', color='#000000', lw=1.5))
+    _annotate(ax, '', xy=(14.80, 4.15), xytext=(10.05, 4.15), arrowprops=dict(arrowstyle='->', color='#000000', lw=1.5))
     seq_lbl = ('CANONICAL ORDER: PIN 6 (10V FLAT) <---> PIN 1 (8V FLAT)' if is_en
                else 'ORDEM CANÔNICA: PINO 6 (FLAT 10V) <---> PINO 1 (FLAT 8V)')
-    ax.text(12.425, 3.90, seq_lbl, fontsize=6.2, fontweight='bold', ha='center', fontfamily='monospace')
+    _text(ax, 12.425, 3.90, seq_lbl, fontsize=6.2, fontweight='bold', ha='center', fontfamily='monospace')
 
     # SECTION 3: Bottom Engineering Notes
     nt_box = patches.Rectangle((0.85, 0.58), 8.50, 1.17, edgecolor='#000000', facecolor='#f8fafc', linewidth=1.2)
     ax.add_patch(nt_box)
     cad_hdr = ('MECHANICAL CONFORMANCE RULES AND BENCH VISUAL IDENTIFICATION:' if is_en
                else 'REGRAS DE CONFORMIDADE MECÂNICA E IDENTIFICAÇÃO VISUAL DE BANCADA:')
-    ax.text(0.98, 1.62, cad_hdr, fontsize=7.0, fontweight='bold', fontfamily='monospace')
+    _text(ax, 0.98, 1.62, cad_hdr, fontsize=7.0, fontweight='bold', fontfamily='monospace')
 
     if is_en:
         cad_notes = (
@@ -512,7 +583,7 @@ def generate_mechanical_cad_drawing(output_path: str, lang: str = 'en') -> None:
             '3. TERRA CANÔNICO PINO 4 (0.0Ω): O pino 4 é o GND canônico, verificado com continuidade 0.0Ω ao chassi metálico.\n'
             '4. SEGURANÇA NSW5V/SW_UART: Mantenha Pino 5 (NSW5V ~5.15V upstream) em Hi-Z SEM pulls! Pino 1 LOW força XFWE serial boot.'
         )
-    ax.text(0.98, 1.48, cad_notes, fontsize=6.2, color='#334155', ha='left', va='top', fontfamily='sans-serif', linespacing=1.22)
+    _text(ax, 0.98, 1.48, cad_notes, fontsize=6.2, color='#334155', ha='left', va='top', fontfamily='sans-serif', linespacing=1.22)
 
     finalize_and_save_drawing(fig, ax, output_path)
 

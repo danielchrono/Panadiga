@@ -79,15 +79,15 @@ pub fn scan_data_strings(
                     let matched_kw = kw_lower.iter().find(|&kw| text_lower.contains(kw));
 
                     if !kw_lower.is_empty() {
-                        if let Some(kw) = matched_kw {
-                            if limit == 0 || acc.len() < limit {
-                                acc.push(StringMatch {
-                                    offset: start,
-                                    offset_hex: format!("0x{:08X}", start),
-                                    text: text.to_string(),
-                                    matched_keyword: Some(kw.clone()),
-                                });
-                            }
+                        if let Some(kw) = matched_kw
+                            && (limit == 0 || acc.len() < limit)
+                        {
+                            acc.push(StringMatch {
+                                offset: start,
+                                offset_hex: format!("0x{:08X}", start),
+                                text: text.to_string(),
+                                matched_keyword: Some(kw.clone()),
+                            });
                         }
                     } else if limit == 0 || acc.len() < limit {
                         acc.push(StringMatch {

@@ -83,26 +83,26 @@ pub fn compose_diagnostic_command(
 
     // Enforce bounded parameter formats for critical commands
     if normalized == "BREAK_IN" {
-        if let Some(m) = clean_arg {
-            if !matches!(m, "0" | "1" | "2" | "3") {
-                return Err(format!("Modo Break-In inválido '{}': use 0, 1, 2 ou 3.", m));
-            }
+        if let Some(m) = clean_arg
+            && !matches!(m, "0" | "1" | "2" | "3")
+        {
+            return Err(format!("Modo Break-In inválido '{}': use 0, 1, 2 ou 3.", m));
         }
     } else if normalized == "FLASH_SIZE" {
-        if let Some(sz) = clean_arg {
-            if !matches!(sz, "2" | "4" | "8" | "16") {
-                return Err(format!(
-                    "Tamanho Flash inválido '{}': use 2, 4, 8 ou 16.",
-                    sz
-                ));
-            }
+        if let Some(sz) = clean_arg
+            && !matches!(sz, "2" | "4" | "8" | "16")
+        {
+            return Err(format!(
+                "Tamanho Flash inválido '{}': use 2, 4, 8 ou 16.",
+                sz
+            ));
         }
-    } else if normalized == "LED" {
-        if let Some(mode) = clean_arg {
-            let upper = mode.to_ascii_uppercase();
-            if !matches!(upper.as_str(), "IDLE" | "ACTIVE" | "GDB" | "FAULT") {
-                return Err("Modo LED inválido: use IDLE, ACTIVE, GDB ou FAULT.".to_string());
-            }
+    } else if normalized == "LED"
+        && let Some(mode) = clean_arg
+    {
+        let upper = mode.to_ascii_uppercase();
+        if !matches!(upper.as_str(), "IDLE" | "ACTIVE" | "GDB" | "FAULT") {
+            return Err("Modo LED inválido: use IDLE, ACTIVE, GDB ou FAULT.".to_string());
         }
     }
 
@@ -116,12 +116,10 @@ pub fn compose_diagnostic_command(
     if matches!(
         normalized.as_str(),
         "SNIFF" | "BOOTCAP" | "UARTMON" | "JIGBOOT"
-    ) {
-        if let Some(ms_str) = clean_arg {
-            if let Ok(ms) = ms_str.parse::<u64>() {
-                timeout_ms = ms.saturating_add(2000).clamp(2000, 35000);
-            }
-        }
+    ) && let Some(ms_str) = clean_arg
+        && let Ok(ms) = ms_str.parse::<u64>()
+    {
+        timeout_ms = ms.saturating_add(2000).clamp(2000, 35000);
     }
 
     Ok((raw_cmd, Duration::from_millis(timeout_ms)))
@@ -148,10 +146,10 @@ fn parse_pincheck_rows(raw_output: &str) -> (Vec<PincheckRowDto>, Option<String>
                     state: parts[4].to_string(),
                 });
             }
-        } else if let Some((_, rhs)) = trimmed.split_once("XRESET Release Rise Time") {
-            if let Some((_, val)) = rhs.split_once(':') {
-                rise_time = Some(val.trim().to_string());
-            }
+        } else if let Some((_, rhs)) = trimmed.split_once("XRESET Release Rise Time")
+            && let Some((_, val)) = rhs.split_once(':')
+        {
+            rise_time = Some(val.trim().to_string());
         }
     }
     (rows, rise_time)
@@ -161,32 +159,33 @@ fn parse_transition_rows(raw_output: &str) -> Vec<BusTransitionRowDto> {
     let mut rows = Vec::new();
     for line in raw_output.lines() {
         let trimmed = line.trim();
-        if trimmed.contains("Final=") && trimmed.contains("Transitions=") {
-            if let Some((left, right)) = trimmed.split_once(':') {
-                let final_level = right
-                    .split("Final=")
-                    .nth(1)
-                    .and_then(|s| s.split([',', ' ']).next())
-                    .and_then(|n| n.parse::<u8>().ok());
-                let transitions = right
-                    .split("Transitions=")
-                    .nth(1)
-                    .and_then(|s| s.split_whitespace().next())
-                    .and_then(|n| n.parse::<u32>().ok())
-                    .unwrap_or(0);
-                let parts: Vec<&str> = left.split_whitespace().collect();
-                let signal = parts.first().copied().unwrap_or("SIG").to_string();
-                let gpio = parts
-                    .get(1)
-                    .map(|g| g.trim_matches(['(', ')']).to_string())
-                    .unwrap_or_default();
-                rows.push(BusTransitionRowDto {
-                    signal,
-                    gpio,
-                    final_level,
-                    transitions,
-                });
-            }
+        if trimmed.contains("Final=")
+            && trimmed.contains("Transitions=")
+            && let Some((left, right)) = trimmed.split_once(':')
+        {
+            let final_level = right
+                .split("Final=")
+                .nth(1)
+                .and_then(|s| s.split([',', ' ']).next())
+                .and_then(|n| n.parse::<u8>().ok());
+            let transitions = right
+                .split("Transitions=")
+                .nth(1)
+                .and_then(|s| s.split_whitespace().next())
+                .and_then(|n| n.parse::<u32>().ok())
+                .unwrap_or(0);
+            let parts: Vec<&str> = left.split_whitespace().collect();
+            let signal = parts.first().copied().unwrap_or("SIG").to_string();
+            let gpio = parts
+                .get(1)
+                .map(|g| g.trim_matches(['(', ')']).to_string())
+                .unwrap_or_default();
+            rows.push(BusTransitionRowDto {
+                signal,
+                gpio,
+                final_level,
+                transitions,
+            });
         }
     }
     rows
@@ -220,10 +219,10 @@ fn parse_captured_bytes(raw_output: &str) -> Option<u32> {
     for line in raw_output.lines() {
         if let Some(pos) = line.find(" bytes") {
             let prefix = &line[..pos];
-            if let Some(token) = prefix.split(['(', ' ', ':']).next_back() {
-                if let Ok(val) = token.trim().parse::<u32>() {
-                    return Some(val);
-                }
+            if let Some(token) = prefix.split(['(', ' ', ':']).next_back()
+                && let Ok(val) = token.trim().parse::<u32>()
+            {
+                return Some(val);
             }
         }
     }

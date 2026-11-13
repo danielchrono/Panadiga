@@ -28,12 +28,10 @@ fn extract_dcsr_value(text: &str) -> Option<u32> {
         if let Some(hex_body) = cleaned
             .strip_prefix("0x")
             .or_else(|| cleaned.strip_prefix("0X"))
+            && hex_body.len() == 8
+            && let Ok(val) = u32::from_str_radix(hex_body, 16)
         {
-            if hex_body.len() == 8 {
-                if let Ok(val) = u32::from_str_radix(hex_body, 16) {
-                    return Some(val);
-                }
-            }
+            return Some(val);
         }
     }
     None
@@ -177,25 +175,24 @@ pub fn handle_pico(args: PicoArgs) -> Result<()> {
                 hex_dump(&captured, base_addr as usize, captured.len().min(512))
             );
 
-            if base_addr >= AM34_NVRAM_BASE && base_addr < AM34_NVRAM_BASE + 0x0001_0000 {
-                if let Ok(report) =
+            if (AM34_NVRAM_BASE..AM34_NVRAM_BASE + 0x0001_0000).contains(&base_addr)
+                && let Ok(report) =
                     inspect_partial_nvram_capture(&captured, base_addr, &format!("pico:{}", port))
-                {
-                    log_println!(
-                        "NVRAM Audit: non-0xFF={}/{} bytes (sectors={}) | SHA-256={}",
-                        report.nvram_non_ff_bytes,
-                        captured.len(),
-                        report.microsectors.len(),
-                        report.original_sha256
-                    );
-                }
+            {
+                log_println!(
+                    "NVRAM Audit: non-0xFF={}/{} bytes (sectors={}) | SHA-256={}",
+                    report.nvram_non_ff_bytes,
+                    captured.len(),
+                    report.microsectors.len(),
+                    report.original_sha256
+                );
             }
 
             if let Some(out_path) = out {
-                if let Some(parent) = out_path.parent() {
-                    if !parent.as_os_str().is_empty() {
-                        std::fs::create_dir_all(parent)?;
-                    }
+                if let Some(parent) = out_path.parent()
+                    && !parent.as_os_str().is_empty()
+                {
+                    std::fs::create_dir_all(parent)?;
                 }
                 std::fs::write(&out_path, &captured)?;
                 log_println!("[OK] Captured bytes saved to {}", out_path.display());
@@ -238,11 +235,11 @@ pub fn handle_pico(args: PicoArgs) -> Result<()> {
                 ];
                 let mut found = None;
                 for c in &candidates {
-                    if c.exists() {
-                        if let Ok(data) = std::fs::read(c) {
-                            found = Some(data);
-                            break;
-                        }
+                    if c.exists()
+                        && let Ok(data) = std::fs::read(c)
+                    {
+                        found = Some(data);
+                        break;
                     }
                 }
                 match found {

@@ -63,10 +63,10 @@ pub(crate) fn load_optional_hdd_image(
     hdd_path: Option<&Path>,
 ) -> (Option<crate::hdd::ImageBuffer>, Option<String>) {
     let candidate = resolve_hdd_candidate(hdd_path);
-    if let Some(ref path) = candidate {
-        if let Ok(buffer) = open_image_buffer(path) {
-            return (Some(buffer), Some(path.to_string_lossy().to_string()));
-        }
+    if let Some(ref path) = candidate
+        && let Ok(buffer) = open_image_buffer(path)
+    {
+        return (Some(buffer), Some(path.to_string_lossy().to_string()));
     }
     (None, None)
 }

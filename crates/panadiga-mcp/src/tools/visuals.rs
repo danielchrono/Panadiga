@@ -97,20 +97,20 @@ pub fn handle_search_visuals(args: &Value, workspace_root: &Path) -> Value {
         .images
         .iter()
         .filter(|entry| {
-            if let Some(ref ed) = edition_filter {
-                if !entry.manual_edition.to_lowercase().contains(ed) {
-                    return false;
-                }
+            if let Some(ref ed) = edition_filter
+                && !entry.manual_edition.to_lowercase().contains(ed)
+            {
+                return false;
             }
-            if let Some(ref cat) = category_filter {
-                if !entry.category.to_lowercase().contains(cat) {
-                    return false;
-                }
+            if let Some(ref cat) = category_filter
+                && !entry.category.to_lowercase().contains(cat)
+            {
+                return false;
             }
-            if let Some(pg) = page_filter {
-                if entry.page_number != Some(pg) {
-                    return false;
-                }
+            if let Some(pg) = page_filter
+                && entry.page_number != Some(pg)
+            {
+                return false;
             }
             true
         })

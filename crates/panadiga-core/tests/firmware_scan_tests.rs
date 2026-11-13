@@ -16,14 +16,12 @@ fn test_headers_and_hex_dump() {
 
     // 1. Tenta testar com o binário real caso ele esteja presente e íntegro no workspace
     let default_hdd = Path::new("firmware_and_images/panasonic DMR EH-55 Firmware hdd_100.bin.gz");
-    if default_hdd.exists() {
-        if let Ok(metadata) = std::fs::metadata(default_hdd) {
-            if metadata.len() > 1024
-                && inspect_firmware_headers(Some(default_hdd), None, 64).is_ok()
-            {
-                return;
-            }
-        }
+    if default_hdd.exists()
+        && let Ok(metadata) = std::fs::metadata(default_hdd)
+        && metadata.len() > 1024
+        && inspect_firmware_headers(Some(default_hdd), None, 64).is_ok()
+    {
+        return;
     }
 
     // 2. Fallback rigoroso (sem simplificações): Constrói um container compactado em GZIP e .FRM sintéticos
@@ -39,8 +37,8 @@ fn test_headers_and_hex_dump() {
         // 70 MB para garantir que 0x02000000 (32MB) e 0x04000000 (64MB) sejam alcançáveis pelo buffer descompactado
         let mut hdd_payload = vec![0u8; 70 * 1024 * 1024];
 
-        let p1_offset = 0x0200_0000 as usize;
-        let p2_offset = 0x0400_0000 as usize;
+        let p1_offset = 0x0200_0000_usize;
+        let p2_offset = 0x0400_0000_usize;
 
         let magic = PANASONIC_HDD_PARTITION_MAGIC;
         if p1_offset + magic.len() < hdd_payload.len() {

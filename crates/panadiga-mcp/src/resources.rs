@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
-fn collect_markdown_docs(root: &Path, docs_dir: &Path, out: &mut Vec<PathBuf>) {
+fn collect_markdown_docs(docs_dir: &Path, out: &mut Vec<PathBuf>) {
     let Ok(entries) = fs::read_dir(docs_dir) else {
         return;
     };
@@ -19,7 +19,7 @@ fn collect_markdown_docs(root: &Path, docs_dir: &Path, out: &mut Vec<PathBuf>) {
 
     for p in paths {
         if p.is_dir() {
-            collect_markdown_docs(root, &p, out);
+            collect_markdown_docs(&p, out);
         } else if p.is_file() && p.extension().and_then(|s| s.to_str()) == Some("md") {
             out.push(p);
         }
@@ -68,7 +68,7 @@ pub fn list_resources(workspace_root: &Path) -> Vec<Value> {
 
     let docs_root = workspace_root.join("docs");
     let mut md_files = Vec::new();
-    collect_markdown_docs(workspace_root, &docs_root, &mut md_files);
+    collect_markdown_docs(&docs_root, &mut md_files);
 
     for path in md_files.into_iter().take(250) {
         if let Ok(rel) = path.strip_prefix(workspace_root) {

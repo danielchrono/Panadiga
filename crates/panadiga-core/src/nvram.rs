@@ -248,14 +248,14 @@ pub fn resolve_input_path(input: &Path) -> Result<PathBuf> {
         PathBuf::from("."),
     ];
 
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(exe_dir) = exe.parent() {
-            candidate_dirs.push(exe_dir.join("firmware_and_images"));
-            candidate_dirs.push(exe_dir.to_path_buf());
-            if let Some(parent) = exe_dir.parent() {
-                candidate_dirs.push(parent.join("firmware_and_images"));
-                candidate_dirs.push(parent.to_path_buf());
-            }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(exe_dir) = exe.parent()
+    {
+        candidate_dirs.push(exe_dir.join("firmware_and_images"));
+        candidate_dirs.push(exe_dir.to_path_buf());
+        if let Some(parent) = exe_dir.parent() {
+            candidate_dirs.push(parent.join("firmware_and_images"));
+            candidate_dirs.push(parent.to_path_buf());
         }
     }
 

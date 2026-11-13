@@ -43,10 +43,11 @@ pub fn push_hex_word_le(token: &str, out: &mut Vec<u8>) {
         .trim()
         .trim_start_matches("0x")
         .trim_start_matches("0X");
-    if clean_tok.len() == 8 && clean_tok.chars().all(|c| c.is_ascii_hexdigit()) {
-        if let Ok(word) = u32::from_str_radix(clean_tok, 16) {
-            out.extend_from_slice(&word.to_le_bytes());
-        }
+    if clean_tok.len() == 8
+        && clean_tok.chars().all(|c| c.is_ascii_hexdigit())
+        && let Ok(word) = u32::from_str_radix(clean_tok, 16)
+    {
+        out.extend_from_slice(&word.to_le_bytes());
     }
 }
 
@@ -154,17 +155,17 @@ pub fn send_and_read_until(
     let mut out = String::new();
     let mut buf = [0u8; 1024];
     while std::time::Instant::now() < deadline {
-        if let Ok(n) = port.read(&mut buf) {
-            if n > 0 {
-                out.push_str(&String::from_utf8_lossy(&buf[..n]));
-                if stop_tokens
-                    .iter()
-                    .any(|tok| out.find(tok).is_some_and(|idx| out[idx..].contains('\n')))
-                    || out.contains("PANADIGA>")
-                    || out.contains("P7501>")
-                {
-                    break;
-                }
+        if let Ok(n) = port.read(&mut buf)
+            && n > 0
+        {
+            out.push_str(&String::from_utf8_lossy(&buf[..n]));
+            if stop_tokens
+                .iter()
+                .any(|tok| out.find(tok).is_some_and(|idx| out[idx..].contains('\n')))
+                || out.contains("PANADIGA>")
+                || out.contains("P7501>")
+            {
+                break;
             }
         }
     }

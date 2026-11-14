@@ -236,6 +236,21 @@ pub const PANA_EXTRHEAD_DRV_CRYPT_SPAN: usize = 0x0000_2800;
 /// Default sampling stride for Panasonic's strided Adler-32 routine (`FUN_4401e5a3`).
 pub const PANA_EXTRHEAD_DEFAULT_ADLER_STEP: usize = 16;
 
+/// Size of each 64-byte plaintext TOC entry inside `PANA__SD.FRM` (`FUN_4400a733` / `FUN_4400a6d0`).
+pub const PANA_SD_TOC_ENTRY_SIZE: usize = 0x40;
+
+/// Maximum number of module slots in `PANA__SD.FRM` (`128 x 0x40 = 0x2000`).
+pub const PANA_SD_TOC_MAX_ENTRIES: usize = 128;
+
+/// Total size of the plaintext `PANA__SD.FRM` TOC table in bytes (`0x2000` / 8,192 B).
+pub const PANA_SD_TOC_REGION_SIZE: usize = PANA_SD_TOC_ENTRY_SIZE * PANA_SD_TOC_MAX_ENTRIES;
+
+/// Fixed total size of a padded `DIGADIAG.FRM` diagnostic container (`0x20000` / 131,072 B).
+pub const PANA_DIGADIAG_FRM_SIZE: usize = 0x0002_0000;
+
+/// Default MN103S RAM jump target executed by `BOOT.BIN` `FUN_44006cd9` after unpacking `DIGADIAG.FRM`.
+pub const PANA_DIGADIAG_DEFAULT_LOAD_ADDR: u32 = 0x5040_0000;
+
 // ============================================================================
 // 5. MEIHDFS Low-Level Allocation Descriptors & Record Tags (XOR 0xFF Decoded)
 // ============================================================================

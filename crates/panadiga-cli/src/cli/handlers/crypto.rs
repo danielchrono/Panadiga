@@ -1,6 +1,7 @@
 //! CLI handlers for FRM cryptanalysis, binary header inspection, and string scanning.
 
 use super::super::args::{FrmActions, FrmArgs, HeadersActions, HeadersArgs, ScanArgs};
+use super::frm_pack::{handle_frm_pack, handle_frm_unpack};
 use anyhow::Result;
 use panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH;
 use panadiga_core::crypto::{analyze_frm_container, dump_toc, print_codebook};
@@ -31,6 +32,8 @@ pub fn handle_frm(args: FrmArgs) -> Result<()> {
             let frm_path = resolve_frm_path(file);
             print_codebook(&frm_path, hdd.as_deref(), json.as_deref())?;
         }
+        FrmActions::Pack(pack_args) => handle_frm_pack(&pack_args)?,
+        FrmActions::Unpack(unpack_args) => handle_frm_unpack(&unpack_args)?,
     }
     Ok(())
 }

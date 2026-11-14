@@ -120,6 +120,38 @@ fn test_cli_args_parsing_matrix() {
         Some(Commands::Hdd(_))
     ));
 
+    assert!(matches!(
+        Cli::try_parse_from([
+            "panadiga",
+            "frm",
+            "pack",
+            "--mode",
+            "digadiag",
+            "--input",
+            "diag.bin",
+            "--out",
+            "DIGADIAG.FRM",
+        ])
+        .unwrap()
+        .command,
+        Some(Commands::Frm(_))
+    ));
+    assert!(matches!(
+        Cli::try_parse_from([
+            "panadiga",
+            "frm",
+            "unpack",
+            "DIGADIAG.FRM",
+            "--out",
+            "diag_out.bin",
+            "--mode",
+            "plain",
+        ])
+        .unwrap()
+        .command,
+        Some(Commands::Frm(_))
+    ));
+
     let cli = Cli::try_parse_from(["panadiga", "-i"]).unwrap();
     assert!(cli.interactive);
 

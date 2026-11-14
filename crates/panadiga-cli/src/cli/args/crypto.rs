@@ -55,6 +55,82 @@ pub enum FrmActions {
         #[arg(short, long, value_name = "JSON_FILE")]
         json: Option<PathBuf>,
     },
+
+    /// Packs modules or raw diagnostic binaries into PANA_DVD.FRM, PANA__SD.FRM, or DIGADIAG.FRM
+    Pack(FrmPackArgs),
+
+    /// Unpacks and verifies a Panasonic EXTRHEAD/EXTRFOOT container (DIGADIAG, DRV, or MAIN)
+    Unpack(FrmUnpackArgs),
+}
+
+#[derive(Args, Debug)]
+pub struct FrmPackArgs {
+    /// Target container layout: dvd (Feistel 48B TOC), sd (plaintext 64B TOC), or digadiag (128 KiB EXTRHEAD)
+    #[arg(long, default_value = "sd", value_name = "MODE")]
+    pub mode: String,
+
+    /// Output .FRM path (e.g. PANA__SD.FRM or DIGADIAG.FRM)
+    #[arg(short, long, value_name = "OUT_FILE")]
+    pub out: PathBuf,
+
+    /// Module entry for dvd/sd mode in NAME:PATH format (repeatable)
+    #[arg(short, long = "module", value_name = "NAME:PATH")]
+    pub modules: Vec<String>,
+
+    /// Raw binary payload path for digadiag mode
+    #[arg(short, long, value_name = "BIN_FILE")]
+    pub input: Option<PathBuf>,
+
+    /// MN103S RAM load/jump address for digadiag mode (hex or decimal)
+    #[arg(long, default_value = "0x50400000", value_name = "ADDR")]
+    pub dst_addr: String,
+
+    /// 4-character EXTRHEAD tag for digadiag mode
+    #[arg(long, default_value = "FVU ", value_name = "TAG")]
+    pub tag: String,
+
+    /// Build identifier written to EXTRHEAD for digadiag mode
+    #[arg(long, default_value = "DIAG01", value_name = "BUILD")]
+    pub build: String,
+
+    /// Hardware family metadata written into dvd/sd TOC slots
+    #[arg(long, default_value = "M6930", value_name = "HW")]
+    pub hw: String,
+
+    /// Model group metadata written into dvd/sd TOC slots
+    #[arg(long, default_value = "NP-309", value_name = "MODEL")]
+    pub model: String,
+
+    /// Version word written into dvd/sd TOC slots (hex or decimal)
+    #[arg(long, default_value = "0x0001", value_name = "VER")]
+    pub version_u16: String,
+
+    /// Target flag byte written into dvd/sd TOC slots
+    #[arg(long, default_value_t = 0)]
+    pub target_flag: u8,
+
+    /// Exports structured JSON pack report to specified file
+    #[arg(short, long, value_name = "JSON_FILE")]
+    pub json: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct FrmUnpackArgs {
+    /// Path to packed EXTRHEAD binary file
+    #[arg(value_name = "EXTRHEAD_FILE")]
+    pub file: PathBuf,
+
+    /// Output path for the decompressed binary payload
+    #[arg(short, long, value_name = "OUT_FILE")]
+    pub out: PathBuf,
+
+    /// Partial decryption mode: auto, main, drv, or plain
+    #[arg(long, default_value = "auto", value_name = "MODE")]
+    pub mode: String,
+
+    /// Exports EXTRHEAD metadata and checksum verification JSON to specified file
+    #[arg(short, long, value_name = "JSON_FILE")]
+    pub json: Option<PathBuf>,
 }
 
 #[derive(Args, Debug)]

@@ -3,6 +3,7 @@
 //! Modularized by functional domain with unified `dispatch` and handler re-exports.
 
 pub mod crypto;
+pub mod frm_pack;
 pub mod ghidra;
 pub mod hdd;
 pub mod nvram;

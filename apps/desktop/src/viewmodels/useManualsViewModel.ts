@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   ManualSearchResult,
   ManualDocumentMetadata,
@@ -82,26 +82,43 @@ export function useManualsViewModel() {
     };
   }, []);
 
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const executeSearch = useCallback(
     async (queryParam?: string) => {
       const q = (queryParam !== undefined ? queryParam : searchQuery).trim();
       if (!q) {
+        if (!isMountedRef.current) return;
         setErrorKey('manuals.search.emptyQuery');
         setRawError(null);
         setSearchResults([]);
         return;
       }
 
+      if (!isMountedRef.current) return;
       setErrorKey(null);
       setRawError(null);
       setLoading(true);
       try {
         const results = await invokeCommand<ManualSearchResult[]>('search_manuals', { query: q });
-        setSearchResults(results);
+        if (isMountedRef.current) {
+          setSearchResults(results);
+        }
       } catch (err) {
-        setRawError(err instanceof Error ? err.message : String(err));
+        if (isMountedRef.current) {
+          setRawError(err instanceof Error ? err.message : String(err));
+        }
       } finally {
-        setLoading(false);
+        if (isMountedRef.current) {
+          setLoading(false);
+        }
       }
     },
     [searchQuery]

@@ -127,11 +127,8 @@ fn transform_buffer_in_place(
     sbox: &[u8; 256],
     decrypt: bool,
 ) {
-    for chunk in data.chunks_exact_mut(8) {
-        let mut blk = [0u8; 8];
-        blk.copy_from_slice(chunk);
-        let out = run_feistel_rounds(&blk, round_key, sbox, decrypt);
-        chunk.copy_from_slice(&out);
+    for chunk in data.as_chunks_mut::<8>().0 {
+        *chunk = run_feistel_rounds(chunk, round_key, sbox, decrypt);
     }
 }
 

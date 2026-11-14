@@ -2,13 +2,88 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::codebook::open_resolved_frm;
+use super::codec::{extract_c_ascii, read_u16_le, read_u32_le};
 use super::feistel::feistel_decrypt_buffer;
 use super::types::{DecryptedFrmTocEntry, FrmModuleInfo, FrmTocDumpReport, TocEntry, TocReport};
 use crate::constants::*;
 
-fn extract_c_ascii(bytes: &[u8]) -> String {
-    let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
-    String::from_utf8_lossy(&bytes[..end]).into_owned()
+pub(crate) struct TocLayoutOffsets {
+    pub stride: usize,
+    pub name_end: usize,
+    pub ver_off: usize,
+    pub off_pos: usize,
+    pub hw_end: usize,
+    pub flag_pos: usize,
+    pub grp_start: usize,
+    pub grp_end: usize,
+    pub sum_off: usize,
+    pub skip_empty: bool,
+}
+
+const DVD_TOC_LAYOUT: TocLayoutOffsets = TocLayoutOffsets {
+    stride: PANA_FRM_TOC_ENTRY_SIZE,
+    name_end: 0x0A,
+    ver_off: 0x0A,
+    off_pos: 0x0C,
+    hw_end: 0x18,
+    flag_pos: 0x19,
+    grp_start: 0x1A,
+    grp_end: 0x20,
+    sum_off: 0x2E,
+    skip_empty: false,
+};
+
+const SD_TOC_LAYOUT: TocLayoutOffsets = TocLayoutOffsets {
+    stride: PANA_SD_TOC_ENTRY_SIZE,
+    name_end: 0x0A,
+    ver_off: 0x0A,
+    off_pos: 0x0C,
+    hw_end: 0x18,
+    flag_pos: 0x18,
+    grp_start: 0x30,
+    grp_end: 0x3C,
+    sum_off: 0x3E,
+    skip_empty: true,
+};
+
+fn parse_toc_entries_with_layout(
+    plain: &[u8],
+    count: usize,
+    layout: &TocLayoutOffsets,
+) -> Vec<DecryptedFrmTocEntry> {
+    let mut entries = Vec::with_capacity(count);
+    for (idx, entry) in plain.chunks_exact(layout.stride).take(count).enumerate() {
+        let ver_u16 = read_u16_le(entry, layout.ver_off);
+        let module_offset = read_u32_le(entry, layout.off_pos);
+        let module_size = read_u32_le(entry, 0x20);
+        let fvu_checksum_u32 = read_u32_le(entry, 0x24);
+        let list_sum_u16 = read_u16_le(entry, layout.sum_off);
+        let calculated_list_sum_u16 = entry[..layout.sum_off]
+            .iter()
+            .fold(0u16, |acc, &b| acc.wrapping_add(u16::from(b)));
+
+        if layout.skip_empty && module_size == 0 && entry[..layout.name_end].iter().all(|&b| b == 0)
+        {
+            continue;
+        }
+
+        entries.push(DecryptedFrmTocEntry {
+            index: idx,
+            entry_offset_hex: format!("0x{:04X}", idx * layout.stride),
+            module_name: extract_c_ascii(&entry[0x00..layout.name_end]),
+            version_u16_hex: format!("0x{:04X}", ver_u16),
+            module_offset,
+            module_size,
+            hardware_family: extract_c_ascii(&entry[0x10..layout.hw_end]),
+            target_flag: entry[layout.flag_pos],
+            model_group: extract_c_ascii(&entry[layout.grp_start..layout.grp_end]),
+            fvu_checksum_u32,
+            list_sum_u16,
+            calculated_list_sum_u16,
+            list_sum_valid: list_sum_u16 == calculated_list_sum_u16,
+        });
+    }
+    entries
 }
 
 /// Decrypts the first 0x90 bytes (3 x 48-byte `"Firm list"` entries) of `PANA_DVD.FRM` and parses fields + `list_sum`.
@@ -25,37 +100,16 @@ pub fn decrypt_and_parse_frm_toc(data: &[u8]) -> Vec<DecryptedFrmTocEntry> {
         &PANA_FEISTEL_SBOX_256,
     );
 
-    let mut entries = Vec::with_capacity(count);
-    for (idx, entry) in decrypted.chunks_exact(PANA_FRM_TOC_ENTRY_SIZE).enumerate() {
-        let ver_u16 = u16::from_le_bytes([entry[0x0A], entry[0x0B]]);
-        let module_offset =
-            u32::from_le_bytes([entry[0x0C], entry[0x0D], entry[0x0E], entry[0x0F]]);
-        let module_size = u32::from_le_bytes([entry[0x20], entry[0x21], entry[0x22], entry[0x23]]);
-        let fvu_checksum_u32 =
-            u32::from_le_bytes([entry[0x24], entry[0x25], entry[0x26], entry[0x27]]);
-        let list_sum_u16 = u16::from_le_bytes([entry[0x2E], entry[0x2F]]);
-        let calculated_list_sum_u16 = entry[..0x2E]
-            .iter()
-            .fold(0u16, |acc, &b| acc.wrapping_add(u16::from(b)));
+    parse_toc_entries_with_layout(&decrypted, count, &DVD_TOC_LAYOUT)
+}
 
-        entries.push(DecryptedFrmTocEntry {
-            index: idx,
-            entry_offset_hex: format!("0x{:04X}", idx * PANA_FRM_TOC_ENTRY_SIZE),
-            module_name: extract_c_ascii(&entry[0x00..0x0A]),
-            version_u16_hex: format!("0x{:04X}", ver_u16),
-            module_offset,
-            module_size,
-            hardware_family: extract_c_ascii(&entry[0x10..0x18]),
-            target_flag: entry[0x19],
-            model_group: extract_c_ascii(&entry[0x1A..0x20]),
-            fvu_checksum_u32,
-            list_sum_u16,
-            calculated_list_sum_u16,
-            list_sum_valid: list_sum_u16 == calculated_list_sum_u16,
-        });
+/// Parses the plaintext 64-byte (`0x40`) TOC table of `PANA__SD.FRM` (`FUN_4400a733` / `FUN_4400a6d0`).
+pub fn parse_sd_frm_toc(data: &[u8]) -> Vec<DecryptedFrmTocEntry> {
+    let count = (data.len() / PANA_SD_TOC_ENTRY_SIZE).min(PANA_SD_TOC_MAX_ENTRIES);
+    if count == 0 {
+        return Vec::new();
     }
-
-    entries
+    parse_toc_entries_with_layout(data, count, &SD_TOC_LAYOUT)
 }
 
 /// Dissects the first 512 bytes of PANA_DVD.FRM to verify the 48-byte TOC entries.
@@ -231,11 +285,27 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     }
 
     let decrypted_toc = decrypt_and_parse_frm_toc(&frm_mmap);
-    if !decrypted_toc.is_empty() {
-        log_println!(
-            "\n[+] TABELA DECIFRADA (\"Firm list\" — Feistel FUN_4400a666 / S-Box 0x44035D84):"
-        );
-        for entry in &decrypted_toc {
+    let sd_toc = if decrypted_toc.iter().any(|e| e.list_sum_valid) {
+        Vec::new()
+    } else {
+        parse_sd_frm_toc(&frm_mmap)
+    };
+    let use_sd_toc =
+        !decrypted_toc.iter().any(|e| e.list_sum_valid) && sd_toc.iter().any(|e| e.list_sum_valid);
+    let (toc_title, parsed_toc) = if use_sd_toc {
+        (
+            "TABELA PLAINTEXT SD (\"PANA__SD.FRM\" — Slots de 64B):",
+            sd_toc.as_slice(),
+        )
+    } else {
+        (
+            "TABELA DECIFRADA (\"Firm list\" — Feistel FUN_4400a666 / S-Box 0x44035D84):",
+            decrypted_toc.as_slice(),
+        )
+    };
+    if !parsed_toc.is_empty() {
+        log_println!("\n[+] {}", toc_title);
+        for entry in parsed_toc {
             log_println!(
                 "  [{}] {} | {:<10} | off=0x{:08X} | size=0x{:08X} ({:>7} B) | hw={} | model={} | list_sum=0x{:04X} (ok={})",
                 entry.index,
@@ -327,7 +397,7 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
             target: "Panasonic AM34 / MN103S (UniPhier Core)".to_string(),
             start_offset_hex: format!("0x{:08X}", PANA_FRM_MOD3_START_OFFSET),
             end_offset_hex: format!("0x{:08X}", file_size),
-            payload_size_bytes: file_size - PANA_FRM_MOD3_START_OFFSET,
+            payload_size_bytes: file_size.saturating_sub(PANA_FRM_MOD3_START_OFFSET),
             padding_size_bytes: 0,
             hdd_correlation: "Partição 1 do HD (LBA 65536 / 32 MB, 5.89 MB)".to_string(),
         },

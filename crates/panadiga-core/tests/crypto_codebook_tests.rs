@@ -1,12 +1,15 @@
 use panadiga_core::constants::{
-    ECB_NULL_BLOCK_8B, ECB_VIRGIN_FLASH_8B, PANA_FEISTEL_KEY_PART1, PANA_FEISTEL_KEY_PART2,
-    PANA_FEISTEL_KEYSCHED_IV, PANA_FEISTEL_MASTER_KEY_7B, PANA_FEISTEL_ROUND_KEY_32B,
-    PANA_FEISTEL_SBOX_256,
+    ECB_NULL_BLOCK_8B, ECB_VIRGIN_FLASH_8B, PANA_DIGADIAG_DEFAULT_LOAD_ADDR,
+    PANA_DIGADIAG_FRM_SIZE, PANA_EXTRHEAD_DEFAULT_ADLER_STEP, PANA_FEISTEL_KEY_PART1,
+    PANA_FEISTEL_KEY_PART2, PANA_FEISTEL_KEYSCHED_IV, PANA_FEISTEL_MASTER_KEY_7B,
+    PANA_FEISTEL_ROUND_KEY_32B, PANA_FEISTEL_SBOX_256,
 };
 use panadiga_core::crypto::{
-    adler32_panasonic_strided, analyze_frm_container, decrypt_and_parse_frm_toc,
-    derive_round_key_32b, dump_toc, feistel_decrypt_block, feistel_decrypt_buffer,
-    feistel_encrypt_block, feistel_encrypt_buffer, print_codebook, reconstruct_master_key_7b,
+    ExtrheadCryptMode, FrmContainerMode, FrmPackModule, adler32_panasonic_strided,
+    analyze_frm_container, build_digadiag_frm, decrypt_and_parse_frm_toc, derive_round_key_32b,
+    dump_toc, feistel_decrypt_block, feistel_decrypt_buffer, feistel_encrypt_block,
+    feistel_encrypt_buffer, pack_extrhead, pack_frm, parse_sd_frm_toc, print_codebook,
+    reconstruct_master_key_7b, unpack_extrhead,
 };
 use std::path::Path;
 
@@ -186,4 +189,136 @@ fn test_feistel_cipher_and_real_toc_decryption() {
         assert_eq!(entries[2].list_sum_u16, 0x0B26);
         assert!(entries[2].list_sum_valid);
     }
+}
+
+fn deterministic_pseudo_random(size: usize, mut state: u32) -> Vec<u8> {
+    (0..size)
+        .map(|_| {
+            state = state.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (state >> 24) as u8
+        })
+        .collect()
+}
+
+#[test]
+fn test_extrhead_pack_unpack_and_frm_packing() {
+    // 1. Plaintext EXTRHEAD / DIGADIAG.FRM (128 KiB padded, target 0x50400000)
+    let diag_payload = b"MN103S_DIGADIAG_STUB_".repeat(32);
+    let (diag_frm, diag_report) = build_digadiag_frm(
+        &diag_payload,
+        PANA_DIGADIAG_DEFAULT_LOAD_ADDR,
+        "FVU ",
+        "DIAG99",
+        PANA_EXTRHEAD_DEFAULT_ADLER_STEP as u32,
+        PANA_DIGADIAG_FRM_SIZE,
+    )
+    .expect("build_digadiag_frm failed");
+    assert_eq!(diag_frm.len(), PANA_DIGADIAG_FRM_SIZE);
+    assert_eq!(diag_report.mode, "digadiag");
+    assert!(diag_frm.starts_with(b"EXTRHEADFVU "));
+
+    let unpacked_diag = unpack_extrhead(&diag_frm, ExtrheadCryptMode::Plain).unwrap();
+    assert_eq!(unpacked_diag.header.dst_addr, 0x5040_0000);
+    assert_eq!(unpacked_diag.header.build_name, "DIAG99");
+    assert_eq!(unpacked_diag.decompressed, diag_payload);
+    assert!(unpacked_diag.checksum_valid);
+    assert!(unpacked_diag.footer_present);
+
+    // 2. Partial Feistel DRV prefix mode (> 0x2800 B compressed) & MAIN split mode (> 0x32000 B compressed)
+    let drv_plain = deterministic_pseudo_random(16 * 1024, 0xCAFE_BABE);
+    let drv_container = pack_extrhead(
+        &drv_plain,
+        "DRV ",
+        0x9020_2000,
+        "S211",
+        ExtrheadCryptMode::Auto,
+        16,
+        1,
+    )
+    .unwrap();
+    assert_ne!(&drv_container[..8], b"EXTRHEAD");
+    assert!(drv_container[0x2800..].windows(8).any(|w| w == b"EXTRFOOT"));
+    let unpacked_drv = unpack_extrhead(&drv_container, ExtrheadCryptMode::Auto).unwrap();
+    assert_eq!(unpacked_drv.header.tag, "DRV ");
+    assert_eq!(unpacked_drv.decompressed, drv_plain);
+    assert!(unpacked_drv.checksum_valid);
+    assert!(unpacked_drv.footer_present);
+
+    let main_plain = deterministic_pseudo_random(240 * 1024, 0xDEAD_5558);
+    let main_container = pack_extrhead(
+        &main_plain,
+        "MAIN",
+        0x5700_0000,
+        "3410PQ",
+        ExtrheadCryptMode::Auto,
+        16,
+        1,
+    )
+    .unwrap();
+    assert!(main_container.len() > 0x3_2000);
+    assert_ne!(&main_container[..8], b"EXTRHEAD");
+    assert!(!main_container.ends_with(b"EXTRFOOT"));
+    let unpacked_main = unpack_extrhead(&main_container, ExtrheadCryptMode::Auto).unwrap();
+    assert_eq!(unpacked_main.header.build_name, "3410PQ");
+    assert_eq!(unpacked_main.decompressed, main_plain);
+    assert!(unpacked_main.checksum_valid);
+    assert!(unpacked_main.footer_present);
+
+    // 3. PANA_DVD.FRM (encrypted 0x30-byte TOC + modules) and PANA__SD.FRM (plaintext 0x40-byte TOC)
+    let mut m_prog = FrmPackModule::new(
+        "PROG061 ",
+        vec![0xDC, 0x14, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD],
+    );
+    m_prog.version_u16 = 0x1202;
+    m_prog.target_flag = 1;
+    let mut m_drv = FrmPackModule::new("DRV S211", drv_container.clone());
+    m_drv.version_u16 = 0x975E;
+    let mut m_main = FrmPackModule::new("MAIN3060NP", main_container.clone());
+    m_main.version_u16 = 0x96AA;
+    let modules = vec![m_drv, m_prog, m_main];
+
+    let (dvd_frm, dvd_report) = pack_frm(&modules, FrmContainerMode::Dvd, None).unwrap();
+    assert_ne!(&dvd_frm[..8], b"DRV S211");
+    assert_eq!(dvd_report.modules.len(), 3);
+    let dvd_toc = decrypt_and_parse_frm_toc(&dvd_frm);
+    assert_eq!(dvd_toc.len(), 3);
+    assert!(dvd_toc.iter().all(|e| e.list_sum_valid));
+    assert_eq!(dvd_toc[0].module_offset, 0x1800);
+    assert_eq!(dvd_toc[1].target_flag, 1);
+
+    let mut dvd_dec = dvd_frm;
+    feistel_decrypt_buffer(
+        &mut dvd_dec,
+        &PANA_FEISTEL_ROUND_KEY_32B,
+        &PANA_FEISTEL_SBOX_256,
+    );
+    for (entry, spec) in dvd_toc.iter().zip(modules.iter()) {
+        let start = entry.module_offset as usize;
+        let end = start + entry.module_size as usize;
+        let sum = dvd_dec[start..end]
+            .iter()
+            .fold(0u32, |acc, &b| acc.wrapping_add(u32::from(b)));
+        assert_eq!(sum, entry.fvu_checksum_u32);
+        assert!(dvd_dec[start..end].starts_with(&spec.payload));
+    }
+
+    let (sd_frm, sd_report) = pack_frm(&modules, FrmContainerMode::Sd, None).unwrap();
+    assert!(sd_frm.starts_with(b"DRV S211"));
+    assert_eq!(sd_report.toc_region_size, 0x2000);
+    let sd_toc = parse_sd_frm_toc(&sd_frm);
+    assert_eq!(sd_toc.len(), 3);
+    assert!(sd_toc.iter().all(|e| e.list_sum_valid));
+    assert_eq!(sd_toc[0].module_offset, 0x2000);
+    let sd_main_start = sd_toc[2].module_offset as usize;
+    let sd_main_end = sd_main_start + sd_toc[2].module_size as usize;
+    assert_eq!(
+        &sd_frm[sd_main_start..sd_main_end],
+        main_container.as_slice()
+    );
+
+    let sd_path = std::env::temp_dir().join("panadiga_test_sd_toc_dump.frm");
+    std::fs::write(&sd_path, &sd_frm).unwrap();
+    let sd_dump = panadiga_core::crypto::toc::dump_toc(&sd_path, None);
+    let _ = std::fs::remove_file(&sd_path);
+    assert_eq!(sd_dump.unwrap().file_size_bytes, sd_frm.len());
 }

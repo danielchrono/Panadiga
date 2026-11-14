@@ -2,23 +2,44 @@
  * Mock IPC handlers for Raspberry Pi Pico P7501 Async UART hardware link, BOOTSEL flashing, and GDB RSP bridge.
  */
 
-import { ColdBreakinMode, InCircuitNvramEraseResult } from '@/models';
+import { ColdBreakinMode, FlashReport, InCircuitNvramEraseResult } from '@/models';
 import { emitLocalEvent } from '@/services/ipc';
 import { simulateMockDiagnostic } from './mockDiagnostics';
 import { mockNvramCleanReport, mockPicoDeviceStatus } from './mockData';
 
-let mockConnected = false;
-let mockPort = '';
-let mockBootselDetected = false;
+function createMockPicoStateStore() {
+  let connected = false;
+  let port = '';
+  let bootselDetected = false;
+
+  return Object.freeze({
+    isConnected: () => connected,
+    getPort: () => port,
+    isBootselDetected: () => bootselDetected,
+    setConnection: (nextConnected: boolean, nextPort?: string) => {
+      connected = nextConnected;
+      if (nextPort !== undefined) {
+        port = nextPort;
+      }
+    },
+    setBootselDetected: (detected: boolean) => {
+      bootselDetected = detected;
+    },
+  });
+}
+
+const mockPicoState = createMockPicoStateStore();
 
 export function buildMockPicoStatus(fallbackPort = ''): typeof mockPicoDeviceStatus {
+  const connected = mockPicoState.isConnected();
+  const port = mockPicoState.getPort() || fallbackPort;
   return {
     ...mockPicoDeviceStatus,
-    connected: mockConnected,
-    port: mockPort || fallbackPort,
-    vdd_volts: mockConnected ? 3.28 : 0.0,
-    target_powered: mockConnected,
-    core_state: mockConnected ? 'HALTED' : 'DISCONNECTED',
+    connected,
+    port,
+    vdd_volts: connected ? 3.28 : 0.0,
+    target_powered: connected,
+    core_state: connected ? 'HALTED' : 'DISCONNECTED',
   };
 }
 
@@ -30,8 +51,7 @@ export function handleMockPicoCommand(
     case 'pico_connect_and_test': {
       const portName = (args?.portName as string) || (args?.port_name as string) || 'MOCK_RP2040';
       const isRp2350 = portName.includes('2350');
-      mockConnected = true;
-      mockPort = portName;
+      mockPicoState.setConnection(true, portName);
       return {
         connected: true,
         port_name: portName,
@@ -202,22 +222,27 @@ export function handleMockPicoCommand(
       };
 
     case 'pico_detect_bootsel_drives':
-      return mockBootselDetected ? ['D:\\ (RPI-RP2)'] : [];
+      return mockPicoState.isBootselDetected() ? ['D:\\ (RPI-RP2)'] : [];
 
     case 'pico_trigger_bootsel_reboot':
-      mockBootselDetected = true;
-      mockConnected = false;
+      mockPicoState.setBootselDetected(true);
+      mockPicoState.setConnection(false);
       return 'Dispositivo reiniciado em modo BOOTSEL';
 
-    case 'pico_flash_firmware':
-      mockBootselDetected = false;
-      return {
+    case 'pico_flash_firmware': {
+      mockPicoState.setBootselDetected(false);
+      const report: FlashReport = {
         success: true,
-        target_board: 'Raspberry Pi Pico (RP2040)',
-        mount_path: 'D:\\',
-        bytes_written: 119296,
-        message: 'Firmware panasonic_p7501_uart_unified.uf2 (P7501 Async UART 115200 8N1) gravado com sucesso no drive BOOTSEL.',
+        target_drive: 'D:\\',
+        board_family: 'Raspberry Pi Pico (RP2040)',
+        uf2_size_bytes: 119296,
+        blocks_written: 233,
+        sha256_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+        message:
+          'Firmware panasonic_p7501_uart_unified.uf2 (P7501 Async UART 115200 8N1) gravado com sucesso no drive BOOTSEL.',
       };
+      return report;
+    }
 
     case 'pico_execute_diagnostic': {
       const commandId = (args?.commandId as string) || (args?.command_id as string) || 'STATUS';
@@ -239,7 +264,7 @@ export function handleMockPicoCommand(
       const wordCount = (args?.wordCount as number) ?? 16384;
       const evt = {
         source: 'USB_CDC',
-        port: (args?.portName as string) || mockPort || 'MOCK_RP2040',
+        port: (args?.portName as string) || mockPicoState.getPort() || 'MOCK_RP2040',
         base_bus_address: `0x${baseAddr.toString(16).toUpperCase().padStart(8, '0')}`,
         captured_bytes: wordCount * 4,
         captured_at: new Date().toLocaleTimeString('pt-BR', { hour12: false }),

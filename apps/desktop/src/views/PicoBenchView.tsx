@@ -3,6 +3,7 @@ import { usePicoBenchViewModel } from '@/viewmodels/usePicoBenchViewModel';
 import { TerminalView } from '@/components/TerminalView';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui';
+import { isTargetPowered } from '@/utils/formatters';
 import {
   PicoBenchTopBar,
   PicoBenchMetrics,
@@ -27,6 +28,7 @@ export const PicoBenchView: React.FC = () => {
     ssotError,
     reloadSsot,
     deviceStatus,
+    isFlashing,
     availablePorts,
     selectedPort,
     setSelectedPort,
@@ -54,12 +56,15 @@ export const PicoBenchView: React.FC = () => {
     setCommandInput,
     gdbStatus,
     am34Registers,
+    gdbTelemetry,
     isGdbStarting,
     startGdbServer,
     stopGdbServer,
     launchExternalTool,
     changeBreakinMode,
     toggleConnection,
+    triggerBootselReboot,
+    flashPicoFirmware,
     injectRamLoaderAndErase,
     executeFirstContactBackup,
     sendCommand,
@@ -96,6 +101,20 @@ export const PicoBenchView: React.FC = () => {
       </div>
     );
   }
+
+  const effectiveVddVolts =
+    deviceStatus?.vdd_volts && deviceStatus.vdd_volts > 0
+      ? deviceStatus.vdd_volts
+      : (latestDiagnostic?.vdd_volts ?? 0);
+  const effectiveDeviceStatus = deviceStatus
+    ? {
+        ...deviceStatus,
+        vdd_volts: effectiveVddVolts,
+        target_powered:
+          isTargetPowered(effectiveVddVolts, ssot.thresholds.min_vdd_threshold_volts) ||
+          deviceStatus.target_powered,
+      }
+    : null;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-mono">
@@ -134,7 +153,8 @@ export const PicoBenchView: React.FC = () => {
       )}
 
       <PicoBenchTopBar
-        deviceStatus={deviceStatus}
+        deviceStatus={effectiveDeviceStatus}
+        latestDiagnostic={latestDiagnostic}
         availablePorts={availablePorts}
         selectedPort={selectedPort}
         transportMode={transportMode}
@@ -142,6 +162,7 @@ export const PicoBenchView: React.FC = () => {
         selectedModel={selectedModel}
         isErasing={isErasing}
         isBackingUp={isBackingUp}
+        isFlashing={isFlashing}
         onSelectPort={setSelectedPort}
         onSelectModel={selectTargetModel}
         onToggleConnection={toggleConnection}
@@ -152,10 +173,12 @@ export const PicoBenchView: React.FC = () => {
         onQuickPincheck={() => {
           void executeDiagnostic('PINCHECK');
         }}
+        onBootselReboot={triggerBootselReboot}
+        onFlashFirmware={flashPicoFirmware}
       />
 
       <PicoBenchMetrics
-        deviceStatus={deviceStatus}
+        deviceStatus={effectiveDeviceStatus}
         ssot={ssot}
         detectedFlashMb={latestDiagnostic?.detected_flash_mb}
       />
@@ -175,6 +198,7 @@ export const PicoBenchView: React.FC = () => {
       <GdbServerCard
         gdbStatus={gdbStatus}
         registers={am34Registers}
+        telemetry={gdbTelemetry}
         isStarting={isGdbStarting}
         onStart={startGdbServer}
         onStop={stopGdbServer}

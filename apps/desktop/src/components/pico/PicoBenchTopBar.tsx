@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type {
   DigaModelProfile,
   PicoDeviceStatus,
+  PicoDiagnosticResult,
   PicoTransportMode,
   PicoUf2Variant,
 } from '@/models';
@@ -18,11 +19,10 @@ import {
   AlertTriangle,
   Usb,
 } from 'lucide-react';
-import { invokeCommand } from '@/services/ipc';
-import { useToast } from '@/context/ToastContext';
 
 export interface PicoBenchTopBarProps {
   deviceStatus: PicoDeviceStatus | null;
+  latestDiagnostic?: PicoDiagnosticResult | null;
   availablePorts: string[];
   selectedPort: string;
   transportMode?: PicoTransportMode;
@@ -30,6 +30,7 @@ export interface PicoBenchTopBarProps {
   selectedModel?: string;
   isErasing: boolean;
   isBackingUp?: boolean;
+  isFlashing?: boolean;
   onSelectPort: (port: string) => void;
   onSelectModel?: (modelId: string) => void;
   onToggleConnection: () => void;
@@ -38,16 +39,8 @@ export interface PicoBenchTopBarProps {
   onRefreshPorts?: () => void;
   onRefreshStatus?: () => void;
   onQuickPincheck?: () => void;
-}
-
-interface FlashReport {
-  success: boolean;
-  target_drive: string;
-  board_family: string;
-  uf2_size_bytes: number;
-  blocks_written: number;
-  sha256_hash: string;
-  message: string;
+  onBootselReboot?: () => Promise<void> | void;
+  onFlashFirmware?: (variant: PicoUf2Variant) => Promise<void> | void;
 }
 
 const SELECT_CLASS =
@@ -55,6 +48,7 @@ const SELECT_CLASS =
 
 export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   deviceStatus,
+  latestDiagnostic,
   availablePorts,
   selectedPort,
   transportMode = 'usb',
@@ -62,6 +56,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   selectedModel = 'AUTO',
   isErasing,
   isBackingUp = false,
+  isFlashing = false,
   onSelectPort,
   onSelectModel,
   onToggleConnection,
@@ -70,114 +65,19 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
   onRefreshPorts,
   onRefreshStatus,
   onQuickPincheck,
+  onBootselReboot,
+  onFlashFirmware,
 }) => {
-  const { showToast } = useToast();
-  const [isFlashing, setIsFlashing] = useState<boolean>(false);
   const [uf2Variant, setUf2Variant] = useState<PicoUf2Variant>('unified');
 
   const isBle = transportMode === 'ble' || selectedPort.startsWith('BLE_');
   const isOtg = transportMode === 'usb-otg' || selectedPort.startsWith('ANDROID-USB-OTG');
   const isPicoPort = /VID:2E8A|RP2040|RP2350|Pico|PANADIGA|P7501/i.test(selectedPort ?? '');
-  const powered = isTargetPowered(deviceStatus?.vdd_volts);
-
-  const handleBootselReset = async () => {
-    if (!selectedPort) {
-      showToast({
-        type: 'warning',
-        title: 'Porta Não Selecionada',
-        message: 'Selecione a porta serial do Pico antes de solicitar o reset para BOOTSEL.',
-      });
-      return;
-    }
-    try {
-      const msg = await invokeCommand<string>('pico_trigger_bootsel_reboot', {
-        portName: selectedPort,
-        port_name: selectedPort,
-      });
-      showToast({
-        type: 'success',
-        title: 'BOOTSEL Reset Iniciado',
-        message: `${msg}. Aguarde 2 segundos para o drive RPI-RP2 / RP2350 montar e clique em "Flash Pico (BOOTSEL)".`,
-      });
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Falha no Reset BOOTSEL',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    }
-  };
-
-  const handleFlashFirmware = async () => {
-    setIsFlashing(true);
-    try {
-      let drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
-      if ((!drives || drives.length === 0) && selectedPort && isPicoPort) {
-        showToast({
-          type: 'info',
-          title: 'Reiniciando Pico em BOOTSEL',
-          message: 'Enviando pulso 1200-baud para reiniciar a placa em modo de gravação...',
-        });
-        await invokeCommand('pico_trigger_bootsel_reboot', {
-          portName: selectedPort,
-          port_name: selectedPort,
-        }).catch(() => {});
-        await new Promise(r => setTimeout(r, 1600));
-        drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
-      }
-
-      if (!drives || drives.length === 0) {
-        showToast({
-          type: 'warning',
-          title: 'Nenhum Drive BOOTSEL Detectado',
-          message:
-            'Nenhum drive RPI-RP2 / RP2350 encontrado. Clique em "BOOTSEL Reset" ou segure BOOTSEL ao conectar.',
-        });
-        return;
-      }
-
-      const report = await invokeCommand<FlashReport>('pico_flash_firmware', {
-        targetFamily: uf2Variant,
-        target_family: uf2Variant,
-      });
-      const sizeStr = report.uf2_size_bytes ? report.uf2_size_bytes.toLocaleString() : 'UF2';
-      showToast({
-        type: 'success',
-        title: 'Firmware Pico Gravado',
-        message: `${report.message} (${report.board_family || uf2Variant}, ${sizeStr} bytes). Reconectando USB...`,
-      });
-
-      let detectedPort = '';
-      for (let i = 0; i < 12; i++) {
-        await new Promise(r => setTimeout(r, 500));
-        const ports = await invokeCommand<string[]>('list_pico_serial_ports').catch(() => []);
-        const found = ports?.find(p => /VID:2E8A|RP2040|RP2350|Pico|PANADIGA|P7501/i.test(p));
-        if (found) {
-          detectedPort = found;
-          break;
-        }
-      }
-
-      onRefreshPorts?.();
-      if (detectedPort) {
-        onSelectPort(detectedPort);
-        showToast({
-          type: 'success',
-          title: 'Pico Detectado',
-          message: `Reconectando automaticamente em ${detectedPort}...`,
-        });
-        setTimeout(() => onToggleConnection(), 400);
-      }
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Falha ao Gravar Firmware',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setIsFlashing(false);
-    }
-  };
+  const effectiveVddVolts =
+    deviceStatus?.vdd_volts && deviceStatus.vdd_volts > 0
+      ? deviceStatus.vdd_volts
+      : (latestDiagnostic?.vdd_volts ?? 0);
+  const powered = isTargetPowered(effectiveVddVolts);
 
   return (
     <div className="p-4 sm:p-5 rounded-2xl bg-bench-900 border border-slate-800 shadow-xl space-y-4 font-mono">
@@ -252,7 +152,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleFlashFirmware}
+            onClick={() => void onFlashFirmware?.(uf2Variant)}
             disabled={isFlashing || isOtg}
             title="Grava o firmware P7501 Async UART (RP2040 / RP2350) no drive BOOTSEL (RPI-RP2 / RP2350)"
             className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border-purple-500/30 font-bold gap-1.5"
@@ -274,7 +174,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleBootselReset}
+            onClick={() => void onBootselReboot?.()}
             disabled={isBle || isOtg || !isPicoPort}
             title="Reinicia o Pico em modo BOOTSEL via 1200-baud touch / comando CDC"
             className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border-indigo-500/30 font-bold gap-1.5"
@@ -291,7 +191,7 @@ export const PicoBenchTopBar: React.FC<PicoBenchTopBarProps> = ({
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div>
               <AlertTitle>
-                Sonda Pico Operacional, mas Trilho Alvo em {deviceStatus.vdd_volts.toFixed(2)}V (&lt; 2.50V)
+                Sonda Pico Operacional, mas Trilho Alvo em {effectiveVddVolts.toFixed(2)}V (&lt; 2.50V)
               </AlertTitle>
               <AlertDescription>
                 Verifique se o Panasonic DMR-EH55 está energizado na bancada e se os pinos P7501 (Pino 4 GND, Pino 1 SW_UART / ADC0) estão conectados corretamente.

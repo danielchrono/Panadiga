@@ -74,3 +74,28 @@ export const formatElapsedMs = (ms: number | undefined | null): string => {
   if (!ms || ms < 0) return '0ms';
   return `${ms.toLocaleString('en-US')}ms`;
 };
+
+/**
+ * Pure closure factory creating deterministic sequential unique ID generators without PRNG randomness.
+ */
+export const createIdGenerator = (prefix = 'id'): (() => string) => {
+  let sequence = 0;
+  return () => {
+    sequence += 1;
+    return `${prefix}-${Date.now().toString(36)}-${sequence.toString(36)}`;
+  };
+};
+
+const defaultIdRegistry = (() => {
+  const counters = new Map<string, number>();
+  return (prefix: string): string => {
+    const next = (counters.get(prefix) ?? 0) + 1;
+    counters.set(prefix, next);
+    return `${prefix}-${Date.now().toString(36)}-${next.toString(36)}`;
+  };
+})();
+
+/**
+ * Deterministic prefix-scoped ID generator free of PRNG randomness and global mutable state.
+ */
+export const nextUniqueId = (prefix = 'id'): string => defaultIdRegistry(prefix);

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useTranslation } from '@/i18n/useTranslation';
 import { StatusBadge } from '@/components/StatusBadge';
-import { ExecutionStatus } from '@/types/domain';
+import { ExecutionStatus } from '@/models';
 import { useRagViewModel } from '@/viewmodels/useRagViewModel';
 import {
   Bot,

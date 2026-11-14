@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { PicoDiagnosticResult, ReactiveSerialEvent, SerialLogEntry } from '@/models';
+import { nextUniqueId } from '@/utils/formatters';
 import { invokeCommand, isTauriEnvironment, listenEvent } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
 import { sendAndroidUsbOtgCommand } from '@/services/androidBridge';
@@ -50,11 +51,8 @@ export function useSerialConsole({
       hexData?: string
     ) => {
       const newEntry: SerialLogEntry = {
-        id: Math.random().toString(36).substring(2, 9),
-        timestamp:
-          new Date().toTimeString().split(' ')[0] +
-          '.' +
-          Math.floor(Math.random() * 900 + 100),
+        id: nextUniqueId('serial'),
+        timestamp: new Date().toISOString().slice(11, 23),
         level,
         source,
         message,
@@ -86,8 +84,8 @@ export function useSerialConsole({
         return [
           ...prev.slice(-240),
           {
-            id: evt.id || Math.random().toString(36).substring(2, 9),
-            timestamp: evt.timestamp || new Date().toTimeString().split(' ')[0],
+            id: evt.id || nextUniqueId('serial'),
+            timestamp: evt.timestamp || new Date().toISOString().slice(11, 23),
             level: evt.level || 'info',
             source: evt.source || 'PICO',
             message: evt.message,

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { nextUniqueId } from '@/utils/formatters';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -29,7 +30,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const showToast = useCallback(
     ({ type, title, message, durationMs = 4000 }: Omit<ToastItem, 'id'>) => {
-      const id = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      const id = nextUniqueId('toast');
       const newToast: ToastItem = { id, type, title, message, durationMs };
 
       setToasts(prev => [...prev, newToast]);

@@ -11,16 +11,26 @@ from typing import Final, Protocol, cast
 SAFE_BENCH_COMMANDS: Final[tuple[str, ...]] = (
     "PING",
     "HELP",
+    "BANNER",
     "STATUS",
     "VDD",
+    "LED",
     "PINCHECK",
     "BUSDIAG",
+    "SNIFF",
     "ISOLATE",
     "UARTMON",
     "BOOTCAP",
     "JIGBOOT",
     "UARTPROBE",
     "UARTSEND",
+    "BAUD",
+    "BAUDSCAN",
+    "UARTSTREAM",
+    "HEXCAP",
+    "UARTTXHEX",
+    "WAITTX",
+    "PWRTRACE",
 )
 
 _FORBIDDEN_WRITE_TOKENS: Final[tuple[str, ...]] = (

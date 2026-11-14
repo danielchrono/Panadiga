@@ -1,5 +1,5 @@
 import React from 'react';
-import { GdbBridgeStatus, Am34RegisterState } from '@/models';
+import { GdbBridgeStatus, Am34RegisterState, GdbPacketTelemetryEvent } from '@/models';
 import { Am34RegisterGrid } from './Am34RegisterGrid';
 import { GdbServerControls } from './GdbServerControls';
 import { GdbExternalToolLaunchers, ExternalToolName } from './GdbExternalToolLaunchers';
@@ -8,6 +8,7 @@ import { GdbTelemetryInspector } from './GdbTelemetryInspector';
 export interface GdbServerCardProps {
   gdbStatus: GdbBridgeStatus | null;
   registers: Am34RegisterState | null;
+  telemetry?: GdbPacketTelemetryEvent[];
   isStarting: boolean;
   onStart: (listenAddr?: string) => Promise<void>;
   onStop: () => Promise<void>;
@@ -21,6 +22,7 @@ export interface GdbServerCardProps {
 export const GdbServerCard: React.FC<GdbServerCardProps> = ({
   gdbStatus,
   registers,
+  telemetry = [],
   isStarting,
   onStart,
   onStop,
@@ -43,7 +45,7 @@ export const GdbServerCard: React.FC<GdbServerCardProps> = ({
       <Am34RegisterGrid registers={registers} />
 
       {/* 4. GDB Introspective Telemetry Stream Inspector */}
-      <GdbTelemetryInspector isRunning={!!gdbStatus?.running} />
+      <GdbTelemetryInspector isRunning={!!gdbStatus?.running} telemetry={telemetry} />
     </div>
   );
 };

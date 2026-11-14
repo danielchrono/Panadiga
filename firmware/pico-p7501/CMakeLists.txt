@@ -26,19 +26,33 @@ message(STATUS "[PANADIGA] Configuring P7501 UART Probe for Board: ${PICO_BOARD}
 # Define main firmware executable (modular architecture grouped by concern)
 add_executable(panasonic_p7501_uart
     p7501_pico_main.c
+    common/p7501_hex.c
     hal/p7501_hw.c
+    hal/p7501_led_logic.c
     hal/p7501_led.c
     gdb/gdb_rsp_codec.c
     gdb/gdb_rsp_memory.c
     gdb/gdb_rsp_cpu.c
     protocol/p7501_bus_protocol.c
     flash/p7501_flash.c
+    flash/p7501_ram_loader.c
     diag/p7501_diag_electrical.c
     diag/p7501_diag_bus.c
+    diag/p7501_diag_busdiag.c
+    diag/p7501_diag_pwrtrace.c
+    flash/p7501_flash_cli.c
     uart/p7501_uart_bitbang.c
+    uart/p7501_uart_codec.c
+    uart/p7501_uart_args.c
     uart/p7501_uart_capture.c
     uart/p7501_fmu_probe.c
+    uart/p7501_fmu_batch.c
     uart/p7501_uart_interactive.c
+    uart/p7501_uart_pio_engine.c
+    uart/p7501_uart_baud.c
+    uart/p7501_uart_stream.c
+    uart/p7501_uart_tx.c
+    cli/p7501_cli_help.c
     cli/p7501_cli.c
 )
 
@@ -49,6 +63,7 @@ target_include_directories(panasonic_p7501_uart PRIVATE
 
 # Assemble PIO UART program and generate C header
 pico_generate_pio_header(panasonic_p7501_uart ${CMAKE_CURRENT_LIST_DIR}/p7501_uart.pio)
+pico_generate_pio_header(panasonic_p7501_uart ${CMAKE_CURRENT_LIST_DIR}/p7501_uart_duplex.pio)
 
 # Link essential Pico SDK and RP2040/RP2350 hardware drivers
 target_link_libraries(panasonic_p7501_uart

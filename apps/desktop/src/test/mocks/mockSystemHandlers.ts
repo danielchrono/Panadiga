@@ -2,7 +2,7 @@
  * Mock IPC handlers for system overview, manuals lookup, hex viewer, external tools, and RAG queries.
  */
 
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/test/fixtures/ssotFixture';
+import { CANONICAL_HARDWARE_SSOT_SPEC } from '@/constants';
 import {
   generateMockHexDump,
   mockManualDocuments,
@@ -16,7 +16,7 @@ export function handleMockSystemCommand(
 ): unknown | undefined {
   switch (cmd) {
     case 'get_hardware_ssot_spec':
-      return DEFAULT_HARDWARE_SSOT_SPEC;
+      return CANONICAL_HARDWARE_SSOT_SPEC;
 
     case 'get_system_overview':
       return mockSystemOverview;

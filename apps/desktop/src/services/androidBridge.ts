@@ -43,11 +43,15 @@ interface RawAndroidBridge {
   disconnectBleNus(): void;
 }
 
+declare global {
+  interface Window {
+    __PANADIGA_ANDROID_BRIDGE__?: RawAndroidBridge;
+  }
+}
+
 function getRawBridge(): RawAndroidBridge | null {
   if (typeof window === 'undefined') return null;
-  const candidate = (window as unknown as Record<string, unknown>).__PANADIGA_ANDROID_BRIDGE__ as
-    | RawAndroidBridge
-    | undefined;
+  const candidate = window.__PANADIGA_ANDROID_BRIDGE__;
   return candidate && typeof candidate.isAvailable === 'function' ? candidate : null;
 }
 

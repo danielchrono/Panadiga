@@ -2,6 +2,34 @@
  * System Architecture & Local Workspace Status Models
  */
 
+export type NavigationTabId =
+  | 'dashboard'
+  | 'nvram'
+  | 'hdd'
+  | 'pico'
+  | 'crypto'
+  | 'manuals'
+  | 'hex'
+  | 'rag';
+
+export type ViewKey =
+  | 'dashboard'
+  | 'nvram'
+  | 'hdd'
+  | 'picobench'
+  | 'frmcrypto'
+  | 'manuals'
+  | 'hexinspector';
+
+export const ExecutionStatus = {
+  IDLE: 'IDLE',
+  RUNNING: 'RUNNING',
+  SUCCESS: 'SUCCESS',
+  ERROR: 'ERROR',
+} as const;
+
+export type ExecutionStatus = (typeof ExecutionStatus)[keyof typeof ExecutionStatus];
+
 export interface BinaryFileStatus {
   id: string;
   name: string;

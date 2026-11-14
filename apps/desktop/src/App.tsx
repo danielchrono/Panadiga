@@ -1,11 +1,7 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { Sidebar, MobileSidebarDrawer, ViewKey } from './components/Sidebar';
 import { Header } from './components/Header';
-import { listenEvent } from './services/ipc';
-import { recordLiveNvramCapture } from './services/liveNvramCaptureStore';
-import { LiveNvramCaptureEvent } from './models';
-import { useHardwareSsot } from './viewmodels/useHardwareSsot';
-import { PicoDeviceStatus } from './models/pico';
+import { useHardwareSsot, useShellTelemetryListener } from './viewmodels/useHardwareSsot';
 import { ToastProvider } from './context/ToastContext';
 import { ErrorBoundary } from './components/ui/error-boundary';
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -44,51 +40,11 @@ const ViewLoadingFallback: React.FC = () => (
 
 export const App: React.FC = () => {
   const { ssot } = useHardwareSsot();
+  const hardwareStatus = useShellTelemetryListener();
   const [currentView, setCurrentView] = useState<ViewKey>('dashboard');
   const [mobileNavOpen, setMobileNavOpen] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [hardwareStatus, setHardwareStatus] = useState<{
-    connected: boolean;
-    vdd_volts: number;
-  }>({
-    connected: false,
-    vdd_volts: 0.0,
-  });
-
-  useEffect(() => {
-    let unlistenLegacy: (() => void) | undefined;
-    let unlistenStream: (() => void) | undefined;
-    let unlistenLiveNvram: (() => void) | undefined;
-
-    const applyStatus = (incoming: PicoDeviceStatus) => {
-      if (!incoming) return;
-      setHardwareStatus({
-        connected: Boolean(incoming.connected),
-        vdd_volts: Number(incoming.vdd_volts ?? 0),
-      });
-    };
-
-    listenEvent<PicoDeviceStatus>('pico_telemetry', applyStatus).then(fn => {
-      unlistenLegacy = fn;
-    });
-    listenEvent<PicoDeviceStatus>('pico://telemetry', applyStatus).then(fn => {
-      unlistenStream = fn;
-    });
-    listenEvent<LiveNvramCaptureEvent>('pico://nvram-live-capture', evt => {
-      if (evt?.report) {
-        recordLiveNvramCapture(evt);
-      }
-    }).then(fn => {
-      unlistenLiveNvram = fn;
-    });
-
-    return () => {
-      unlistenLegacy?.();
-      unlistenStream?.();
-      unlistenLiveNvram?.();
-    };
-  }, []);
 
   const viewTitles: Record<ViewKey, string> = {
     dashboard: 'Visão Geral do Gravador & Status da Bancada',

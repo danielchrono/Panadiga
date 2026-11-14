@@ -1,7 +1,5 @@
 import { useCallback, useRef } from 'react';
 import type { PicoDiagnosticResult } from '@/models';
-import { PICO_MIN_VDD_THRESHOLD_VOLTS } from '@/constants';
-import { isTargetPowered } from '@/utils/formatters';
 import { useHardwareSsot } from './useHardwareSsot';
 import { usePicoDevice } from './usePicoDevice';
 import { usePicoDiagnostics } from './usePicoDiagnostics';
@@ -31,33 +29,15 @@ export function usePicoBenchViewModel() {
   const device = usePicoDevice({
     onLog: console.addLog,
   });
-  const { setDeviceStatus } = device;
+  const { setDeviceStatus, applyMeasuredVoltage } = device;
 
   const handleDiagnosticTelemetry = useCallback(
     (result: PicoDiagnosticResult) => {
       if (result.vdd_volts !== null && result.vdd_volts !== undefined) {
-        const vdd = result.vdd_volts;
-        const powered = isTargetPowered(vdd, PICO_MIN_VDD_THRESHOLD_VOLTS);
-        setDeviceStatus(prev =>
-          prev
-            ? {
-                ...prev,
-                vdd_volts: vdd,
-                target_powered: powered,
-                core_state:
-                  result.command_id === 'HANDSHAKE' && result.success
-                    ? 'HALTED'
-                    : powered
-                      ? prev.core_state === 'DISCONNECTED'
-                        ? 'RUNNING'
-                        : prev.core_state
-                      : 'RESET',
-              }
-            : prev
-        );
+        applyMeasuredVoltage(result.vdd_volts, result.command_id, result.success);
       }
     },
-    [setDeviceStatus]
+    [applyMeasuredVoltage]
   );
   telemetryRef.current = handleDiagnosticTelemetry;
 
@@ -95,6 +75,7 @@ export function usePicoBenchViewModel() {
 
     // Device & Connection Subsystem
     deviceStatus: device.deviceStatus,
+    isFlashing: device.isFlashing,
     availablePorts: device.availablePorts,
     selectedPort: device.selectedPort,
     setSelectedPort: device.setSelectedPort,
@@ -105,6 +86,8 @@ export function usePicoBenchViewModel() {
     refreshPorts: device.refreshPorts,
     changeBreakinMode: device.changeBreakinMode,
     toggleConnection: device.toggleConnection,
+    triggerBootselReboot: device.triggerBootselReboot,
+    flashPicoFirmware: device.flashPicoFirmware,
     refreshStatus: device.pollDeviceStatus,
     isVoltageSafe: device.isVoltageSafe,
     isHardwareReady: device.isHardwareReady,
@@ -123,6 +106,7 @@ export function usePicoBenchViewModel() {
     // GDB Remote RSP Server Subsystem
     gdbStatus: gdb.gdbStatus,
     am34Registers: gdb.am34Registers,
+    gdbTelemetry: gdb.telemetry,
     isGdbStarting: gdb.isGdbStarting,
     startGdbServer: gdb.startGdbServer,
     stopGdbServer: gdb.stopGdbServer,

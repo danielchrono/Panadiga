@@ -19,52 +19,55 @@ export interface LogMessage {
 
 export type LogSink = (entry: LogMessage) => void;
 
-class PanadigaLogger {
-  private sinks: Set<LogSink> = new Set();
-  private minLevel: LogSeverity = 'info';
+export interface StructuredLogger {
+  readonly setMinLevel: (level: LogSeverity) => void;
+  readonly addSink: (sink: LogSink) => () => void;
+  readonly debug: (subsystem: string, message: string, details?: unknown) => void;
+  readonly info: (subsystem: string, message: string, details?: unknown) => void;
+  readonly warn: (subsystem: string, message: string, details?: unknown) => void;
+  readonly error: (subsystem: string, message: string, details?: unknown) => void;
+}
 
-  private severityWeight: Record<LogSeverity, number> = {
-    debug: 0,
-    info: 1,
-    warn: 2,
-    error: 3,
-  };
+const SEVERITY_WEIGHT: Readonly<Record<LogSeverity, number>> = Object.freeze({
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+});
 
-  constructor() {
-    // Default console sink routing
-    if (typeof window !== 'undefined') {
-      this.sinks.add(entry => {
-        const prefix = `[${entry.timestamp}] [${entry.severity.toUpperCase()}] [${entry.subsystem}]`;
-        if (entry.severity === 'error') {
-          // eslint-disable-next-line no-console
-          console.error(prefix, entry.message, entry.details ?? '');
-        } else if (entry.severity === 'warn') {
-          // eslint-disable-next-line no-console
-          console.warn(prefix, entry.message, entry.details ?? '');
-        } else if (entry.severity === 'debug') {
-          // eslint-disable-next-line no-console
-          console.debug(prefix, entry.message, entry.details ?? '');
-        } else {
-          // eslint-disable-next-line no-console
-          console.info(prefix, entry.message, entry.details ?? '');
-        }
-      });
-    }
+/**
+ * Pure closure factory creating an isolated structured logger without classes or shared globals.
+ */
+export function createLogger(initialLevel: LogSeverity = 'info'): StructuredLogger {
+  const sinks = new Set<LogSink>();
+  let minLevel: LogSeverity = initialLevel;
+
+  if (typeof window !== 'undefined') {
+    sinks.add(entry => {
+      const prefix = `[${entry.timestamp}] [${entry.severity.toUpperCase()}] [${entry.subsystem}]`;
+      if (entry.severity === 'error') {
+        // eslint-disable-next-line no-console
+        console.error(prefix, entry.message, entry.details ?? '');
+      } else if (entry.severity === 'warn') {
+        // eslint-disable-next-line no-console
+        console.warn(prefix, entry.message, entry.details ?? '');
+      } else if (entry.severity === 'debug') {
+        // eslint-disable-next-line no-console
+        console.debug(prefix, entry.message, entry.details ?? '');
+      } else {
+        // eslint-disable-next-line no-console
+        console.info(prefix, entry.message, entry.details ?? '');
+      }
+    });
   }
 
-  public setMinLevel(level: LogSeverity): void {
-    this.minLevel = level;
-  }
-
-  public addSink(sink: LogSink): () => void {
-    this.sinks.add(sink);
-    return () => {
-      this.sinks.delete(sink);
-    };
-  }
-
-  private dispatch(severity: LogSeverity, subsystem: string, message: string, details?: unknown): void {
-    if (this.severityWeight[severity] < this.severityWeight[this.minLevel]) {
+  const dispatch = (
+    severity: LogSeverity,
+    subsystem: string,
+    message: string,
+    details?: unknown
+  ): void => {
+    if (SEVERITY_WEIGHT[severity] < SEVERITY_WEIGHT[minLevel]) {
       return;
     }
 
@@ -76,30 +79,34 @@ class PanadigaLogger {
       details,
     };
 
-    this.sinks.forEach(sink => {
+    sinks.forEach(sink => {
       try {
         sink(entry);
       } catch {
         // Logging failures must never interrupt application execution
       }
     });
-  }
+  };
 
-  public debug(subsystem: string, message: string, details?: unknown): void {
-    this.dispatch('debug', subsystem, message, details);
-  }
-
-  public info(subsystem: string, message: string, details?: unknown): void {
-    this.dispatch('info', subsystem, message, details);
-  }
-
-  public warn(subsystem: string, message: string, details?: unknown): void {
-    this.dispatch('warn', subsystem, message, details);
-  }
-
-  public error(subsystem: string, message: string, details?: unknown): void {
-    this.dispatch('error', subsystem, message, details);
-  }
+  return Object.freeze({
+    setMinLevel: (level: LogSeverity) => {
+      minLevel = level;
+    },
+    addSink: (sink: LogSink) => {
+      sinks.add(sink);
+      return () => {
+        sinks.delete(sink);
+      };
+    },
+    debug: (subsystem: string, message: string, details?: unknown) =>
+      dispatch('debug', subsystem, message, details),
+    info: (subsystem: string, message: string, details?: unknown) =>
+      dispatch('info', subsystem, message, details),
+    warn: (subsystem: string, message: string, details?: unknown) =>
+      dispatch('warn', subsystem, message, details),
+    error: (subsystem: string, message: string, details?: unknown) =>
+      dispatch('error', subsystem, message, details),
+  });
 }
 
-export const logger = new PanadigaLogger();
+export const logger = createLogger();

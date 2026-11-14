@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/test/fixtures/ssotFixture';
+import { CANONICAL_HARDWARE_SSOT_SPEC } from '@/constants';
 import { simulateMockDiagnostic } from '@/test/mocks/mockDiagnostics';
 import { PicoDiagnosticsStudio } from './PicoDiagnosticsStudio';
 
@@ -11,7 +11,7 @@ describe('PicoDiagnosticsStudio Component', () => {
 
     render(
       <PicoDiagnosticsStudio
-        ssot={DEFAULT_HARDWARE_SSOT_SPEC}
+        ssot={CANONICAL_HARDWARE_SSOT_SPEC}
         latestResult={null}
         history={[]}
         runningCommandId={null}
@@ -34,7 +34,7 @@ describe('PicoDiagnosticsStudio Component', () => {
 
     const { rerender } = render(
       <PicoDiagnosticsStudio
-        ssot={DEFAULT_HARDWARE_SSOT_SPEC}
+        ssot={CANONICAL_HARDWARE_SSOT_SPEC}
         latestResult={pinResult}
         history={[pinResult]}
         runningCommandId={null}
@@ -52,7 +52,7 @@ describe('PicoDiagnosticsStudio Component', () => {
     const dumpResult = simulateMockDiagnostic('DUMP', '0x807F0000 16');
     rerender(
       <PicoDiagnosticsStudio
-        ssot={DEFAULT_HARDWARE_SSOT_SPEC}
+        ssot={CANONICAL_HARDWARE_SSOT_SPEC}
         latestResult={dumpResult}
         history={[dumpResult, pinResult]}
         runningCommandId={null}

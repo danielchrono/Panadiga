@@ -1,5 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
-import { GdbBridgeStatus, Am34RegisterState, SerialLogEntry } from '@/models';
+import {
+  GdbBridgeStatus,
+  Am34RegisterState,
+  GdbPacketTelemetryEvent,
+  SerialLogEntry,
+} from '@/models';
 import { GDB_DEFAULT_LISTEN_ADDR } from '@/constants';
 import { invokeCommand } from '@/services/ipc';
 import { logger } from '@/utils/logger';
@@ -20,11 +25,13 @@ export type GdbBridgeState =
   | { status: 'error'; message: string };
 
 /**
- * Single Responsibility: Manages the GDB RSP TCP server bridge lifecycle and AM34 register telemetry.
+ * Single Responsibility: Manages the GDB RSP TCP server bridge lifecycle, AM34 register file,
+ * and introspective RSP telemetry stream.
  */
 export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
   const [gdbStatus, setGdbStatus] = useState<GdbBridgeStatus | null>(null);
   const [am34Registers, setAm34Registers] = useState<Am34RegisterState | null>(null);
+  const [telemetry, setTelemetry] = useState<GdbPacketTelemetryEvent[]>([]);
   const [state, setState] = useState<GdbBridgeState>({ status: 'stopped' });
 
   const isGdbStarting = state.status === 'starting';
@@ -39,8 +46,14 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
           listenAddr: gdb.listen_addr,
           clientCount: gdb.connected_clients,
         });
-        const regs = await invokeCommand<Am34RegisterState>('get_am34_registers_command');
+        const [regs, events] = await Promise.all([
+          invokeCommand<Am34RegisterState>('get_am34_registers_command'),
+          invokeCommand<GdbPacketTelemetryEvent[]>('get_gdb_telemetry_command').catch(() => []),
+        ]);
         setAm34Registers(regs);
+        if (events) {
+          setTelemetry(events);
+        }
       } else {
         setState(prev => (prev.status === 'starting' ? prev : { status: 'stopped' }));
       }
@@ -110,6 +123,7 @@ export function useGdbBridge({ selectedPort, onLog }: UseGdbBridgeOptions) {
     state,
     gdbStatus,
     am34Registers,
+    telemetry,
     isGdbStarting,
     startGdbServer,
     stopGdbServer,

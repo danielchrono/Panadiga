@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { isTargetPowered } from '@/utils/formatters';
+import type { ViewKey } from '@/models';
 import {
   LayoutDashboard,
   Cpu,
@@ -14,14 +15,7 @@ import {
   Layers,
 } from 'lucide-react';
 
-export type ViewKey =
-  | 'dashboard'
-  | 'nvram'
-  | 'hdd'
-  | 'picobench'
-  | 'frmcrypto'
-  | 'manuals'
-  | 'hexinspector';
+export type { ViewKey };
 
 interface SidebarProps {
   currentView: ViewKey;

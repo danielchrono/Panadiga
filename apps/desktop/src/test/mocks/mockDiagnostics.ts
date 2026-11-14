@@ -58,12 +58,27 @@ export function simulateMockDiagnostic(commandId: string, arg?: string): PicoDia
       '807F0030: FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF',
       'DUMP: OK',
     ].join('\n');
-  } else if (norm === 'BOOTCAP' || norm === 'UARTMON' || norm === 'JIGBOOT') {
+  } else if (norm === 'BOOTCAP' || norm === 'UARTMON' || norm === 'JIGBOOT' || norm === 'UARTSTREAM' || norm === 'HEXCAP' || norm === 'WAITTX') {
     rawOutput = [
       `=== ${norm}: PANASONIC 115200 8N1 UART CAPTURE ON GP2 (42 bytes, ${cleanArg || '7500'} ms) ===`,
       'AM34 IPL BOOT v1.18 OK | DDR CHECK OK',
       `${norm}: OK`,
     ].join('\n');
+  } else if (norm === 'BAUD' || norm === 'BAUDSCAN') {
+    rawOutput = [
+      `=== ${norm} PIO1 AUTO-BAUD ===`,
+      'Detected: 115200 bps (min_low=8 us)',
+      `${norm}: OK`,
+    ].join('\n');
+  } else if (norm === 'PWRTRACE') {
+    rawOutput = [
+      `=== PWRTRACE DUAL RAIL + UART (4000 ms) ===`,
+      `VDD_start=${mockVdd}V VDD_end=${mockVdd}V | GP2=872 GP3=2 | bytes=42`,
+      'PWRTRACE: OK',
+    ].join('\n');
+  } else if (norm === 'LED') {
+    const req = (cleanArg || 'STATUS').toUpperCase();
+    rawOutput = `LED: OK (${req}, ${req === 'AUTO' ? 'AUTO' : 'MANUAL_LOCK'})`;
   } else if (norm.startsWith('FMU') || norm.startsWith('UART')) {
     rawOutput = `UART/FMU Probe Capture (18 bytes): SERI_READY OK\n${norm}: OK`;
   } else if (norm === 'SCAN') {

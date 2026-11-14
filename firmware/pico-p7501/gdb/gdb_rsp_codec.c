@@ -6,6 +6,7 @@
  */
 
 #include "gdb/gdb_rsp_internal.h"
+#include "common/p7501_hex.h"
 #include "hal/p7501_hw.h"
 #include <stdio.h>
 #include <string.h>
@@ -57,15 +58,11 @@ void gdb_rsp_test_inject_packet(const char *payload) {
 #endif
 
 int gdb_hex_char_to_nibble(char c) {
-    if ((c >= '0') && (c <= '9')) { return c - '0'; }
-    if ((c >= 'a') && (c <= 'f')) { return c - 'a' + 10; }
-    if ((c >= 'A') && (c <= 'F')) { return c - 'A' + 10; }
-    return -1;
+    return p7501_hex_char_to_nibble(c);
 }
 
 char gdb_nibble_to_hex_char(uint8_t n) {
-    static const char hex_digits[] = "0123456789abcdef";
-    return hex_digits[n & 0x0FU];
+    return p7501_nibble_to_hex_char(n);
 }
 
 uint8_t gdb_compute_checksum(const char *payload) {

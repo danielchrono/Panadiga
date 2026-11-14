@@ -256,6 +256,16 @@ export interface PicoDiagnosticResult {
   captured_bytes?: number | null;
 }
 
+export interface FlashReport {
+  success: boolean;
+  target_drive: string;
+  board_family: string;
+  uf2_size_bytes: number;
+  blocks_written: number;
+  sha256_hash: string;
+  message: string;
+}
+
 export interface ReactiveSerialEvent {
   id: string;
   timestamp: string;

@@ -101,8 +101,13 @@ pub fn compose_diagnostic_command(
         && let Some(mode) = clean_arg
     {
         let upper = mode.to_ascii_uppercase();
-        if !matches!(upper.as_str(), "IDLE" | "ACTIVE" | "GDB" | "FAULT") {
-            return Err("Modo LED inválido: use IDLE, ACTIVE, GDB ou FAULT.".to_string());
+        if !matches!(
+            upper.as_str(),
+            "IDLE" | "ACTIVE" | "GDB" | "FAULT" | "OFF" | "AUTO" | "STATUS"
+        ) {
+            return Err(
+                "Modo LED inválido: use IDLE, ACTIVE, GDB, FAULT, OFF, AUTO ou STATUS.".to_string(),
+            );
         }
     }
 
@@ -115,11 +120,20 @@ pub fn compose_diagnostic_command(
     let mut timeout_ms = entry.timeout_ms;
     if matches!(
         normalized.as_str(),
-        "SNIFF" | "BOOTCAP" | "UARTMON" | "JIGBOOT"
-    ) && let Some(ms_str) = clean_arg
-        && let Ok(ms) = ms_str.parse::<u64>()
+        "SNIFF"
+            | "BOOTCAP"
+            | "UARTMON"
+            | "JIGBOOT"
+            | "UARTSTREAM"
+            | "HEXCAP"
+            | "BAUD"
+            | "BAUDSCAN"
+            | "PWRTRACE"
+            | "WAITTX"
+    ) && let Some(first_tok) = clean_arg.and_then(|s| s.split_whitespace().next())
+        && let Ok(ms) = first_tok.parse::<u64>()
     {
-        timeout_ms = ms.saturating_add(2000).clamp(2000, 35000);
+        timeout_ms = ms.saturating_add(2500).clamp(2000, 125_000);
     }
 
     Ok((raw_cmd, Duration::from_millis(timeout_ms)))
@@ -274,12 +288,30 @@ pub fn parse_diagnostic_output(
     elapsed_ms: u64,
 ) -> PicoDiagnosticResultDto {
     let norm = command_id.trim().to_ascii_uppercase();
+    let norm_lower = norm.to_ascii_lowercase();
     let lower = raw_output.to_ascii_lowercase();
-    let failed = lower.contains("failed")
-        || lower.contains("error")
-        || lower.contains("abort")
-        || lower.contains("safety interlock")
-        || raw_output.trim().is_empty();
+    let cmd_ok_prefix = format!("{}: ok", norm_lower);
+    let cmd_err_prefix = format!("{}: error", norm_lower);
+    let bracket_err_prefix = format!("[{}] error:", norm_lower);
+
+    let has_explicit_ok = lower.lines().map(str::trim).any(|line| {
+        line.starts_with(&cmd_ok_prefix) || (norm_lower == "scan" && line == "scan: completed")
+    });
+    let has_pico_fatal = lower.lines().map(str::trim).any(|line| {
+        line.starts_with(&cmd_err_prefix)
+            || line.starts_with(&bracket_err_prefix)
+            || line.starts_with("[safety interlock]")
+            || line.starts_with("[handshake] failed")
+            || line.starts_with("unknown command:")
+    });
+
+    let failed = raw_output.trim().is_empty()
+        || has_pico_fatal
+        || (!has_explicit_ok
+            && (lower.contains("failed")
+                || lower.contains("error")
+                || lower.contains("abort")
+                || lower.contains("safety interlock")));
 
     let (pincheck_rows, xreset_rise_us) = if norm == "PINCHECK" {
         parse_pincheck_rows(raw_output)
@@ -463,7 +495,33 @@ mod tests {
         assert!(compose_diagnostic_command("SNIFF", Some("250\nRESET")).is_err());
         let (cmd, dur) = compose_diagnostic_command("BOOTCAP", Some("3000")).unwrap();
         assert_eq!(cmd, "BOOTCAP 3000");
-        assert_eq!(dur, Duration::from_millis(5000));
+        assert_eq!(dur, Duration::from_millis(5500));
+
+        assert!(compose_diagnostic_command("LED", Some("OFF")).is_ok());
+        assert!(compose_diagnostic_command("LED", Some("AUTO")).is_ok());
+        let (stream_cmd, stream_dur) =
+            compose_diagnostic_command("UARTSTREAM", Some("8000 JIG:350")).unwrap();
+        assert_eq!(stream_cmd, "UARTSTREAM 8000 JIG:350");
+        assert_eq!(stream_dur, Duration::from_millis(10500));
+    }
+
+    #[test]
+    fn explicit_ok_prevents_target_uart_error_strings_from_failing_result() {
+        let log = "\
+=== UARTSTREAM PIO1 (115200 bps, 120 bytes, 8000 ms) ===
+BGO driver init failed[1].
+[SDCD] Set SD Bus Width fail ERROR:-91006
+UARTSTREAM: OK";
+        let res = parse_diagnostic_output("UARTSTREAM", "UARTSTREAM 8000 JIG:350", log, 8100);
+        assert!(res.success);
+
+        let err_res = parse_diagnostic_output(
+            "ERASE_NVRAM",
+            "ERASE_NVRAM CONFIRM",
+            "ERASE_NVRAM: ERROR (-5)",
+            100,
+        );
+        assert!(!err_res.success);
     }
 
     #[test]

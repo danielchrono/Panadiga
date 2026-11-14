@@ -33,6 +33,9 @@ void p7501_hw_resume_cpu(void);
 /** Query target debug/monitor control status register (returns open-bus high when idle UART). */
 uint32_t p7501_hw_read_dcsr(void);
 
+/** Return true only when a synchronous monitor responds with valid non-open-bus DCSR. */
+bool p7501_proto_is_monitor_online(void);
+
 /** Check whether AM34 target monitor reports halted status (Bit 0 set). */
 bool p7501_hw_is_cpu_halted(void);
 

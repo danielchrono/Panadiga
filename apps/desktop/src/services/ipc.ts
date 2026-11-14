@@ -69,24 +69,44 @@ export async function invokeCommand<T>(
   throw new Error(`Comando IPC '${cmd}' requer execução nativa no runtime Tauri.`);
 }
 
-type EventHandler<T> = (payload: T) => void;
-const localEventBus: Map<string, Set<EventHandler<unknown>>> = new Map();
+function createLocalEventBus() {
+  const bus = new Map<string, Set<(payload: never) => void>>();
+
+  const emit = <T>(eventName: string, payload: T): void => {
+    const handlers = bus.get(eventName);
+    if (!handlers) return;
+    handlers.forEach(fn => {
+      try {
+        (fn as (data: T) => void)(payload);
+      } catch (e) {
+        logger.warn('IPC', `Error in local event handler for ${eventName}`, e);
+      }
+    });
+  };
+
+  const subscribe = <T>(eventName: string, handler: (payload: T) => void): (() => void) => {
+    const handlers = bus.get(eventName) ?? new Set<(payload: never) => void>();
+    if (!bus.has(eventName)) {
+      bus.set(eventName, handlers);
+    }
+    const stored: (payload: never) => void = handler;
+    handlers.add(stored);
+    return () => {
+      handlers.delete(stored);
+    };
+  };
+
+  return Object.freeze({ emit, subscribe });
+}
+
+const localEventBus = createLocalEventBus();
 
 /**
  * Dispatches an event across the frontend subscriber network.
  * Allows ViewModels (like usePicoDevice) to broadcast telemetry to top-level App shell.
  */
 export function emitLocalEvent<T>(eventName: string, payload: T): void {
-  const handlers = localEventBus.get(eventName);
-  if (handlers) {
-    handlers.forEach(fn => {
-      try {
-        fn(payload as unknown);
-      } catch (e) {
-        logger.warn('IPC', `Error in local event handler for ${eventName}`, e);
-      }
-    });
-  }
+  localEventBus.emit(eventName, payload);
 }
 
 /**
@@ -97,14 +117,7 @@ export async function listenEvent<T>(
   eventName: string,
   handler: (payload: T) => void
 ): Promise<() => void> {
-  if (!localEventBus.has(eventName)) {
-    localEventBus.set(eventName, new Set());
-  }
-  const handlerFn = handler as EventHandler<unknown>;
-  localEventBus.get(eventName)!.add(handlerFn);
-  const unlistenLocal = () => {
-    localEventBus.get(eventName)?.delete(handlerFn);
-  };
+  const unlistenLocal = localEventBus.subscribe(eventName, handler);
 
   let unlistenTauri: (() => void) | undefined;
   if (isTauri()) {

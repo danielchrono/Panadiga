@@ -142,8 +142,12 @@ void gdb_cpu_dispatch_command(const char *cmd) {
 
     switch (cmd[0]) {
         case '?':
-            gdb_cpu_sync_registers();
-            gdb_rsp_send_packet(s_reg_file.is_halted ? "S05" : "S00");
+            if (p7501_hw_read_dcsr() == P7501_BUS_RESP_OPEN_HIGH) {
+                gdb_rsp_send_packet("S00");
+            } else {
+                gdb_cpu_sync_registers();
+                gdb_rsp_send_packet(s_reg_file.is_halted ? "S05" : "S00");
+            }
             break;
 
         case 'q':
@@ -155,7 +159,11 @@ void gdb_cpu_dispatch_command(const char *cmd) {
             break;
 
         case 'G':
-            handle_write_regs(&cmd[1]);
+            if (p7501_hw_read_dcsr() == P7501_BUS_RESP_OPEN_HIGH) {
+                gdb_rsp_send_packet("E01");
+            } else {
+                handle_write_regs(&cmd[1]);
+            }
             break;
 
         case 'm':
@@ -167,7 +175,8 @@ void gdb_cpu_dispatch_command(const char *cmd) {
             break;
 
         case 'c':
-            if (!apply_optional_pc_arg(&cmd[1])) {
+            if (p7501_hw_read_dcsr() == P7501_BUS_RESP_OPEN_HIGH ||
+                !apply_optional_pc_arg(&cmd[1])) {
                 gdb_rsp_send_packet("E01");
                 break;
             }
@@ -177,7 +186,8 @@ void gdb_cpu_dispatch_command(const char *cmd) {
             break;
 
         case 's':
-            if (!apply_optional_pc_arg(&cmd[1])) {
+            if (p7501_hw_read_dcsr() == P7501_BUS_RESP_OPEN_HIGH ||
+                !apply_optional_pc_arg(&cmd[1])) {
                 gdb_rsp_send_packet("E01");
                 break;
             }

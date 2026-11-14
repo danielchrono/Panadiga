@@ -1,31 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { GdbPacketTelemetryEvent } from '@/models';
-import { invokeCommand } from '@/services/ipc';
-import { logger } from '@/utils/logger';
 import { Activity, ChevronDown, ChevronUp } from 'lucide-react';
 
 export interface GdbTelemetryInspectorProps {
-  isRunning: boolean;
+  isRunning?: boolean;
+  telemetry?: GdbPacketTelemetryEvent[];
 }
 
-export const GdbTelemetryInspector: React.FC<GdbTelemetryInspectorProps> = ({ isRunning }) => {
-  const [telemetry, setTelemetry] = useState<GdbPacketTelemetryEvent[]>([]);
+export const GdbTelemetryInspector: React.FC<GdbTelemetryInspectorProps> = ({
+  telemetry = [],
+}) => {
   const [showTelemetry, setShowTelemetry] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!isRunning) return;
-    const fetchTelemetry = async () => {
-      try {
-        const events = await invokeCommand<GdbPacketTelemetryEvent[]>('get_gdb_telemetry_command');
-        if (events) setTelemetry(events);
-      } catch (e) {
-        logger.warn('GdbTelemetryInspector', 'Failed to fetch GDB telemetry', e);
-      }
-    };
-    fetchTelemetry();
-    const interval = setInterval(fetchTelemetry, 2500);
-    return () => clearInterval(interval);
-  }, [isRunning]);
 
   return (
     <div className="border-t border-slate-800 pt-3">

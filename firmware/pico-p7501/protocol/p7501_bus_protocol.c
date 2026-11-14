@@ -16,13 +16,22 @@
 #include <stdio.h>
 
 static uint32_t uart_mon_exchange_word(uint8_t cmd, uint32_t arg1, uint32_t arg2, bool send_arg1, bool send_arg2) {
-    /* Only drive UART TX when GP26 (SW_UART) is Hi-Z so Q7514 conducts cleanly toward AM34. */
+    /*
+     * P7501 carries asynchronous 115200 8N1 UART (GP2 RXD / GP4 TXD) and GP3 NSW5V (~5.15V rail).
+     * Because no synchronous DWire32A clock exists on P7501, synchronous word reads return
+     * P7501_BUS_RESP_OPEN_HIGH (0xFFFFFFFF) so callers detect monitor absence fail-safely.
+     */
     (void)cmd;
     (void)arg1;
     (void)arg2;
     (void)send_arg1;
     (void)send_arg2;
     return P7501_BUS_RESP_OPEN_HIGH;
+}
+
+bool p7501_proto_is_monitor_online(void) {
+    const uint32_t dcsr = p7501_hw_read_dcsr();
+    return (dcsr != P7501_BUS_RESP_OPEN_HIGH);
 }
 
 uint32_t p7501_hw_read_mem32(uint32_t addr) {

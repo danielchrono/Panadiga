@@ -33,7 +33,8 @@ export async function handleMockCommand<T>(
   }
 
   logger.warn('MockIPC', `Unhandled command: ${cmd}`);
-  return {} as unknown as T;
+  const emptyFallback: unknown = {};
+  return emptyFallback as T;
 }
 
 export function subscribeMockEventStream<T>(
@@ -42,7 +43,8 @@ export function subscribeMockEventStream<T>(
 ): () => void {
   if (eventName === 'pico_telemetry' || eventName === 'pico://telemetry') {
     const interval = setInterval(() => {
-      handler(buildMockPicoStatus() as unknown as T);
+      const statusPayload: unknown = buildMockPicoStatus();
+      handler(statusPayload as T);
     }, 2000);
     return () => clearInterval(interval);
   }

@@ -172,7 +172,41 @@
     "jumpButton": "Ir para",
     "prev": "Anterior",
     "next": "Próximo",
-    "bookmarks": "Marcadores Rápidos:"
+    "bookmarks": "Marcadores Rápidos:",
+    "bookmarkItems": {
+      "mbr_lba0": {
+        "label": "LBA 0: MBR Primário (\"SH\")",
+        "description": "Assinatura proprietária Panasonic MEIHDFS e GUID do disco rígido."
+      },
+      "descriptors_lba24": {
+        "label": "LBA 24: Descritores de Alocação",
+        "description": "Tabela de 256 registros MEIHDFS codificados com máscara XOR 0xFF."
+      },
+      "journal_wal_8mb": {
+        "label": "8 MB: Catálogo do Journal WAL",
+        "description": "Início do anel de 10 blocos de 128 KB de transações transacionais."
+      },
+      "mirror_mbr_28mb": {
+        "label": "28 MB: Espelho LBA 57.344 do MBR",
+        "description": "Backup bit-a-bit idêntico ao Setor 0 para recuperação de emergência."
+      },
+      "partition1_32mb": {
+        "label": "32 MB: Partição 1 (AM34 OS)",
+        "description": "Magic \"51 87 13 8D 5B 0A FB 22\" e código executável do gravador."
+      },
+      "partition2_64mb": {
+        "label": "64 MB: Partição 2 (Fontes/Microcódigo)",
+        "description": "Microcódigos dos co-processadores e fontes bitmap OSD."
+      },
+      "nvram_sa134": {
+        "label": "Spansion SA134: NVRAM / U99 Area",
+        "description": "Início dos 8 microsetores de parâmetros da EEPROM emulada na Spansion Flash."
+      },
+      "frm_toc_optical": {
+        "label": "PANA_DVD.FRM: TOC Entry AM34",
+        "description": "Descritor periódico de 48 bytes da CPU AM34 no contêiner óptico."
+      }
+    }
   },
   "pico": {
     "title": "Bancada Raspberry Pi Pico — P7501 UART (115200 8N1)",
@@ -278,5 +312,384 @@
     "ok": "OK",
     "error": "Erro",
     "success": "Sucesso"
+  },
+  "ssot": {
+    "protocol": {
+      "name": "P7501 UART Assíncrona (115200 8N1)",
+      "architecture": "MN103S / AM34",
+      "soc_model": "Panasonic AM34 (MN103S)",
+      "flash_chip": "Spansion S29JL064H (8 MB TSOP-48)",
+      "connector": "P7501 (B6B-ZR-3R4 TO JIGU)",
+      "board_schematic": "VEP79138 / Main PCB DMR-EH55"
+    },
+    "pins": {
+      "pin1": {
+        "pin_label": "Pino 1 [P7501 SW_UART / XFWE]",
+        "pico_pin": "Pino 31",
+        "signal_name": "SW_UART & ADC0 Sense (~3.25V Hi-Z / ~2.69V PD)",
+        "direction": "Target <-> Pico (Q7510/QR7503)",
+        "voltage": "3.3V LVTTL",
+        "critical_note": "LOW força serial boot via XFWE (corta Q7514 TX). Mantenha Hi-Z para TX normal e NUNCA alimente o Pico por este pino."
+      },
+      "pin2": {
+        "pin_label": "Pino 2 [P7501 XRESET]",
+        "pico_pin": "Pino 7",
+        "signal_name": "XRESET Open-Drain (Nunca Push-Pull)",
+        "direction": "Pico Open-Drain",
+        "voltage": "3.3V Hi-Z / 0V",
+        "critical_note": ""
+      },
+      "pin3": {
+        "pin_label": "Pino 3 [P7501 UARTM2P_T / Q7514]",
+        "pico_pin": "Pino 6",
+        "signal_name": "UART TX -> AM34 RX via Q7514",
+        "direction": "Pico -> Target (115200 8N1)",
+        "voltage": "3.3V LVTTL",
+        "critical_note": "Pull-up R7570 10kΩ para NSW5V. Requer SW_UART=Hi-Z para Q7514 conduzir até o SoC AM34."
+      },
+      "pin4": {
+        "pin_label": "Pino 4 [P7501 GND]",
+        "pico_pin": "Pino 38",
+        "signal_name": "Terra 0.0Ω Chassi",
+        "direction": "Terra Comum",
+        "voltage": "0.0V (VSS)",
+        "critical_note": "Manual P7501 B6B-ZR-3R4 = PINO 4 (referência comum 0.0V). Confira continuidade 0.0Ω antes de ligar."
+      },
+      "pin5": {
+        "pin_label": "Pino 5 [P7501 NSW5V / IC1506]",
+        "pico_pin": "Pino 5",
+        "signal_name": "NSW5V Sense Hi-Z ONLY (~3.29V em repouso)",
+        "direction": "Target -> Pico (Hi-Z Input Sem Pulls)",
+        "voltage": "~3.29V (IC1506 ~5.15V upstream)",
+        "critical_note": "CRÍTICO: No DMR-EH55 P7501 Pino 5 é barramento NSW5V (originado em IC1506 ~5.15V via D7510). SEMPRE Hi-Z Input sem pulls — NUNCA dirigir push-pull!"
+      },
+      "pin6": {
+        "pin_label": "Pino 6 [P7501 UARTP2M_T / MAX TXD]",
+        "pico_pin": "Pino 4",
+        "signal_name": "UART RX <- AM34 TX 115200 8N1",
+        "direction": "Target -> Pico (115200 8N1)",
+        "voltage": "3.3V LVTTL",
+        "critical_note": "Única linha UART TX ativa observada no DMR-EH55 P7501 (R7572 10kΩ para NSW5V)."
+      }
+    },
+    "breakinModes": {
+      "mode0": {
+        "label": "Modo 0: Normal Hi-Z (SW_UART Aberto)",
+        "badge": "Passivo",
+        "description": "Mantém SW_UART (GP26) em Hi-Z durante pulso Open-Drain de XRESET; Q7514 permanece conduzindo UARTM2P_T -> AM34.",
+        "signal_diagram": "SW_UART: Hi-Z | XRESET: 10ms Open-Drain Low"
+      },
+      "mode1": {
+        "label": "Modo 1: Serial Pulse (XFWE Pré-Reset)",
+        "badge": "FMU",
+        "description": "Pulsa SW_UART LOW apenas durante a liberação de XRESET e libera GP26 em Hi-Z para habilitar TX bidirecional após handshake.",
+        "signal_diagram": "SW_UART: Pulse Low -> Hi-Z | Q7514 Re-enabled"
+      },
+      "mode2": {
+        "label": "Modo 2: JIG Hold LOW (SW_UART Retido)",
+        "badge": "RECOMENDADO",
+        "description": "Padrão JIGBOOT para captura UART do AM34: mantém SW_UART em LOW via Q7510 durante toda a janela de inicialização e retorna a Hi-Z.",
+        "signal_diagram": "SW_UART: Hold Low -> Isolate Hi-Z | 115200 8N1 RX"
+      },
+      "mode3": {
+        "label": "Modo 3: Hi-Z Estendido (Captura Longa)",
+        "badge": "Seguro",
+        "description": "Executa reset Open-Drain em XRESET mantendo os pinos UART em escuta Hi-Z para inspeção completa de CDDIAG e DDR CHECK.",
+        "signal_diagram": "XRESET: Open-Drain | GP2 RX + GP3 NSW5V Hi-Z"
+      }
+    },
+    "flashGeometries": {
+      "mb2": { "chip_name": "Spansion S29AL016J NOR Flash (2 MB / 16 Mbit)" },
+      "mb4": { "chip_name": "Spansion S29JL032H NOR Flash (4 MB / 32 Mbit)" },
+      "mb8": { "chip_name": "Spansion S29JL064H NOR Flash (8 MB / 64 Mbit)" },
+      "mb16": { "chip_name": "Spansion S29GL128P NOR Flash (16 MB / 128 Mbit)" }
+    },
+    "memoryRegions": {
+      "sram": { "name": "System SRAM / Work", "perms": "RWX" },
+      "mmio": { "name": "AM34 Internal OCD MMIO", "perms": "RW" },
+      "flash_ipl": { "name": "NOR Flash Bootloader / IPL", "perms": "RX (Protected)" },
+      "rtos_fw": { "name": "Main RTOS & AV Firmware", "perms": "RX (Protected)" },
+      "flash_nvram": { "name": "Top-Boot NVRAM (EEMUL / U99)", "perms": "RW (8x8KB)" },
+      "sdram": { "name": "DDR1 SDRAM (UniPhier)", "perms": "RWX" }
+    },
+    "commands": {
+      "PINCHECK": {
+        "label": "Matriz Elétrica (PINCHECK)",
+        "description": "Diagnostica os 6 pinos do conector P7501 em Hi-Z, Pull-Down e Pull-Up + rise time do XRESET."
+      },
+      "BUSDIAG": {
+        "label": "Contenção & Boot (BUSDIAG)",
+        "description": "Varre drive strengths (2..12 mA) em GP4/UARTM2P_T e perfil de boot em GP2 (UART RX) com SW_UART Hi-Z vs LOW."
+      },
+      "SNIFF": {
+        "label": "Monitor Passivo (SNIFF)",
+        "description": "Conta transições de borda passivas em GP2..GP5 durante janela configurável (ms).",
+        "arg_label": "Janela (ms)",
+        "arg_placeholder": "250",
+        "options": {
+          "w250": "250 ms",
+          "w1000": "1000 ms",
+          "w3000": "3000 ms"
+        }
+      },
+      "ISOLATE": {
+        "label": "Isolar Barramento (Hi-Z)",
+        "description": "Coloca GP2..GP5 em alta impedância para não interferir no boot normal do DMR-EH55."
+      },
+      "ENGAGE": {
+        "label": "Engajar UART / PIO",
+        "description": "Ativa drive P7501 PIO / UART em 3.3V mantendo NSW5V (GP3) em Hi-Z."
+      },
+      "RESET": {
+        "label": "Pulso Open-Drain XRESET",
+        "description": "Puxa XRESET para 0V em dreno aberto por 10 ms e libera em Hi-Z."
+      },
+      "HANDSHAKE": {
+        "label": "Executar Boot JIG",
+        "description": "Executa sequência JIGBOOT / P7501 (SW_UART+XRESET) e lê resposta inicial da ROM."
+      },
+      "BREAK_IN": {
+        "label": "Perfil Boot/Reset",
+        "description": "Executa perfil de boot/reset discreto no P7501 (modos 0..3: Hi-Z, Serial Pulse, JIG Hold LOW, Extended).",
+        "arg_label": "Modo P7501",
+        "arg_placeholder": "2",
+        "options": {
+          "m0": "Modo 0 (SW_UART Hi-Z)",
+          "m1": "Modo 1 (Serial Pulse)",
+          "m2": "Modo 2 (JIG Hold LOW)",
+          "m3": "Modo 3 (Hi-Z Extended)"
+        }
+      },
+      "SCAN": {
+        "label": "Sondar Barramento UART",
+        "description": "Audita estabilidade elétrica e detecção automática de atividade UART no P7501."
+      },
+      "AUTODETECT": {
+        "label": "Autodetectar Flash (Leitura)",
+        "description": "Mede espelhamento passivo de endereço (2/4/8/16 MB) sem gravação na NOR Flash."
+      },
+      "CFI": {
+        "label": "Consulta JEDEC CFI",
+        "description": "Envia sequência JEDEC 0x98 para leitura CFI (assinatura QRY / expoente 2^N da Spansion)."
+      },
+      "FLASH_SIZE": {
+        "label": "Definir Geometria Flash",
+        "description": "Ajusta manualmente o tamanho esperado da NOR Flash para leituras/GDB RSP.",
+        "arg_label": "Tamanho Flash",
+        "arg_placeholder": "8",
+        "options": {
+          "mb2": "2 MB (S29AL016J)",
+          "mb4": "4 MB (S29JL032H)",
+          "mb8": "8 MB (S29JL064H)",
+          "mb16": "16 MB (S29GL128P)"
+        }
+      },
+      "DUMP": {
+        "label": "Dump Memória",
+        "description": "Lê palavras de 32 bits em endereço arbitrário da SRAM/Flash/MMIO do AM34.",
+        "arg_label": "Endereço e Contagem",
+        "arg_placeholder": "0x807F0000 16",
+        "options": {
+          "nvram": "NVRAM Header (0x807F0000 16)",
+          "bootloader": "Bootloader Reset (0x80000000 16)",
+          "sram": "SRAM Loader (0x00004000 16)"
+        }
+      },
+      "BOOTCAP": {
+        "label": "Captura Boot UART (BOOTCAP)",
+        "description": "Reinicia o gravador e captura telemetria 115200 8N1 em GP2 durante a janela configurada.",
+        "arg_label": "Duração (ms)",
+        "arg_placeholder": "7500",
+        "options": {
+          "s3": "3.0 s",
+          "s7_5": "7.5 s",
+          "s15": "15.0 s"
+        }
+      },
+      "UARTMON": {
+        "label": "Monitor UART Passivo",
+        "description": "Escuta canal GP2 115200 8N1 sem acionar reset no gravador.",
+        "arg_label": "Duração (ms)",
+        "arg_placeholder": "5000",
+        "options": {
+          "s2": "2.0 s",
+          "s5": "5.0 s",
+          "s10": "10.0 s"
+        }
+      },
+      "JIGBOOT": {
+        "label": "Boot Modo Jig (JIGBOOT)",
+        "description": "Inicializa o chip mantendo pino SW_UART em LOW durante a janela de captura.",
+        "arg_label": "Duração (ms)",
+        "arg_placeholder": "7500",
+        "options": {
+          "s5": "5.0 s",
+          "s7_5": "7.5 s"
+        }
+      },
+      "BAUD": {
+        "label": "Medir Baud Rate (PIO1)",
+        "description": "Mede a menor largura de pulso em GP2 via PIO1 e calcula o baud rate real da linha SC0.",
+        "arg_label": "Janela (ms)",
+        "arg_placeholder": "1500",
+        "options": {
+          "s1_5": "1.5 s",
+          "s3_0": "3.0 s"
+        }
+      },
+      "BAUDSCAN": {
+        "label": "Sweep & Auto-Baud Boot",
+        "description": "Reinicia o alvo via XRESET, mede baud real em GP2 e captura amostras iniciais (opcional APPLY).",
+        "arg_label": "Parâmetros",
+        "arg_placeholder": "3500 NORMAL",
+        "options": {
+          "normal3_5": "3.5s NORMAL",
+          "jig4_0": "4.0s JIG"
+        }
+      },
+      "UARTSTREAM": {
+        "label": "Stream UART PIO1 Zero-Drop",
+        "description": "Captura streaming 115200 8N1 em PIO1 sem perder bytes durante boot e suporta JIG:<hold_ms>.",
+        "arg_label": "Janela & Boot",
+        "arg_placeholder": "8000 JIG:350",
+        "options": {
+          "jig8": "8s JIG:350ms",
+          "normal8": "8s NORMAL",
+          "passive5": "5s Passivo"
+        }
+      },
+      "HEXCAP": {
+        "label": "Captura Hex/Break PIO1",
+        "description": "Exibe fluxo UART bruto em hex + ASCII com marcação de breaks de linha via PIO1.",
+        "arg_label": "Janela & Boot",
+        "arg_placeholder": "5000 JIG:350",
+        "options": {
+          "jig5": "5s JIG:350ms",
+          "normal4": "4s NORMAL"
+        }
+      },
+      "UARTTXHEX": {
+        "label": "TX Hex Determinístico (PIO1)",
+        "description": "Transmite sequência hexadecimal (ou BRK) em GP4 com timing PIO1 e captura resposta em GP2.",
+        "arg_label": "Payload Hex TX",
+        "arg_placeholder": "0D0A 1500",
+        "options": {
+          "crlf": "CR+LF (0D0A)",
+          "help": "HELP (68656C700D)"
+        }
+      },
+      "WAITTX": {
+        "label": "Trigger & TX Determinístico",
+        "description": "Monitora fluxo boot até detectar trigger ASCII (ex: wait 1) e injeta payload hex ou Break com release Q7514 opcional.",
+        "arg_label": "Especificação WAITTX",
+        "arg_placeholder": "8000 JIG:350 \"wait 1\" 0D 4000",
+        "options": {
+          "wait1": "wait 1 + CR (JIG:350)",
+          "hitkey": "Hit Any Key + ESC CR"
+        }
+      },
+      "PWRTRACE": {
+        "label": "Perfilador Dual ADC0 + UART",
+        "description": "Registra transições GP2/GP3 e tensão ADC0 (GP26) junto ao stream UART PIO1 para correlacionar rails com boot.",
+        "arg_label": "Janela & Boot",
+        "arg_placeholder": "4000 JIG:350",
+        "options": {
+          "jig4": "4s JIG:350ms",
+          "normal3": "3s NORMAL"
+        }
+      },
+      "BRIDGE": {
+        "label": "Ponte UART Transparente",
+        "description": "Entra em modo passthrough bidirecional USB CDC <-> P7501 (encerre com +++ ou 0x03 Ctrl+C).",
+        "arg_label": "Baud & Boot",
+        "arg_placeholder": "115200 JIG:350",
+        "options": {
+          "jig115200": "115200 JIG:350",
+          "passive115200": "115200 Passivo"
+        }
+      },
+      "FMUSCAN": {
+        "label": "Sweep Bootrom FMU (FMUSCAN)",
+        "description": "Varre sequências de handshake FMU da Bootrom Panasonic na janela Wait/Serial.",
+        "arg_label": "Modo FMU",
+        "arg_placeholder": "all",
+        "options": {
+          "all": "Todos (all)",
+          "m0": "Modo 0",
+          "m1": "Modo 1",
+          "m2": "Modo 2 (seri)",
+          "m3": "Modo 3 (DDR)"
+        }
+      },
+      "FMUTEST": {
+        "label": "Injetar Payload Hex FMU",
+        "description": "Transmite payload hexadecimal arbitrário durante handshake SW_UART FMU e captura eco.",
+        "arg_label": "Payload Hex",
+        "arg_placeholder": "0D",
+        "options": {
+          "cr": "CR (0D)",
+          "crlf": "CR+LF (0D0A)",
+          "help": "Help (3F0D)"
+        }
+      },
+      "FMUBATCH": {
+        "label": "Lote Multi-Comando FMU",
+        "description": "Executa lote automatizado de probes Bootrom FMU em sequência controlada.",
+        "arg_label": "Etapa / Batch",
+        "arg_placeholder": ""
+      },
+      "UARTSEND": {
+        "label": "Enviar String TX P7501",
+        "description": "Transmite string ASCII + CRLF com SW_UART=Hi-Z padrão (Q7514 em condução) ou prefixo LOW: e escuta 2.5s de resposta RX.",
+        "arg_label": "Texto ASCII TX",
+        "arg_placeholder": "help",
+        "options": {
+          "help": "help",
+          "ver": "ver",
+          "info": "info"
+        }
+      },
+      "UARTPROBE": {
+        "label": "Probe Interativo UART",
+        "description": "Testa modos 0..8 de estímulo UART/BREAK durante boot para descobrir console oculto.",
+        "arg_label": "Modo Probe",
+        "arg_placeholder": "5",
+        "options": {
+          "m5": "Modo 5 (SW_UART Low)",
+          "m6": "Modo 6 (Auto Probe)",
+          "m7": "Modo 7 (Break 550ms)"
+        }
+      },
+      "PING": {
+        "label": "Ping USB CDC / BLE",
+        "description": "Verifica responsividade imediata da camada CLI do firmware Pico."
+      },
+      "STATUS": {
+        "label": "Ler Telemetria VDD/ADC",
+        "description": "Lê tensão alvo no canal ADC0 (GP26) com detector ativo de pino flutuante."
+      },
+      "BANNER": {
+        "label": "Versão & Banner Firmware",
+        "description": "Exibe identificação completa da compilação RP2040/RP2350 em execução na sonda."
+      },
+      "LED": {
+        "label": "Modo LED Onboard GP25",
+        "description": "Alterna o padrão visual do LED onboard (com lock manual contra polling) ou restaura AUTO.",
+        "arg_label": "Padrão LED",
+        "arg_placeholder": "IDLE",
+        "options": {
+          "idle": "IDLE (1Hz Heartbeat)",
+          "active": "ACTIVE (Sólido)",
+          "gdb": "GDB (5Hz)",
+          "fault": "FAULT (Triplo)",
+          "off": "OFF (Apagado)",
+          "auto": "AUTO (Liberar Lock)"
+        }
+      },
+      "BOOTSEL": {
+        "label": "Reiniciar para BOOTSEL USB",
+        "description": "Reinicia o Pico para bootloader USB Mass Storage (`RPI-RP2` / `RP2350`)."
+      }
+    }
   }
 }

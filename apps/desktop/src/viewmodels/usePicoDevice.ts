@@ -2,8 +2,12 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ColdBreakinMode,
   DigaModelProfile,
+  FlashReport,
+  OcdCoreState,
   PicoDeviceStatus,
+  PicoDiagnosticResult,
   PicoTransportMode,
+  PicoUf2Variant,
   SerialLogEntry,
 } from '@/models';
 import {
@@ -25,6 +29,7 @@ import {
   sendAndroidUsbOtgCommand,
 } from '@/services/androidBridge';
 import { parseDiagnosticOutput } from '@/services/diagnosticParser';
+import { useToast } from '@/context/ToastContext';
 import { logger } from '@/utils/logger';
 
 export interface UsePicoDeviceOptions {
@@ -54,9 +59,26 @@ export const DEFAULT_DISCONNECTED_STATUS: PicoDeviceStatus = {
   last_keepalive: '',
 };
 
+const PICO_PORT_PATTERN = /VID:2E8A|RP2040|RP2350|Pico|PANADIGA|P7501/i;
+
 function parseVddFromStatusRaw(rawStatus: string, fallback = 0): number {
   const parsed = parseDiagnosticOutput('STATUS', 'STATUS', rawStatus, 25);
   return parsed.vdd_volts ?? fallback;
+}
+
+function deriveCoreStateFromVoltage(
+  prevState: OcdCoreState,
+  vddVolts: number,
+  commandId?: string,
+  commandSuccess?: boolean
+): OcdCoreState {
+  if (commandId === 'HANDSHAKE' && commandSuccess) {
+    return 'HALTED';
+  }
+  if (isTargetPowered(vddVolts, PICO_MIN_VDD_THRESHOLD_VOLTS)) {
+    return prevState === 'DISCONNECTED' ? 'RUNNING' : prevState;
+  }
+  return 'RESET';
 }
 
 function buildMobileDeviceStatus(
@@ -93,26 +115,79 @@ export function resolveTransportMode(portName: string): PicoTransportMode {
   return 'usb';
 }
 
-const sessionSnapshot: { status: PicoDeviceStatus | null; port: string; model: string } = {
-  status: DEFAULT_DISCONNECTED_STATUS,
-  port: '',
-  model: 'AUTO',
-};
+function createPicoSessionStore() {
+  let status: PicoDeviceStatus | null = DEFAULT_DISCONNECTED_STATUS;
+  let port = '';
+  let model = 'AUTO';
+
+  return Object.freeze({
+    getSnapshot: () => ({ status, port, model }),
+    setStatus: (nextStatus: PicoDeviceStatus | null) => {
+      status = nextStatus;
+    },
+    setPort: (nextPort: string) => {
+      port = nextPort;
+    },
+    setModel: (nextModel: string) => {
+      model = nextModel;
+    },
+  });
+}
+
+const picoSessionStore = createPicoSessionStore();
 
 /**
  * Single Responsibility: Manages Pico hardware link (Desktop USB CDC, Android USB-C OTG,
- * or Bluetooth LE NUS), SSOT voltage safety checks, and reactive telemetry streams.
+ * Bluetooth LE NUS), BOOTSEL flashing, SSOT voltage safety checks, and reactive telemetry streams.
  */
 export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
-  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(sessionSnapshot.status);
+  const { showToast } = useToast();
+  const initialSession = picoSessionStore.getSnapshot();
+  const [deviceStatus, setDeviceStatus] = useState<PicoDeviceStatus | null>(initialSession.status);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isFlashing, setIsFlashing] = useState<boolean>(false);
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string>(sessionSnapshot.port);
+  const [selectedPort, setSelectedPort] = useState<string>(initialSession.port);
   const [modelCatalog, setModelCatalog] = useState<DigaModelProfile[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>(sessionSnapshot.model);
+  const [selectedModel, setSelectedModel] = useState<string>(initialSession.model);
 
   const isConnectingRef = useRef<boolean>(false);
   const lastAlertRef = useRef<'ok' | 'low' | 'over'>('ok');
+
+  const applyMeasuredVoltage = useCallback(
+    (vddVolts: number, commandId?: string, commandSuccess?: boolean) => {
+      if (typeof vddVolts !== 'number' || isNaN(vddVolts)) return;
+      const powered = isTargetPowered(vddVolts, PICO_MIN_VDD_THRESHOLD_VOLTS);
+      setDeviceStatus(prev => {
+        if (!prev) return prev;
+        const nextVdd =
+          vddVolts > 0
+            ? vddVolts
+            : commandId === 'STATUS' || !prev.connected
+              ? vddVolts
+              : prev.vdd_volts;
+        const nextPowered = isTargetPowered(nextVdd, PICO_MIN_VDD_THRESHOLD_VOLTS);
+        const updated: PicoDeviceStatus = {
+          ...prev,
+          vdd_volts: nextVdd,
+          target_powered: nextPowered,
+          core_state: deriveCoreStateFromVoltage(
+            prev.core_state,
+            nextVdd,
+            commandId,
+            commandSuccess
+          ),
+        };
+        if (nextPowered || !prev.connected) {
+          picoSessionStore.setStatus(updated);
+        } else {
+          picoSessionStore.setStatus({ ...updated, vdd_volts: vddVolts, target_powered: powered });
+        }
+        return updated;
+      });
+    },
+    []
+  );
 
   const sendDirectRawCommand = useCallback(
     async (command: string): Promise<string> => {
@@ -279,8 +354,10 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     [selectedPort, sendDirectRawCommand, onLog]
   );
 
-  const toggleConnection = useCallback(async () => {
-    if (!selectedPort) {
+  const toggleConnection = useCallback(async (overridePort?: unknown) => {
+    const targetPort =
+      typeof overridePort === 'string' && overridePort.trim() ? overridePort : selectedPort;
+    if (!targetPort) {
       onLog?.('warn', 'HOST', 'Nenhuma porta selecionada para conexão.');
       return;
     }
@@ -293,15 +370,15 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     if (deviceStatus?.connected) {
       try {
         await invokeCommand('set_pico_telemetry_stream', { active: false }).catch(() => {});
-        if (selectedPort.startsWith('ANDROID-USB-OTG')) {
+        if (targetPort.startsWith('ANDROID-USB-OTG')) {
           await sendDirectRawCommand('ISOLATE').catch(() => {});
           disconnectAndroidUsbOtg();
-        } else if (selectedPort.startsWith('BLE_') && bleService.isConnected()) {
+        } else if (targetPort.startsWith('BLE_') && bleService.isConnected()) {
           bleService.disconnect();
         } else {
           await invokeCommand<string>('pico_send_serial_command', {
-            portName: selectedPort,
-            port_name: selectedPort,
+            portName: targetPort,
+            port_name: targetPort,
             command: 'ISOLATE',
           }).catch(() => {});
         }
@@ -312,12 +389,12 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
           core_state: 'DISCONNECTED',
           vdd_volts: 0.0,
           target_powered: false,
-          port: selectedPort,
+          port: targetPort,
         }));
         onLog?.(
           'warn',
           'HOST',
-          `Desconectado da interface P7501 UART / OCD (${selectedPort}). Pinos colocados em Hi-Z.`
+          `Desconectado da interface P7501 UART / OCD (${targetPort}). Pinos colocados em Hi-Z.`
         );
       }
       return;
@@ -327,29 +404,29 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       onLog?.(
         'warn',
         'HOST',
-        `${selectedPort} está em uso pela Ponte GDB RSP (a sessão de depuração já usa o Pico). Pare a ponte para enviar comandos CDC diretos.`
+        `${targetPort} está em uso pela Ponte GDB RSP (a sessão de depuração já usa o Pico). Pare a ponte para enviar comandos CDC diretos.`
       );
       return;
     }
 
     setIsLoading(true);
     isConnectingRef.current = true;
-    onLog?.('info', 'HOST', `Estabelecendo conexão física com ${selectedPort} (115200 bps)...`);
+    onLog?.('info', 'HOST', `Estabelecendo conexão física com ${targetPort} (115200 bps)...`);
 
     try {
-      if (selectedPort.startsWith('ANDROID-USB-OTG')) {
-        const devMatch = selectedPort.match(/\[([^\s\]]+)/);
+      if (targetPort.startsWith('ANDROID-USB-OTG')) {
+        const devMatch = targetPort.match(/\[([^\s\]]+)/);
         const otgRes = connectAndroidUsbOtg(devMatch?.[1] || '');
         if (!otgRes.connected) {
           throw new Error(otgRes.message || 'Dispositivo USB-OTG não conectado.');
         }
         const vdd = parseVddFromStatusRaw(sendAndroidUsbOtgCommand('STATUS', 2000).output);
-        setDeviceStatus(prev => buildMobileDeviceStatus(prev, selectedPort, vdd, 'RP2040/RP2350 OTG'));
+        setDeviceStatus(prev => buildMobileDeviceStatus(prev, targetPort, vdd, 'RP2040/RP2350 OTG'));
         onLog?.('success', 'HOST', `${otgRes.message} | VDD: ${vdd.toFixed(2)}V`);
         return;
       }
 
-      if (selectedPort.startsWith('BLE_')) {
+      if (targetPort.startsWith('BLE_')) {
         const bleDev = await bleService.connect();
         let measuredVdd = 3.3;
         try {
@@ -359,7 +436,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
           // Keep default BLE handshake if status reply times out on first packet
         }
         onLog?.('success', 'HOST', `Conectado via Bluetooth LE NUS: ${bleDev.name} (VDD: ${measuredVdd.toFixed(2)}V)`);
-        setDeviceStatus(prev => buildMobileDeviceStatus(prev, selectedPort, measuredVdd, 'Pico W (BLE)'));
+        setDeviceStatus(prev => buildMobileDeviceStatus(prev, targetPort, measuredVdd, 'Pico W (BLE)'));
         return;
       }
 
@@ -372,8 +449,8 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         firmware_banner: string;
         message: string;
       }>('pico_connect_and_test', {
-        portName: selectedPort,
-        port_name: selectedPort,
+        portName: targetPort,
+        port_name: targetPort,
         baudRate: 115200,
         baud_rate: 115200,
       });
@@ -383,7 +460,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         setDeviceStatus(prev => ({
           ...(prev || DEFAULT_DISCONNECTED_STATUS),
           connected: true,
-          port: selectedPort,
+          port: targetPort,
           baudRate: result.baud_rate,
           vdd_volts: result.vdd_voltage,
           target_powered: result.target_powered,
@@ -397,24 +474,24 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         onLog?.(
           'success',
           'HOST',
-          `Conexão estabelecida com sucesso em ${selectedPort}! VDD: ${result.vdd_voltage.toFixed(2)}V`
+          `Conexão estabelecida com sucesso em ${targetPort}! VDD: ${result.vdd_voltage.toFixed(2)}V`
         );
 
         await invokeCommand('set_pico_telemetry_stream', {
           active: true,
-          portName: selectedPort,
-          port_name: selectedPort,
+          portName: targetPort,
+          port_name: targetPort,
         }).catch(() => {});
       } else {
         throw new Error(result?.message || 'Dispositivo não respondeu ao handshake inicial.');
       }
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      onLog?.('error', 'HOST', `Falha ao conectar em ${selectedPort}: ${errMsg}`);
+      onLog?.('error', 'HOST', `Falha ao conectar em ${targetPort}: ${errMsg}`);
       setDeviceStatus(prev => ({
         ...(prev || DEFAULT_DISCONNECTED_STATUS),
         connected: false,
-        port: selectedPort,
+        port: targetPort,
         core_state: 'DISCONNECTED',
         vdd_volts: 0.0,
         target_powered: false,
@@ -425,31 +502,162 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     }
   }, [deviceStatus, selectedPort, sendDirectRawCommand, onLog]);
 
+  const triggerBootselReboot = useCallback(async () => {
+    if (!selectedPort) {
+      showToast({
+        type: 'warning',
+        title: 'Porta Não Selecionada',
+        message: 'Selecione a porta serial do Pico antes de solicitar o reset para BOOTSEL.',
+      });
+      return;
+    }
+    try {
+      const msg = await invokeCommand<string>('pico_trigger_bootsel_reboot', {
+        portName: selectedPort,
+        port_name: selectedPort,
+      });
+      showToast({
+        type: 'success',
+        title: 'BOOTSEL Reset Iniciado',
+        message: `${msg}. Aguarde 2 segundos para o drive RPI-RP2 / RP2350 montar e clique em "Flash Pico (BOOTSEL)".`,
+      });
+      onLog?.('info', 'HOST', `BOOTSEL reset iniciado em ${selectedPort}: ${msg}`);
+    } catch (err) {
+      showToast({
+        type: 'error',
+        title: 'Falha no Reset BOOTSEL',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }, [selectedPort, showToast, onLog]);
+
+  const flashPicoFirmware = useCallback(
+    async (uf2Variant: PicoUf2Variant) => {
+      setIsFlashing(true);
+      try {
+        let drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+        if ((!drives || drives.length === 0) && selectedPort && PICO_PORT_PATTERN.test(selectedPort)) {
+          showToast({
+            type: 'info',
+            title: 'Reiniciando Pico em BOOTSEL',
+            message: 'Enviando pulso 1200-baud para reiniciar a placa em modo de gravação...',
+          });
+          await invokeCommand('pico_trigger_bootsel_reboot', {
+            portName: selectedPort,
+            port_name: selectedPort,
+          }).catch(() => {});
+          await new Promise(resolve => setTimeout(resolve, 1600));
+          drives = await invokeCommand<string[]>('pico_detect_bootsel_drives').catch(() => []);
+        }
+
+        if (!drives || drives.length === 0) {
+          showToast({
+            type: 'warning',
+            title: 'Nenhum Drive BOOTSEL Detectado',
+            message:
+              'Nenhum drive RPI-RP2 / RP2350 encontrado. Clique em "BOOTSEL Reset" ou segure BOOTSEL ao conectar.',
+          });
+          return;
+        }
+
+        const report = await invokeCommand<FlashReport>('pico_flash_firmware', {
+          targetFamily: uf2Variant,
+          target_family: uf2Variant,
+        });
+        const sizeStr = report.uf2_size_bytes ? report.uf2_size_bytes.toLocaleString() : 'UF2';
+        showToast({
+          type: 'success',
+          title: 'Firmware Pico Gravado',
+          message: `${report.message} (${report.board_family || uf2Variant}, ${sizeStr} bytes). Reconectando USB...`,
+        });
+
+        let detectedPort = '';
+        for (let i = 0; i < 12; i++) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const ports = await invokeCommand<string[]>('list_pico_serial_ports').catch(() => []);
+          const found = ports?.find(p => PICO_PORT_PATTERN.test(p));
+          if (found) {
+            detectedPort = found;
+            break;
+          }
+        }
+
+        await refreshPorts();
+        if (detectedPort) {
+          setSelectedPort(detectedPort);
+          showToast({
+            type: 'success',
+            title: 'Pico Detectado',
+            message: `Reconectando automaticamente em ${detectedPort}...`,
+          });
+          setTimeout(() => {
+            void toggleConnection(detectedPort);
+          }, 400);
+        }
+      } catch (err) {
+        showToast({
+          type: 'error',
+          title: 'Falha ao Gravar Firmware',
+          message: err instanceof Error ? err.message : String(err),
+        });
+      } finally {
+        setIsFlashing(false);
+      }
+    },
+    [selectedPort, refreshPorts, showToast, toggleConnection]
+  );
+
   useEffect(() => {
     refreshPorts();
     refreshModelCatalog();
   }, [refreshPorts, refreshModelCatalog]);
 
-  // Subscribe to backend reactive telemetry pushes (`pico://telemetry`)
+  // Subscribe to backend reactive telemetry pushes (`pico://telemetry`) and diagnostic voltage updates
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let unlistenTelemetry: (() => void) | undefined;
+    let unlistenDiag: (() => void) | undefined;
+
     listenEvent<PicoDeviceStatus>('pico://telemetry', incoming => {
       if (incoming && typeof incoming.vdd_volts === 'number') {
         setDeviceStatus(prev => {
           if (!prev?.connected && !incoming.connected) return prev;
-          return { ...(prev || DEFAULT_DISCONNECTED_STATUS), ...incoming };
+          const preservedVdd =
+            incoming.vdd_volts > 0
+              ? incoming.vdd_volts
+              : prev?.connected && incoming.connected && prev.vdd_volts > 0
+                ? prev.vdd_volts
+                : incoming.vdd_volts;
+          const powered = isTargetPowered(preservedVdd, PICO_MIN_VDD_THRESHOLD_VOLTS);
+          const updated: PicoDeviceStatus = {
+            ...(prev || DEFAULT_DISCONNECTED_STATUS),
+            ...incoming,
+            vdd_volts: preservedVdd,
+            target_powered: powered,
+          };
+          picoSessionStore.setStatus(updated);
+          return updated;
         });
       }
     }).then(fn => {
-      unlisten = fn;
+      unlistenTelemetry = fn;
     });
+
+    listenEvent<PicoDiagnosticResult>('pico://diagnostic-result', diag => {
+      if (diag && typeof diag.vdd_volts === 'number' && diag.vdd_volts > 0) {
+        applyMeasuredVoltage(diag.vdd_volts, diag.command_id, diag.success);
+      }
+    }).then(fn => {
+      unlistenDiag = fn;
+    });
+
     return () => {
-      unlisten?.();
+      unlistenTelemetry?.();
+      unlistenDiag?.();
     };
-  }, []);
+  }, [applyMeasuredVoltage]);
 
   useEffect(() => {
-    sessionSnapshot.status = deviceStatus;
+    picoSessionStore.setStatus(deviceStatus);
     if (deviceStatus) {
       if (deviceStatus.vdd_volts > PICO_MAX_VDD_CEILING_VOLTS) {
         if (lastAlertRef.current !== 'over') {
@@ -480,15 +688,16 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   }, [deviceStatus, onLog]);
 
   useEffect(() => {
-    sessionSnapshot.port = selectedPort;
+    picoSessionStore.setPort(selectedPort);
   }, [selectedPort]);
 
   useEffect(() => {
-    sessionSnapshot.model = selectedModel;
+    picoSessionStore.setModel(selectedModel);
   }, [selectedModel]);
 
   useEffect(() => {
-    if (sessionSnapshot.status?.connected && sessionSnapshot.port) {
+    const snap = picoSessionStore.getSnapshot();
+    if (snap.status?.connected && snap.port) {
       void pollDeviceStatus();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -510,7 +719,9 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
   return {
     deviceStatus,
     setDeviceStatus,
+    applyMeasuredVoltage,
     isLoading,
+    isFlashing,
     availablePorts,
     selectedPort,
     setSelectedPort,
@@ -522,6 +733,8 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
     pollDeviceStatus,
     changeBreakinMode,
     toggleConnection,
+    triggerBootselReboot,
+    flashPicoFirmware,
     isVoltageSafe,
     isHardwareReady,
   };

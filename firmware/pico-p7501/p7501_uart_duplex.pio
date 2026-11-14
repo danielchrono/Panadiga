@@ -1,0 +1,73 @@
+; =============================================================================
+; Panasonic P7501 Hardware-Timed Full-Duplex Multi-Baud PIO1 Programs
+; - p7501_uart_rx_fast: GP2 (IN / JMP pin) 8x oversampled RX + IRQ4 framing err
+; - p7501_uart_tx_fast: GP4 (OUT / SIDESET) 8x oversampled TX (engaged only on TX)
+; Never touches GP3 (NSW5V Hi-Z sense) or GP5 (XRESET Open-Drain).
+; =============================================================================
+
+.program p7501_uart_rx_fast
+
+.wrap_target
+rx_start:
+    wait 0 pin 0        ; Wait for falling edge of Start bit on GP2
+    set x, 7    [10]    ; Wait 1.5 bit times (12 cycles) to midpoint of D0
+rx_bitloop:
+    in pins, 1          ; Sample 1 data bit (LSB right-shifted into ISR)
+    jmp x-- rx_bitloop [6] ; 8 cycles/bit x 8 bits -> reaches midpoint of Stop bit
+    jmp pin rx_good_stop ; Stop bit MUST be HIGH (1)
+    irq 4               ; Latch framing/break indicator without pushing bad byte
+    wait 1 pin 0        ; Recover cleanly until line returns HIGH
+    jmp rx_start
+rx_good_stop:
+    push noblock        ; Push completed byte in ISR[31:24] into 8-deep RX FIFO
+.wrap
+
+% c-sdk {
+#include "hardware/pio.h"
+#include "hardware/gpio.h"
+
+static inline void p7501_uart_rx_fast_init(PIO pio, uint sm, uint offset, uint pin_rx, float clkdiv) {
+    pio_sm_set_enabled(pio, sm, false);
+    pio_gpio_init(pio, pin_rx);
+    gpio_set_dir(pin_rx, GPIO_IN);
+    gpio_pull_up(pin_rx);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin_rx, 1u, false);
+
+    pio_sm_config c = p7501_uart_rx_fast_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, pin_rx);
+    sm_config_set_jmp_pin(&c, pin_rx);
+    sm_config_set_in_shift(&c, true, false, 32u);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+    sm_config_set_clkdiv(&c, clkdiv);
+
+    pio_sm_init(pio, sm, offset, &c);
+    pio_interrupt_clear(pio, 4u);
+    pio->fdebug = (1u << (PIO_FDEBUG_RXSTALL_LSB + sm));
+    pio_sm_set_enabled(pio, sm, true);
+}
+%}
+
+.program p7501_uart_tx_fast
+.side_set 1 opt
+
+.wrap_target
+    pull       side 1 [7] ; Stall idle HIGH; enforce >= 1 full Stop bit HIGH before next byte
+    set x, 7   side 0 [7] ; Assert Start bit LOW for 8 cycles (1 bit time)
+tx_bitloop:
+    out pins, 1           ; Output LSB first (1 cycle)
+    jmp x-- tx_bitloop [6] ; Hold 8 cycles/bit for all 8 data bits
+.wrap
+
+% c-sdk {
+static inline void p7501_uart_tx_fast_init(PIO pio, uint sm, uint offset, uint pin_tx, float clkdiv) {
+    pio_sm_set_enabled(pio, sm, false);
+    pio_sm_config c = p7501_uart_tx_fast_program_get_default_config(offset);
+    sm_config_set_out_shift(&c, true, false, 32u);
+    sm_config_set_out_pins(&c, pin_tx, 1u);
+    sm_config_set_sideset_pins(&c, pin_tx);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+    sm_config_set_clkdiv(&c, clkdiv);
+
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

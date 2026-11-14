@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { invokeCommand } from '@/services/ipc';
-import { RagQueryResult } from '@/models';
-import { ExecutionStatus } from '@/types/domain';
+import { ExecutionStatus, RagQueryResult } from '@/models';
 
 export function useRagViewModel(initialQuery: string = 'How to recover error U99 on Spansion Flash?') {
   const [ragQuery, setRagQuery] = useState<string>(initialQuery);

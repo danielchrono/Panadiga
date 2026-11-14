@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CANONICAL_HARDWARE_SSOT_SPEC,
   PICO_MAX_VDD_CEILING_VOLTS,
   PICO_MIN_VDD_THRESHOLD_VOLTS,
   PICO_RP2350_CDC_PID,
 } from '@/constants';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/test/fixtures/ssotFixture';
 import { parseDiagnosticOutput, parseP7501DumpBytes } from './diagnosticParser';
 import { simulateMockDiagnostic } from '@/test/mocks/mockDiagnostics';
 
@@ -13,10 +13,10 @@ describe('diagnosticParser & Hardware SSOT Consistency', () => {
     expect(PICO_MIN_VDD_THRESHOLD_VOLTS).toBe(2.5);
     expect(PICO_MAX_VDD_CEILING_VOLTS).toBe(3.45);
     expect(PICO_RP2350_CDC_PID).toBe(0x000f);
-    expect(DEFAULT_HARDWARE_SSOT_SPEC.pinout).toHaveLength(6);
-    expect(DEFAULT_HARDWARE_SSOT_SPEC.pinout[3].manual_pin).toBe(4);
-    expect(DEFAULT_HARDWARE_SSOT_SPEC.pinout[4].signal_name).toContain('NSW5V');
-    expect(DEFAULT_HARDWARE_SSOT_SPEC.pico_commands.length).toBeGreaterThanOrEqual(25);
+    expect(CANONICAL_HARDWARE_SSOT_SPEC.pinout).toHaveLength(6);
+    expect(CANONICAL_HARDWARE_SSOT_SPEC.pinout[3].manual_pin).toBe(4);
+    expect(CANONICAL_HARDWARE_SSOT_SPEC.pinout[4].signal_name).toContain('NSW5V');
+    expect(CANONICAL_HARDWARE_SSOT_SPEC.pico_commands.length).toBeGreaterThanOrEqual(34);
   });
 
   it('parses PINCHECK matrix rows and XRESET rise time accurately', () => {
@@ -76,5 +76,24 @@ describe('diagnosticParser & Hardware SSOT Consistency', () => {
     expect(extracted.bytes.slice(0, 4)).toEqual([0x41, 0x42, 0x43, 0x44]);
     // Word 0x78563412 -> 0x12, 0x34, 0x56, 0x78
     expect(extracted.bytes.slice(4, 8)).toEqual([0x12, 0x34, 0x56, 0x78]);
+  });
+
+  it('keeps explicit OK command results successful even when target boot log prints failed/ERROR', () => {
+    const raw = [
+      '=== UARTSTREAM PIO1 (115200 bps, 120 bytes, 8000 ms) ===',
+      'BGO driver init failed[1].',
+      '[SDCD] Set SD Bus Width fail ERROR:-91006',
+      'UARTSTREAM: OK',
+    ].join('\n');
+    const parsed = parseDiagnosticOutput('UARTSTREAM', 'UARTSTREAM 8000 JIG:350', raw, 8050);
+    expect(parsed.success).toBe(true);
+
+    const errParsed = parseDiagnosticOutput(
+      'HANDSHAKE',
+      'HANDSHAKE',
+      '[HANDSHAKE] FAILED: DCSR=0xFFFFFFFF',
+      300,
+    );
+    expect(errParsed.success).toBe(false);
   });
 });

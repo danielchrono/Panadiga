@@ -126,13 +126,33 @@ export function parseDiagnosticOutput(
   elapsedMs: number
 ): PicoDiagnosticResult {
   const norm = commandId.trim().toUpperCase();
+  const normLower = norm.toLowerCase();
   const lower = rawOutput.toLowerCase();
+  const linesTrimmed = lower.split(/\r?\n/).map(l => l.trim());
+  const cmdOkPrefix = `${normLower}: ok`;
+  const cmdErrPrefix = `${normLower}: error`;
+  const bracketErrPrefix = `[${normLower}] error:`;
+
+  const hasExplicitOk = linesTrimmed.some(
+    line => line.startsWith(cmdOkPrefix) || (normLower === 'scan' && line === 'scan: completed'),
+  );
+  const hasPicoFatal = linesTrimmed.some(
+    line =>
+      line.startsWith(cmdErrPrefix) ||
+      line.startsWith(bracketErrPrefix) ||
+      line.startsWith('[safety interlock]') ||
+      line.startsWith('[handshake] failed') ||
+      line.startsWith('unknown command:'),
+  );
+
   const failed =
-    lower.includes('failed') ||
-    lower.includes('error') ||
-    lower.includes('abort') ||
-    lower.includes('safety interlock') ||
-    rawOutput.trim().length === 0;
+    rawOutput.trim().length === 0 ||
+    hasPicoFatal ||
+    (!hasExplicitOk &&
+      (lower.includes('failed') ||
+        lower.includes('error') ||
+        lower.includes('abort') ||
+        lower.includes('safety interlock')));
 
   const pinData = norm === 'PINCHECK' ? parsePincheckRows(rawOutput) : { rows: [], riseTime: null };
   const transitionRows = parseTransitionRows(rawOutput);

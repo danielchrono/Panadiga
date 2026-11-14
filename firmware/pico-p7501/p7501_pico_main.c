@@ -80,7 +80,7 @@ int main(void) {
         if (gdb_rsp_is_active()) {
             gdb_rsp_process_char(c);
             if (!gdb_rsp_is_active()) {
-                p7501_led_set_mode(LED_MODE_HEARTBEAT_IDLE);
+                p7501_led_set_auto_mode(LED_MODE_HEARTBEAT_IDLE);
                 printf("\n[GDB RSP] Detached. Returning to CLI.\nPANADIGA> ");
                 fflush(stdout);
             }

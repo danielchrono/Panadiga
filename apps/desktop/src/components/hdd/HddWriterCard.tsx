@@ -1,153 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { HardDrive, AlertTriangle, ShieldCheck, Flame, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { StatusBadge } from '@/components/StatusBadge';
-import { PhysicalDriveInfo, DriveWriteReport } from '@/models';
-import { invokeCommand } from '@/services/ipc';
-import { useToast } from '@/context/ToastContext';
+import { useHddWriterViewModel } from '@/viewmodels/useHddWriterViewModel';
 
 export const HddWriterCard: React.FC = () => {
-  const { showToast } = useToast();
-  const [drives, setDrives] = useState<PhysicalDriveInfo[]>([]);
-  const [selectedDrive, setSelectedDrive] = useState<PhysicalDriveInfo | null>(null);
-  const [loadingDrives, setLoadingDrives] = useState<boolean>(false);
-  const [confirmInput, setConfirmInput] = useState<string>('');
-  const [executing, setExecuting] = useState<boolean>(false);
-  const [writeReport, setWriteReport] = useState<DriveWriteReport | null>(null);
-
-  const fetchDrives = async () => {
-    setLoadingDrives(true);
-    try {
-      const list = await invokeCommand<PhysicalDriveInfo[]>('list_physical_drives');
-      setDrives(list);
-      const safe = list.find(d => d.safe_to_write);
-      if (safe) setSelectedDrive(safe);
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Erro ao Listar Discos Físicos',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setLoadingDrives(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDrives();
-  }, []);
-
-  const getExpectedToken = (devicePath: string) => {
-    return `CONFIRM-${devicePath.replace(/^\\\\.\\/, '')}`;
-  };
-
-  const handleProceduralFormat = async () => {
-    if (!selectedDrive) return;
-    const expected = getExpectedToken(selectedDrive.device_path);
-    if (confirmInput.trim() !== expected) {
-      showToast({
-        type: 'error',
-        title: 'Token de Confirmação Inválido',
-        message: `Digite exatamente "${expected}" para desbloquear a gravação física.`,
-      });
-      return;
-    }
-
-    setExecuting(true);
-    try {
-      const sectors = selectedDrive.size_bytes > 0
-        ? Math.floor(selectedDrive.size_bytes / 512)
-        : 200_000;
-      const res = await invokeCommand<DriveWriteReport>('format_hdd_meihdfs', {
-        devicePath: selectedDrive.device_path,
-        totalSectors: sectors,
-        confirmationToken: confirmInput.trim(),
-      });
-      setWriteReport(res);
-      showToast({
-        type: 'success',
-        title: 'Formatação Concluída',
-        message: res.message,
-      });
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Falha na Formatação MEIHDFS',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setExecuting(false);
-    }
-  };
-
-  const handleWriteRawImage = async () => {
-    if (!selectedDrive) return;
-    const expected = getExpectedToken(selectedDrive.device_path);
-    if (confirmInput.trim() !== expected) {
-      showToast({
-        type: 'error',
-        title: 'Token de Confirmação Inválido',
-        message: `Digite exatamente "${expected}" para desbloquear a gravação da imagem.`,
-      });
-      return;
-    }
-
-    setExecuting(true);
-    try {
-      const res = await invokeCommand<DriveWriteReport>('write_hdd_image', {
-        devicePath: selectedDrive.device_path,
-        confirmationToken: confirmInput.trim(),
-      });
-      setWriteReport(res);
-      showToast({
-        type: 'success',
-        title: 'Gravação Concluída',
-        message: res.message,
-      });
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Falha na Gravação da Imagem',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setExecuting(false);
-    }
-  };
-
-  const handleRestoreMirrors = async () => {
-    if (!selectedDrive) return;
-    const expected = getExpectedToken(selectedDrive.device_path);
-    if (confirmInput.trim() !== expected) {
-      showToast({
-        type: 'error',
-        title: 'Token de Confirmação Inválido',
-        message: `Digite exatamente "${expected}" para restaurar via espelho LBA 57.344.`,
-      });
-      return;
-    }
-
-    setExecuting(true);
-    try {
-      const res = await invokeCommand<DriveWriteReport>('restore_hdd_mirrors', {
-        devicePath: selectedDrive.device_path,
-        confirmationToken: confirmInput.trim(),
-      });
-      setWriteReport(res);
-      showToast({
-        type: 'success',
-        title: 'Restauração Concluída',
-        message: res.message,
-      });
-    } catch (err) {
-      showToast({
-        type: 'error',
-        title: 'Falha na Restauração dos Espelhos',
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setExecuting(false);
-    }
-  };
+  const {
+    drives,
+    selectedDrive,
+    setSelectedDrive,
+    loadingDrives,
+    confirmInput,
+    setConfirmInput,
+    executing,
+    writeReport,
+    expectedToken,
+    isTokenValid,
+    fetchDrives,
+    handleProceduralFormat,
+    handleWriteRawImage,
+    handleRestoreMirrors,
+  } = useHddWriterViewModel();
 
   return (
     <div className="rounded-xl bg-bench-900 border border-slate-800 p-6 shadow-xl space-y-6 font-mono">
@@ -162,7 +34,7 @@ export const HddWriterCard: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={fetchDrives}
+          onClick={() => void fetchDrives()}
           disabled={loadingDrives}
           className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 text-slate-300 text-xs font-semibold flex items-center gap-1.5 transition-colors"
         >
@@ -243,21 +115,21 @@ export const HddWriterCard: React.FC = () => {
 
           <div className="space-y-1.5">
             <label className="text-[11px] text-slate-400">
-              Digite o token de segurança <code className="text-amber-400 font-bold">{getExpectedToken(selectedDrive.device_path)}</code> para liberar a operação:
+              Digite o token de segurança <code className="text-amber-400 font-bold">{expectedToken}</code> para liberar a operação:
             </label>
             <input
               type="text"
               value={confirmInput}
               onChange={e => setConfirmInput(e.target.value)}
-              placeholder={getExpectedToken(selectedDrive.device_path)}
+              placeholder={expectedToken}
               className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-amber-300 focus:outline-none focus:border-amber-500 font-mono"
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <button
-              onClick={handleProceduralFormat}
-              disabled={executing || confirmInput.trim() !== getExpectedToken(selectedDrive.device_path)}
+              onClick={() => void handleProceduralFormat()}
+              disabled={executing || !isTokenValid}
               className="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
             >
               <HardDrive className="w-4 h-4" />
@@ -265,8 +137,8 @@ export const HddWriterCard: React.FC = () => {
             </button>
 
             <button
-              onClick={handleWriteRawImage}
-              disabled={executing || confirmInput.trim() !== getExpectedToken(selectedDrive.device_path)}
+              onClick={() => void handleWriteRawImage()}
+              disabled={executing || !isTokenValid}
               className="py-2.5 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
             >
               <Flame className="w-4 h-4" />
@@ -274,8 +146,8 @@ export const HddWriterCard: React.FC = () => {
             </button>
 
             <button
-              onClick={handleRestoreMirrors}
-              disabled={executing || confirmInput.trim() !== getExpectedToken(selectedDrive.device_path)}
+              onClick={() => void handleRestoreMirrors()}
+              disabled={executing || !isTokenValid}
               className="py-2.5 px-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40"
             >
               <ShieldCheck className="w-4 h-4" />

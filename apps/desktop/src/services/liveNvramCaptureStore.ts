@@ -5,31 +5,51 @@ import { invokeCommand } from './ipc';
 
 type CaptureListener = () => void;
 
-let latestCapture: LiveNvramCaptureEvent | null = null;
-const listeners = new Set<CaptureListener>();
+function createLiveNvramCaptureStore() {
+  let latestCapture: LiveNvramCaptureEvent | null = null;
+  const listeners = new Set<CaptureListener>();
+
+  const subscribe = (listener: CaptureListener): (() => void) => {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  };
+
+  const getLatest = (): LiveNvramCaptureEvent | null => latestCapture;
+
+  const record = (event: LiveNvramCaptureEvent): void => {
+    if (latestCapture === event) {
+      return;
+    }
+    latestCapture = event;
+    listeners.forEach(listener => listener());
+  };
+
+  const clear = (): void => {
+    latestCapture = null;
+    listeners.forEach(listener => listener());
+  };
+
+  return Object.freeze({ subscribe, getLatest, record, clear });
+}
+
+const liveNvramCaptureStore = createLiveNvramCaptureStore();
 
 export function subscribeLiveNvramCapture(listener: CaptureListener): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
+  return liveNvramCaptureStore.subscribe(listener);
 }
 
 export function getLatestLiveNvramCapture(): LiveNvramCaptureEvent | null {
-  return latestCapture;
+  return liveNvramCaptureStore.getLatest();
 }
 
 export function recordLiveNvramCapture(event: LiveNvramCaptureEvent): void {
-  if (latestCapture === event) {
-    return;
-  }
-  latestCapture = event;
-  listeners.forEach(listener => listener());
+  liveNvramCaptureStore.record(event);
 }
 
 export function clearLiveNvramCapture(): void {
-  latestCapture = null;
-  listeners.forEach(listener => listener());
+  liveNvramCaptureStore.clear();
 }
 
 /**

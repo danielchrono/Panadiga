@@ -18,6 +18,7 @@
 
 #include "../gdb/gdb_rsp.h"
 #include "../hal/p7501_hw.h"
+#include "test_uart_codec.h"
 
 /* =========================================================================
  * Mock Hardware & Target Memory Subsystem
@@ -259,6 +260,10 @@ int main(void) {
 
     reset_mock_state();
     test_halt_and_continue_status();
+
+    if (p7501_run_uart_codec_tests() != 0) {
+        return 1;
+    }
 
     printf("======================================================================\n");
     printf("[SUCCESS] All 7 C11 Pico Firmware Host Unit Tests Passed Cleanly!\n");

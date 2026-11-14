@@ -101,3 +101,26 @@ bool p7501_decode_hex_bytes(
     *out_len = count;
     return true;
 }
+
+uint8_t p7501_rsp_checksum(const uint8_t *data, size_t len) {
+    uint8_t sum = 0u;
+    if (data == NULL) {
+        return 0u;
+    }
+    for (size_t i = 0u; i < len; ++i) {
+        sum = (uint8_t)(sum + data[i]);
+    }
+    return sum;
+}
+
+uint8_t p7501_rsp_checksum_str(const char *str) {
+    uint8_t sum = 0u;
+    if (str == NULL) {
+        return 0u;
+    }
+    while (*str != '\0') {
+        sum = (uint8_t)(sum + (uint8_t)(*str));
+        ++str;
+    }
+    return sum;
+}

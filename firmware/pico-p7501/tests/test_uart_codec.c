@@ -6,6 +6,7 @@
  */
 
 #include "tests/test_uart_codec.h"
+#include "tests/test_pana_logic.h"
 #include "uart/p7501_uart_codec.h"
 #include "common/p7501_hex.h"
 #include "hal/p7501_led_logic.h"
@@ -157,5 +158,5 @@ int p7501_run_uart_codec_tests(void) {
     test_trigger_and_waittx_parser();
     test_hex_window_and_led_logic();
     printf("[HOST-TEST] test_uart_codec + LED logic + hex passed all assertions.\n");
-    return 0;
+    return p7501_run_pana_logic_tests();
 }

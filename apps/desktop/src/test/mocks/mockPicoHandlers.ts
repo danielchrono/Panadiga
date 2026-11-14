@@ -2,8 +2,15 @@
  * Mock IPC handlers for Raspberry Pi Pico P7501 Async UART hardware link, BOOTSEL flashing, and GDB RSP bridge.
  */
 
-import { ColdBreakinMode, FlashReport, InCircuitNvramEraseResult } from '@/models';
+import {
+  ColdBreakinMode,
+  FlashReport,
+  InCircuitNvramEraseResult,
+  Sc0BridgeDataEvent,
+  Sc0BridgeStatus,
+} from '@/models';
 import { emitLocalEvent } from '@/services/ipc';
+import { publishMockEvent } from './mockEventBus';
 import { simulateMockDiagnostic } from './mockDiagnostics';
 import { mockNvramCleanReport, mockPicoDeviceStatus } from './mockData';
 
@@ -11,11 +18,21 @@ function createMockPicoStateStore() {
   let connected = false;
   let port = '';
   let bootselDetected = false;
+  let bridgeStatus: Sc0BridgeStatus = {
+    running: false,
+    port_name: '',
+    baud_rate: 115200,
+    boot_mode: 'PASSIVE',
+    bytes_rx: 0,
+    bytes_tx: 0,
+    last_event: 'Ponte SC0 em standby',
+  };
 
   return Object.freeze({
     isConnected: () => connected,
     getPort: () => port,
     isBootselDetected: () => bootselDetected,
+    getBridgeStatus: () => ({ ...bridgeStatus }),
     setConnection: (nextConnected: boolean, nextPort?: string) => {
       connected = nextConnected;
       if (nextPort !== undefined) {
@@ -24,6 +41,34 @@ function createMockPicoStateStore() {
     },
     setBootselDetected: (detected: boolean) => {
       bootselDetected = detected;
+    },
+    startBridge: (portName: string, baud: number, bootMode: string): Sc0BridgeStatus => {
+      bridgeStatus = {
+        running: true,
+        port_name: portName,
+        baud_rate: baud,
+        boot_mode: bootMode,
+        bytes_rx: 32,
+        bytes_tx: 0,
+        last_event: `BRIDGE ${baud} 8N1 ativa em ${portName}`,
+      };
+      return { ...bridgeStatus };
+    },
+    recordBridgeExchange: (txLen: number, rxLen: number, lastEvent: string): void => {
+      bridgeStatus = {
+        ...bridgeStatus,
+        bytes_tx: bridgeStatus.bytes_tx + txLen,
+        bytes_rx: bridgeStatus.bytes_rx + rxLen,
+        last_event: lastEvent,
+      };
+    },
+    stopBridge: (): Sc0BridgeStatus => {
+      bridgeStatus = {
+        ...bridgeStatus,
+        running: false,
+        last_event: 'Ponte SC0 encerrada cleanly (~~~)',
+      };
+      return { ...bridgeStatus };
     },
   });
 }
@@ -285,6 +330,63 @@ export function handleMockPicoCommand(
 
     case 'set_pico_telemetry_stream':
       return Boolean(args?.active ?? true);
+
+    case 'pico_start_sc0_bridge': {
+      const portName = (args?.portName as string) || (args?.port_name as string) || 'MOCK_RP2040';
+      const baudRate = Number(args?.baudRate ?? args?.baud_rate ?? 115200);
+      const bootMode = String(args?.bootMode ?? args?.boot_mode ?? 'JIG:350');
+      const status = mockPicoState.startBridge(portName, baudRate, bootMode);
+      const evt: Sc0BridgeDataEvent = {
+        stream: 'rx',
+        text: `[BRIDGE] USB CDC <-> P7501 SC0 ${baudRate} 8N1 active (exit: '~~~').`,
+        hex: '5B 42 52 49 44 47 45 5D',
+        bytes: [0x5b, 0x42, 0x52, 0x49, 0x44, 0x47, 0x45, 0x5d],
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }),
+      };
+      publishMockEvent('pico://bridge-data', evt);
+      return status;
+    }
+
+    case 'pico_send_bridge_input': {
+      const mode = String(args?.inputMode ?? args?.input_mode ?? 'line');
+      const payload = String(args?.payload ?? '');
+      const stamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
+      mockPicoState.recordBridgeExchange(payload.length, 8, `TX ${mode}: ${payload}`);
+      publishMockEvent<Sc0BridgeDataEvent>('pico://bridge-data', {
+        stream: 'tx',
+        text: `[${mode.toUpperCase()}] ${payload}`,
+        hex: mode === 'hex' ? payload.toUpperCase() : '54 58',
+        bytes: [],
+        timestamp: stamp,
+      });
+      const replyText =
+        mode === 'rsp' || payload.includes('15') || payload.startsWith('$')
+          ? '+$OK#9A'
+          : `${payload.trim()} OK`;
+      publishMockEvent<Sc0BridgeDataEvent>('pico://bridge-data', {
+        stream: 'rx',
+        text: replyText,
+        hex: '2B 24 4F 4B 23 39 41',
+        bytes: [0x2b, 0x24, 0x4f, 0x4b, 0x23, 0x39, 0x41],
+        timestamp: stamp,
+      });
+      return Math.max(1, payload.length);
+    }
+
+    case 'pico_stop_sc0_bridge': {
+      const status = mockPicoState.stopBridge();
+      publishMockEvent<Sc0BridgeDataEvent>('pico://bridge-data', {
+        stream: 'sys',
+        text: 'BRIDGE: OK (~~~)',
+        hex: '7E 7E 7E',
+        bytes: [0x7e, 0x7e, 0x7e],
+        timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }),
+      });
+      return status;
+    }
+
+    case 'pico_get_bridge_status':
+      return mockPicoState.getBridgeStatus();
 
     default:
       return undefined;

@@ -434,6 +434,31 @@ const PICO_COMMAND_BLUEPRINTS: readonly CommandBlueprint[] = Object.freeze([
     timeout_ms: 15000,
   },
   {
+    id: 'PIOLOGIC',
+    category: 'electrical',
+    syntax: 'PIOLOGIC [ms] [NORMAL|JIG[:ms]|NOPULL] [khz]',
+    default_arg: '4000 JIG:350',
+    optionPairs: [
+      ['jig4', '4000 JIG:350'],
+      ['normal4', '4000 NORMAL'],
+      ['passive2', '2000'],
+    ],
+    timeout_ms: 18000,
+  },
+  {
+    id: 'PANARSP',
+    category: 'uart_fmu',
+    syntax: 'PANARSP [ms] [boot] [MAGIC] [WAIT:<trig>] <PROBESEQ|G|Z0|Z1|MEM:addr,len|HEX:..>',
+    default_arg: '6000 JIG:350 PROBESEQ',
+    optionPairs: [
+      ['probeJig', '6000 JIG:350 PROBESEQ'],
+      ['magicG', '6000 JIG:350 MAGIC G'],
+      ['wait1Probe', '8000 JIG:350 "WAIT:wait 1" PROBESEQ'],
+      ['mem515', '4000 MEM:515B2E38,10'],
+    ],
+    timeout_ms: 16000,
+  },
+  {
     id: 'BRIDGE',
     category: 'uart_fmu',
     syntax: 'BRIDGE [baud] [NORMAL|JIG[:ms]|NOPULL]',

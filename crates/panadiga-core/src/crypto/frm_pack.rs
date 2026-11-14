@@ -16,6 +16,7 @@ use crate::constants::*;
 pub enum FrmContainerMode {
     Dvd,
     Sd,
+    Sd48,
 }
 
 /// Input module descriptor for packing `PANA_DVD.FRM` or `PANA__SD.FRM`.
@@ -111,7 +112,7 @@ pub fn build_digadiag_frm(
     Ok((container, report))
 }
 
-/// Packs modules into a `PANA_DVD.FRM` (Feistel + 48B TOC) or `PANA__SD.FRM` (plaintext + 64B TOC) image.
+/// Packs modules into a `PANA_DVD.FRM` (Feistel + 48B TOC) or `PANA__SD.FRM` (plaintext + 64B/48B TOC) image.
 pub fn pack_frm(
     modules: &[FrmPackModule],
     mode: FrmContainerMode,
@@ -122,25 +123,26 @@ pub fn pack_frm(
     }
 
     let is_dvd = mode == FrmContainerMode::Dvd;
-    let stride = if is_dvd {
+    let is_48b = matches!(mode, FrmContainerMode::Dvd | FrmContainerMode::Sd48);
+    let stride = if is_48b {
         PANA_FRM_TOC_ENTRY_SIZE
     } else {
         PANA_SD_TOC_ENTRY_SIZE
     };
-    let region_size = toc_region_size.unwrap_or(if is_dvd {
+    let region_size = toc_region_size.unwrap_or(if is_48b {
         PANA_FRM_TOC_REGION_SIZE
     } else {
         PANA_SD_TOC_REGION_SIZE
     });
 
-    if region_size < modules.len() * stride || (is_dvd && !region_size.is_multiple_of(8)) {
+    if region_size < modules.len() * stride || (is_48b && !region_size.is_multiple_of(8)) {
         bail!(
             "Invalid TOC region size 0x{:X} for {} modules",
             region_size,
             modules.len()
         );
     }
-    if !is_dvd && modules.len() > PANA_SD_TOC_MAX_ENTRIES {
+    if !is_48b && modules.len() > PANA_SD_TOC_MAX_ENTRIES {
         bail!(
             "PANA__SD.FRM supports at most {} modules",
             PANA_SD_TOC_MAX_ENTRIES
@@ -152,7 +154,7 @@ pub fn pack_frm(
 
     for (idx, module) in modules.iter().enumerate() {
         let mut mod_bytes = module.payload.clone();
-        if is_dvd {
+        if is_48b {
             pad_to_block(&mut mod_bytes);
         }
         let mod_offset = image.len() as u32;
@@ -169,7 +171,7 @@ pub fn pack_frm(
         entry[0x20..0x24].copy_from_slice(&mod_size.to_le_bytes());
         entry[0x24..0x28].copy_from_slice(&fvu_sum.to_le_bytes());
 
-        if is_dvd {
+        if is_48b {
             entry[0x18] = module.model_prefix;
             entry[0x19] = module.target_flag;
             write_padded_ascii(&mut entry[0x1A..0x20], &module.model_group, 0);
@@ -204,8 +206,13 @@ pub fn pack_frm(
         );
     }
 
+    let mode_label = match mode {
+        FrmContainerMode::Dvd => "dvd",
+        FrmContainerMode::Sd => "sd",
+        FrmContainerMode::Sd48 => "sd48",
+    };
     let report = FrmPackReport {
-        mode: if is_dvd { "dvd" } else { "sd" }.to_string(),
+        mode: mode_label.to_string(),
         total_bytes: image.len(),
         toc_region_size: region_size,
         modules: summaries,

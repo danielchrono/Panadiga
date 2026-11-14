@@ -274,5 +274,25 @@ export interface ReactiveSerialEvent {
   message: string;
 }
 
+export type Sc0BridgeInputMode = 'text' | 'line' | 'hex' | 'rsp';
+
+export interface Sc0BridgeStatus {
+  running: boolean;
+  port_name: string;
+  baud_rate: number;
+  boot_mode: string;
+  bytes_rx: number;
+  bytes_tx: number;
+  last_event: string;
+}
+
+export interface Sc0BridgeDataEvent {
+  stream: 'rx' | 'tx' | 'sys';
+  text: string;
+  hex: string;
+  bytes: number[];
+  timestamp: string;
+}
+
 
 

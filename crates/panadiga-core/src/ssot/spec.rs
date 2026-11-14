@@ -407,7 +407,9 @@ pub fn build_hardware_ssot_spec() -> HardwareSsotSpecDto {
             cmd("UARTTXHEX", "uart_fmu", "TX Hex Determinístico (PIO1)", "Transmite sequência hexadecimal (ou BRK) em GP4 com timing PIO1 e captura resposta em GP2.", "UARTTXHEX <hex> [BRK] [rx_ms]", Some(("Payload Hex TX", "0D0A 1500", "0D0A 1500", vec![opt("CR+LF (0D0A)", "0D0A 1500"), opt("HELP (68656C700D)", "68656C700D 2000")])), false, 5000),
             cmd("WAITTX", "uart_fmu", "Trigger & TX Determinístico", "Monitora fluxo boot até detectar trigger ASCII (ex: wait 1) e injeta payload hex ou Break com release Q7514 opcional.", "WAITTX <ms> <NORMAL|JIG[:ms]|NOPULL> <trigger> <hex|BRK> [post_ms]", Some(("Especificação WAITTX", "8000 JIG:350 \"wait 1\" 0D 4000", "8000 JIG:350 \"wait 1\" 0D 4000", vec![opt("wait 1 + CR (JIG:350)", "8000 JIG:350 \"wait 1\" 0D 4000"), opt("Hit Any Key + ESC CR", "20000 JIG:350 \"Hit Any Key\" 1B0D 6000")])), false, 32000),
             cmd("PWRTRACE", "electrical", "Perfilador Dual ADC0 + UART", "Registra transições GP2/GP3 e tensão ADC0 (GP26) junto ao stream UART PIO1 para correlacionar rails com boot.", "PWRTRACE [ms] [NORMAL|JIG[:ms]|NOPULL]", Some(("Janela & Boot", "4000 JIG:350", "4000 JIG:350", vec![opt("4s JIG:350ms", "4000 JIG:350"), opt("3s NORMAL", "3000 NORMAL")])), false, 15000),
-            cmd("BRIDGE", "uart_fmu", "Tunnel USB-CDC ↔ SC0 GDB RSP", "Modo transparente full-duplex 115200 PIO1 para conectar GDB/serial.a nativo do MAIN_3060NP (saia com Ctrl-X).", "BRIDGE [baud] [NORMAL|JIG[:ms]|NOPULL]", Some(("Baud & Boot", "115200 JIG:350", "115200 JIG:350", vec![opt("115200 JIG:350", "115200 JIG:350"), opt("115200 Passivo", "115200")])), true, 15000),
+            cmd("PIOLOGIC", "electrical", "Amostrador Lógico PIO0 4 Canais", "Captura bordas simultâneas GP2/GP3/GP4/GP5 em PIO0 (até 2 MHz) sem polling de CPU mantendo GP3 NSW5V em Hi-Z.", "PIOLOGIC [ms] [NORMAL|JIG[:ms]|NOPULL] [khz]", Some(("Janela & Boot", "4000 JIG:350", "4000 JIG:350", vec![opt("4s JIG:350 (1MHz)", "4000 JIG:350"), opt("4s NORMAL", "4000 NORMAL"), opt("2s Passivo", "2000")])), false, 18000),
+            cmd("PANARSP", "uart_fmu", "Sonda Cliente PANA_RSP (MAIN)", "Sonda stub RSP FUN_574f0590/0775 (_dev_SERIAL) via PIO1 enviando 0x15 NAK, 0E0402, $g#67, $Z0#8A/$Z1#8B e $m.", "PANARSP [ms] [boot] [MAGIC] [WAIT:<trig>] <PROBESEQ|G|Z0|Z1|MEM:addr,len|HEX:..>", Some(("Sequência PANA_RSP", "6000 JIG:350 PROBESEQ", "6000 JIG:350 PROBESEQ", vec![opt("PROBESEQ (JIG:350)", "6000 JIG:350 PROBESEQ"), opt("MAGIC + $g#67", "6000 JIG:350 MAGIC G"), opt("WAIT:wait 1 + PROBESEQ", "8000 JIG:350 \"WAIT:wait 1\" PROBESEQ"), opt("Mem @ 515B2E38", "4000 MEM:515B2E38,10")])), false, 16000),
+            cmd("BRIDGE", "uart_fmu", "Tunnel USB-CDC ↔ SC0 GDB RSP", "Modo transparente full-duplex 115200 PIO1 para conectar GDB/serial.a nativo do MAIN_3060NP (encerre enviando '~~~').", "BRIDGE [baud] [NORMAL|JIG[:ms]|NOPULL]", Some(("Baud & Boot", "115200 JIG:350", "115200 JIG:350", vec![opt("115200 JIG:350", "115200 JIG:350"), opt("115200 Passivo", "115200")])), true, 15000),
             cmd("FMUSCAN", "uart_fmu", "Sweep Bootrom FMU (FMUSCAN)", "Varre sequências de handshake FMU da Bootrom Panasonic na janela Wait/Serial.", "FMUSCAN [modo]", Some(("Modo FMU", "all", "all", vec![opt("Todos (all)", "all"), opt("Modo 0", "0"), opt("Modo 1", "1"), opt("Modo 2 (seri)", "2"), opt("Modo 3 (DDR)", "3")])), false, 20000),
             cmd("FMUTEST", "uart_fmu", "Injetar Payload Hex FMU", "Transmite payload hexadecimal arbitrário durante handshake SW_UART FMU e captura eco.", "FMUTEST <hex>", Some(("Payload Hex", "0D", "0D", vec![opt("CR (0D)", "0D"), opt("CR+LF (0D0A)", "0D0A"), opt("Help (3F0D)", "3F0D")])), false, 10000),
             cmd("FMUBATCH", "uart_fmu", "Lote Multi-Comando FMU", "Executa lote automatizado de probes Bootrom FMU em sequência controlada.", "FMUBATCH [step]", Some(("Etapa / Batch", "", "", Vec::new())), false, 22000),
@@ -444,7 +446,15 @@ mod tests {
         assert_eq!(spec.pinout[3].signal_name, "Terra 0.0Ω Chassi");
         assert_eq!(spec.breakin_modes.len(), 4);
         assert_eq!(spec.flash_geometries.len(), 4);
-        assert!(spec.pico_commands.len() >= 33);
+        assert!(spec.pico_commands.len() >= 35);
+        assert!(spec.pico_commands.iter().any(|c| c.id == "PIOLOGIC"));
+        assert!(spec.pico_commands.iter().any(|c| c.id == "PANARSP"));
+        assert!(
+            spec.pico_commands
+                .iter()
+                .find(|c| c.id == "BRIDGE")
+                .is_some_and(|c| c.description.contains("~~~"))
+        );
         assert!(spec.indexed_manuals_count >= 15);
     }
 }

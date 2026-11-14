@@ -65,7 +65,7 @@ pub enum FrmActions {
 
 #[derive(Args, Debug)]
 pub struct FrmPackArgs {
-    /// Target container layout: dvd (Feistel 48B TOC), sd (plaintext 64B TOC), or digadiag (128 KiB EXTRHEAD)
+    /// Target container layout: dvd (Feistel 48B TOC), sd (plaintext 64B TOC), sd48 (plaintext 48B TOC), or digadiag (128 KiB EXTRHEAD)
     #[arg(long, default_value = "sd", value_name = "MODE")]
     pub mode: String,
 
@@ -73,8 +73,8 @@ pub struct FrmPackArgs {
     #[arg(short, long, value_name = "OUT_FILE")]
     pub out: PathBuf,
 
-    /// Module entry for dvd/sd mode in NAME:PATH format (repeatable)
-    #[arg(short, long = "module", value_name = "NAME:PATH")]
+    /// Module entry for dvd/sd mode in NAME:PATH[:VER:FLAG] or NAME=PATH format (repeatable)
+    #[arg(short, long = "module", value_name = "NAME:PATH[:VER:FLAG]")]
     pub modules: Vec<String>,
 
     /// Raw binary payload path for digadiag mode

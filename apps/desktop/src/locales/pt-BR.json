@@ -230,7 +230,33 @@
     "launchGdb": "GDB Multiarch",
     "launchGhidra": "Scripts Ghidra",
     "launchHxd": "HxD Editor",
-    "launchTerminal": "PowerShell"
+    "launchTerminal": "PowerShell",
+    "bridge": {
+      "title": "Ponte Interativa SC0 (BRIDGE), WAITTX & Drive Óptico",
+      "subtitle": "Passthrough USB-CDC ↔ SC0 em tempo real (encerre com '~~~'), sonda PANA_RSP (0x15/$g/$Z0) e CLI serial do drive",
+      "active": "BRIDGE SC0 ATIVA",
+      "standby": "STANDBY",
+      "start": "Iniciar BRIDGE",
+      "stop": "Sair da Ponte (~~~)",
+      "baudLabel": "Baud SC0",
+      "bootLabel": "Perfil Boot",
+      "passiveOption": "Passivo (sem reset)",
+      "waittxWait1": "WAITTX wait 1 → 0D",
+      "waittxHitKey": "WAITTX Hit Any Key → 1B0D",
+      "rspSection": "Sonda Stub PANA_RSP (FUN_574f0590 / 0775)",
+      "driveSection": "Controle Serial do Drive (LD_OFSCAN / PASS)",
+      "inputModeLabel": "Modo TX",
+      "modeLine": "Linha ASCII (+CR)",
+      "modeHex": "Hex Raw",
+      "modeRsp": "Frame RSP ($...#XX)",
+      "modeText": "Texto Puro",
+      "inputPlaceholder": "Comando drive (PASS, START, LDD), hex (15 / 0E0402) ou payload RSP (g, Z0, m515B2E38,10)...",
+      "send": "Transmitir",
+      "clearStream": "Limpar",
+      "bytesRx": "RX: {{count}} B",
+      "bytesTx": "TX: {{count}} B",
+      "emptyStream": "Nenhuma sessão SC0 Bridge em execução. Inicie a ponte para tráfego passthrough ao vivo ou use os gatilhos rápidos acima."
+    }
   },
   "nvram": {
     "title": "Flash Spansion S29JL064H & Cirurgia NVRAM U99",
@@ -598,9 +624,32 @@
           "normal3": "3s NORMAL"
         }
       },
+      "PIOLOGIC": {
+        "label": "Amostrador Lógico PIO0 4 Canais",
+        "description": "Captura bordas simultâneas GP2/GP3/GP4/GP5 em PIO0 (até 2 MHz) sem polling de CPU mantendo GP3 NSW5V em Hi-Z.",
+        "arg_label": "Janela & Boot",
+        "arg_placeholder": "4000 JIG:350",
+        "options": {
+          "jig4": "4s JIG:350 (1MHz)",
+          "normal4": "4s NORMAL",
+          "passive2": "2s Passivo"
+        }
+      },
+      "PANARSP": {
+        "label": "Sonda Cliente PANA_RSP (MAIN)",
+        "description": "Sonda stub RSP FUN_574f0590/0775 (_dev_SERIAL) via PIO1 enviando 0x15 NAK, 0E0402, $g#67, $Z0#8A/$Z1#8B e $m.",
+        "arg_label": "Sequência PANA_RSP",
+        "arg_placeholder": "6000 JIG:350 PROBESEQ",
+        "options": {
+          "probeJig": "PROBESEQ (JIG:350)",
+          "magicG": "MAGIC + $g#67",
+          "wait1Probe": "WAIT:wait 1 + PROBESEQ",
+          "mem515": "Mem @ 515B2E38"
+        }
+      },
       "BRIDGE": {
         "label": "Ponte UART Transparente",
-        "description": "Entra em modo passthrough bidirecional USB CDC <-> P7501 (encerre com +++ ou 0x03 Ctrl+C).",
+        "description": "Entra em modo passthrough bidirecional USB CDC <-> P7501 SC0 (encerre enviando '~~~').",
         "arg_label": "Baud & Boot",
         "arg_placeholder": "115200 JIG:350",
         "options": {

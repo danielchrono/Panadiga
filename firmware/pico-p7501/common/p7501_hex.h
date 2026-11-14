@@ -40,6 +40,12 @@ bool p7501_decode_hex_bytes(
     size_t *out_len
 );
 
+/** Compute standard 8-bit mod-256 RSP frame checksum over raw byte span. */
+uint8_t p7501_rsp_checksum(const uint8_t *data, size_t len);
+
+/** Compute standard 8-bit mod-256 RSP frame checksum over a null-terminated string. */
+uint8_t p7501_rsp_checksum_str(const char *str);
+
 #ifdef __cplusplus
 }
 #endif

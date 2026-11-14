@@ -13,7 +13,12 @@ from scripts.bench.decoders import (
     parse_status_output,
     read_captured_log,
 )
-from scripts.bench.protocol import BenchSafetyError, BenchSession, MockBenchTransport
+from scripts.bench.protocol import (
+    BenchSafetyError,
+    BenchSession,
+    MockBenchTransport,
+    validate_safe_bench_command,
+)
 from scripts.bench.runner import main as bench_main, run_smoke_suite
 
 
@@ -63,4 +68,6 @@ def test_utf16le_log_decoding_and_cli_smoke(tmp_path: Path) -> None:
     assert decoded.ddr_check_ok is True
     assert decoded.boot_mode == "normal mode"
     assert decoded.bgo_failed_code == 1
+    assert validate_safe_bench_command("PIOLOGIC 4000 JIG:350") == "PIOLOGIC 4000 JIG:350"
+    assert validate_safe_bench_command("PANARSP 6000 JIG:350 PROBESEQ") == "PANARSP 6000 JIG:350 PROBESEQ"
     assert bench_main(["smoke-suite"]) == 0

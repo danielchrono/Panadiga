@@ -76,6 +76,26 @@ export function simulateMockDiagnostic(commandId: string, arg?: string): PicoDia
       `VDD_start=${mockVdd}V VDD_end=${mockVdd}V | GP2=872 GP3=2 | bytes=42`,
       'PWRTRACE: OK',
     ].join('\n');
+  } else if (norm === 'PIOLOGIC') {
+    rawOutput = [
+      `=== PIOLOGIC PIO0 (4000ms @ 1000kHz, boot=2, hold=350ms) ===`,
+      'Initial: RXD=1 NSW5V=1 TXD=1 XRESET=0 | fifo_stall=NO | edges=28',
+      '  RXD   (GP2) : Final=1, Transitions=24 (rise=12 fall=12 minLow=8us minHigh=17us)',
+      '  NSW5V (GP3) : Final=1, Transitions=0 (rise=0 fall=0 minLow=0us minHigh=0us)',
+      '  TXD   (GP4) : Final=1, Transitions=3 (rise=2 fall=1 minLow=200us minHigh=1000us)',
+      '  XRESET(GP5) : Final=1, Transitions=1 (rise=1 fall=0 minLow=0us minHigh=0us)',
+      '[PIOLOGIC] XRESET_rise -> first_RXD_fall: 482 us',
+      '[PIOLOGIC] TXD_fall -> RXD_fall turnaround: min=120 us max=120 us',
+      'PIOLOGIC: OK',
+    ].join('\n');
+  } else if (norm === 'PANARSP') {
+    rawOutput = [
+      '=== PANARSP PIO1 (baud=115200 ms=6000 boot=2 hold=350 action=0) ===',
+      '[PANARSP] RX (7 bytes):',
+      '  0000: 15 2B 24 4F 4B 23 39 41                           |.+$OK#9A|',
+      '[PANARSP] Frame: ack=+ nak=no nak0x15=yes | payload="OK" | csum=0x9A/0x9A (VALID)',
+      'PANARSP: OK (rx=8 bytes, rsp=VALID)',
+    ].join('\n');
   } else if (norm === 'LED') {
     const req = (cleanArg || 'STATUS').toUpperCase();
     rawOutput = `LED: OK (${req}, ${req === 'AUTO' ? 'AUTO' : 'MANUAL_LOCK'})`;

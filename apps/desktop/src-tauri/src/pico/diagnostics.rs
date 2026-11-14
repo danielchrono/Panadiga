@@ -129,6 +129,8 @@ pub fn compose_diagnostic_command(
             | "BAUD"
             | "BAUDSCAN"
             | "PWRTRACE"
+            | "PIOLOGIC"
+            | "PANARSP"
             | "WAITTX"
     ) && let Some(first_tok) = clean_arg.and_then(|s| s.split_whitespace().next())
         && let Ok(ms) = first_tok.parse::<u64>()

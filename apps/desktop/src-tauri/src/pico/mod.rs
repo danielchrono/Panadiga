@@ -7,6 +7,7 @@
 //! - `serial`: USB CDC serial communication, port enumeration, telemetry, and cold break-in
 //! - `erase`: In-circuit NVRAM sector erasure and pre-erase live secret dumper
 
+pub mod bridge_session;
 pub mod diagnostics;
 pub mod erase;
 pub mod gdb_bridge;
@@ -14,6 +15,7 @@ pub mod rsp_protocol;
 pub mod serial;
 pub mod types;
 
+pub use bridge_session::*;
 pub use diagnostics::*;
 pub use erase::*;
 pub use gdb_bridge::*;

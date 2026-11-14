@@ -9,6 +9,7 @@ use std::io::Write;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
+use super::bridge_session::is_sc0_bridge_active;
 use super::gdb_bridge::is_gdb_bridge_active;
 use super::types::{PicoDeviceStatusDto, PicoStatusResponse, extract_port_name};
 use panadiga_core::pico::cdc::{parse_vdd_reply, strip_leading_prompts};
@@ -24,12 +25,12 @@ pub fn lock_serial_io() -> MutexGuard<'static, ()> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// Verifies that the serial port is not currently owned by the active GDB RSP bridge thread.
+/// Verifies that the serial port is not currently owned by an active GDB RSP or SC0 bridge thread.
 pub fn ensure_serial_port_unlocked(clean_port: &str) -> Result<(), String> {
     crate::pico::types::reject_mock_port(clean_port)?;
-    if is_gdb_bridge_active() {
+    if is_gdb_bridge_active() || is_sc0_bridge_active() {
         return Err(format!(
-            "Porta serial {} ocupada pela Ponte GDB RSP ativa. Encerre a sessão GDB antes de enviar comandos CDC.",
+            "Porta serial {} ocupada pela Ponte GDB/SC0 ativa. Encerre a sessão antes de enviar comandos CDC.",
             clean_port
         ));
     }
@@ -43,42 +44,66 @@ fn serial_response_has_completed(out: &str) -> bool {
     if body.is_empty() {
         return false;
     }
-    body.contains("PANADIGA>")
-        || body.contains("P7501>")
-        || body.contains("DUMP: OK")
-        || body.contains("PINCHECK: OK")
-        || body.contains("BUSDIAG: OK")
-        || body.contains("CFI: OK")
-        || body.contains("CFI: FAILED")
-        || body.contains("BOOTCAP: OK")
-        || body.contains("UARTMON: OK")
-        || body.contains("JIGBOOT: OK")
-        || body.contains("UARTSEND: OK")
-        || body.contains("UARTPROBE: OK")
-        || body.contains("FMUSCAN: OK")
-        || body.contains("FMUTEST: OK")
-        || body.contains("FMUBATCH: OK")
-        || body.contains("ERASE_NVRAM: OK")
-        || body.contains("ERASE_NVRAM: ERROR")
-        || body.contains("INJECT_LOADER: OK")
-        || body.contains("INJECT_LOADER: ERROR")
-        || body.contains("SAFETY INTERLOCK")
-        || body.contains("BREAK_IN: OK")
-        || body.contains("SCAN: COMPLETED")
-        || body.contains("SNIFF: OK")
-        || body.contains("ISOLATE: OK")
-        || body.contains("ENGAGE: OK")
-        || body.contains("AUTODETECT: OK")
-        || body.contains("FLASH_SIZE: OK")
-        || body.contains("FLASH_SIZE: ERROR")
-        || body.contains("[HANDSHAKE] SUCCESS")
-        || body.contains("[HANDSHAKE] FAILED")
-        || body.contains("[HANDSHAKE] ABORT")
-        || body.contains("[HANDSHAKE] ACTIVE")
-        || body.contains("Auto-ready")
-        || body.contains("PONG")
-        || body.contains("VDD:")
-        || body.contains("VDD=")
+    const COMPLETION_MARKERS: &[&str] = &[
+        "PANADIGA>",
+        "P7501>",
+        "DUMP: OK",
+        "PINCHECK: OK",
+        "BUSDIAG: OK",
+        "CFI: OK",
+        "CFI: FAILED",
+        "BOOTCAP: OK",
+        "UARTMON: OK",
+        "JIGBOOT: OK",
+        "UARTSEND: OK",
+        "UARTPROBE: OK",
+        "BAUD: OK",
+        "BAUD: ERROR",
+        "BAUDSCAN: OK",
+        "BAUDSCAN: ERROR",
+        "UARTSTREAM: OK",
+        "HEXCAP: OK",
+        "UARTTXHEX: OK",
+        "UARTTXHEX: ERROR",
+        "WAITTX: OK",
+        "WAITTX: ERROR",
+        "PWRTRACE: OK",
+        "PIOLOGIC: OK",
+        "PIOLOGIC: ERROR",
+        "PANARSP: OK",
+        "PANARSP: ERROR",
+        "BRIDGE: OK",
+        "BRIDGE: ERROR",
+        "LED: OK",
+        "LED: ERROR",
+        "FMUSCAN: OK",
+        "FMUTEST: OK",
+        "FMUBATCH: OK",
+        "ERASE_NVRAM: OK",
+        "ERASE_NVRAM: ERROR",
+        "INJECT_LOADER: OK",
+        "INJECT_LOADER: ERROR",
+        "SAFETY INTERLOCK",
+        "BREAK_IN: OK",
+        "SCAN: COMPLETED",
+        "SNIFF: OK",
+        "ISOLATE: OK",
+        "ENGAGE: OK",
+        "AUTODETECT: OK",
+        "FLASH_SIZE: OK",
+        "FLASH_SIZE: ERROR",
+        "[HANDSHAKE] SUCCESS",
+        "[HANDSHAKE] FAILED",
+        "[HANDSHAKE] ABORT",
+        "[HANDSHAKE] ACTIVE",
+        "Auto-ready",
+        "PONG",
+        "VDD:",
+        "VDD=",
+    ];
+    COMPLETION_MARKERS
+        .iter()
+        .any(|marker| body.contains(marker))
 }
 
 /// Reads multi-chunk USB CDC serial output until a terminal prompt (`PANADIGA>` / `P7501>`),
@@ -375,7 +400,7 @@ pub fn pico_get_device_status_dto(
 pub fn try_pico_get_device_status_dto(
     port_name: String,
 ) -> Option<Result<PicoDeviceStatusDto, String>> {
-    if port_name.trim().is_empty() || is_gdb_bridge_active() {
+    if port_name.trim().is_empty() || is_gdb_bridge_active() || is_sc0_bridge_active() {
         return None;
     }
     let guard = SERIAL_IO_MUTEX.try_lock().ok()?;

@@ -31,6 +31,8 @@ SAFE_BENCH_COMMANDS: Final[tuple[str, ...]] = (
     "UARTTXHEX",
     "WAITTX",
     "PWRTRACE",
+    "PIOLOGIC",
+    "PANARSP",
 )
 
 _FORBIDDEN_WRITE_TOKENS: Final[tuple[str, ...]] = (

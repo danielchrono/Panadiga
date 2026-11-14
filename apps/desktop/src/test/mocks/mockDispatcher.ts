@@ -6,6 +6,7 @@
 
 import { logger } from '@/utils/logger';
 import { handleMockCryptoCommand } from './mockCryptoHandlers';
+import { subscribeMockChannel } from './mockEventBus';
 import { handleMockHddCommand } from './mockHddHandlers';
 import { buildMockPicoStatus, handleMockPicoCommand } from './mockPicoHandlers';
 import { handleMockSystemCommand } from './mockSystemHandlers';
@@ -41,12 +42,16 @@ export function subscribeMockEventStream<T>(
   eventName: string,
   handler: (payload: T) => void
 ): () => void {
+  const unsubChannel = subscribeMockChannel(eventName, handler);
   if (eventName === 'pico_telemetry' || eventName === 'pico://telemetry') {
     const interval = setInterval(() => {
       const statusPayload: unknown = buildMockPicoStatus();
       handler(statusPayload as T);
     }, 2000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      unsubChannel();
+    };
   }
-  return () => { };
+  return unsubChannel;
 }

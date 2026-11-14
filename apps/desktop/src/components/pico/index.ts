@@ -8,3 +8,4 @@ export * from './PicoBenchMetrics';
 export * from './ColdBreakinSelector';
 export * from './P7501PinoutCard';
 export * from './PicoDiagnosticsStudio';
+export * from './Sc0BridgePanel';

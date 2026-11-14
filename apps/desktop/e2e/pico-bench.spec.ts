@@ -59,4 +59,19 @@ test.describe('Pico Bench & P7501 UART Hardware Workbench E2E', () => {
     await page.click('[role="tab"]:has-text("Mapa Memória AM34")');
     await expect(page.getByText('Top-Boot NVRAM (EEMUL / U99)')).toBeVisible();
   });
+
+  test('operates interactive SC0 Bridge passthrough and quick RSP/Drive triggers', async ({ page }) => {
+    await expect(page.getByText(/Interactive SC0 Bridge|Ponte Interativa SC0/i)).toBeVisible();
+    await page.click('button:has-text("Start BRIDGE"), button:has-text("Iniciar BRIDGE")');
+    await expect(page.getByText(/SC0 BRIDGE ACTIVE|BRIDGE SC0 ATIVA/i)).toBeVisible();
+
+    await page.click('button:has-text("$g#67 Regs")');
+    await expect(page.getByText('+$OK#9A').first()).toBeVisible();
+
+    await page.click('button:has-text("PASS")');
+    await expect(page.getByText('PASS').first()).toBeVisible();
+
+    await page.click('button:has-text("Exit Bridge (~~~)"), button:has-text("Sair da Ponte (~~~)")');
+    await expect(page.getByText('STANDBY').first()).toBeVisible();
+  });
 });

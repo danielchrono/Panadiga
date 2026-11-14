@@ -33,6 +33,11 @@ const DVD_TOC_LAYOUT: TocLayoutOffsets = TocLayoutOffsets {
     skip_empty: false,
 };
 
+const SD48_TOC_LAYOUT: TocLayoutOffsets = TocLayoutOffsets {
+    skip_empty: true,
+    ..DVD_TOC_LAYOUT
+};
+
 const SD_TOC_LAYOUT: TocLayoutOffsets = TocLayoutOffsets {
     stride: PANA_SD_TOC_ENTRY_SIZE,
     name_end: 0x0A,
@@ -103,13 +108,23 @@ pub fn decrypt_and_parse_frm_toc(data: &[u8]) -> Vec<DecryptedFrmTocEntry> {
     parse_toc_entries_with_layout(&decrypted, count, &DVD_TOC_LAYOUT)
 }
 
-/// Parses the plaintext 64-byte (`0x40`) TOC table of `PANA__SD.FRM` (`FUN_4400a733` / `FUN_4400a6d0`).
+/// Parses the plaintext 64-byte (`0x40`, `BOOT.BIN`) or 48-byte (`0x30`, `PROG061`) TOC table of `PANA__SD.FRM`.
 pub fn parse_sd_frm_toc(data: &[u8]) -> Vec<DecryptedFrmTocEntry> {
-    let count = (data.len() / PANA_SD_TOC_ENTRY_SIZE).min(PANA_SD_TOC_MAX_ENTRIES);
-    if count == 0 {
-        return Vec::new();
+    let count64 = (data.len() / PANA_SD_TOC_ENTRY_SIZE).min(PANA_SD_TOC_MAX_ENTRIES);
+    if count64 > 0 {
+        let entries64 = parse_toc_entries_with_layout(data, count64, &SD_TOC_LAYOUT);
+        if entries64.iter().any(|e| e.list_sum_valid) {
+            return entries64;
+        }
     }
-    parse_toc_entries_with_layout(data, count, &SD_TOC_LAYOUT)
+    let count48 = (data.len() / PANA_FRM_TOC_ENTRY_SIZE).min(PANA_SD_TOC_MAX_ENTRIES);
+    if count48 > 0 {
+        let entries48 = parse_toc_entries_with_layout(data, count48, &SD48_TOC_LAYOUT);
+        if entries48.iter().any(|e| e.list_sum_valid) {
+            return entries48;
+        }
+    }
+    Vec::new()
 }
 
 /// Dissects the first 512 bytes of PANA_DVD.FRM to verify the 48-byte TOC entries.

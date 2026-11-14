@@ -26,7 +26,9 @@
 #include "uart/p7501_uart_stream.h"
 #include "uart/p7501_uart_baud.h"
 #include "uart/p7501_uart_tx.h"
+#include "uart/p7501_pana_rsp.h"
 #include "diag/p7501_diag_pwrtrace.h"
+#include "diag/p7501_piologic_codec.h"
 #include "hal/p7501_hw.h"
 #include "hal/p7501_led.h"
 #include "gdb/gdb_rsp.h"
@@ -231,6 +233,8 @@ static const p7501_cli_cmd_entry_t k_cli_commands[] = {
     { "UARTTXHEX",     p7501_cmd_uart_tx_hex },
     { "WAITTX",        p7501_cmd_waittx },
     { "PWRTRACE",      p7501_cmd_pwrtrace },
+    { "PIOLOGIC",      p7501_cmd_piologic },
+    { "PANARSP",       p7501_cmd_pana_rsp },
     { "BRIDGE",        p7501_cmd_bridge },
     { "BOOTSEL",       cli_cmd_bootsel },
 };

@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePicoBenchViewModel } from '@/viewmodels/usePicoBenchViewModel';
+import { useSc0Bridge } from '@/viewmodels/useSc0Bridge';
 import { TerminalView } from '@/components/TerminalView';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui';
@@ -11,6 +12,7 @@ import {
   ColdBreakinSelector,
   P7501PinoutCard,
   PicoDiagnosticsStudio,
+  Sc0BridgePanel,
 } from '@/components/pico';
 import { useTranslation } from '@/i18n/useTranslation';
 import { AlertCircle, CheckCircle2, RefreshCw, Send, ShieldCheck } from 'lucide-react';
@@ -70,6 +72,11 @@ export const PicoBenchView: React.FC = () => {
     sendCommand,
     clearLogs,
   } = usePicoBenchViewModel();
+
+  const sc0Bridge = useSc0Bridge({
+    selectedPort,
+    onExecuteDiagnostic: executeDiagnostic,
+  });
 
   if (isSsotLoading && !ssot) {
     return (
@@ -193,6 +200,40 @@ export const PicoBenchView: React.FC = () => {
         onSelectCategory={setDiagnosticCategory}
         onExecute={executeDiagnostic}
         onClearHistory={clearDiagnosticHistory}
+      />
+
+      <Sc0BridgePanel
+        status={sc0Bridge.bridgeStatus}
+        logs={sc0Bridge.bridgeLogs}
+        baudRate={sc0Bridge.baudRate}
+        onChangeBaudRate={sc0Bridge.setBaudRate}
+        bootMode={sc0Bridge.bootMode}
+        onChangeBootMode={sc0Bridge.setBootMode}
+        inputMode={sc0Bridge.inputMode}
+        onChangeInputMode={sc0Bridge.setInputMode}
+        txInput={sc0Bridge.txInput}
+        onChangeTxInput={sc0Bridge.setTxInput}
+        isBusy={sc0Bridge.isBusy}
+        error={sc0Bridge.error}
+        onStart={() => {
+          void sc0Bridge.startBridge();
+        }}
+        onStop={() => {
+          void sc0Bridge.stopBridge();
+        }}
+        onSubmitTx={() => {
+          void sc0Bridge.submitTxInput();
+        }}
+        onClearLogs={sc0Bridge.clearBridgeLogs}
+        onTriggerWaittx={spec => {
+          void sc0Bridge.triggerInteractiveWaittx(spec);
+        }}
+        onSendRspPreset={(mode, bridgePayload, panarspArg) => {
+          void sc0Bridge.sendPanaRspPreset(mode, bridgePayload, panarspArg);
+        }}
+        onSendDriveCommand={cmd => {
+          void sc0Bridge.sendDriveCommand(cmd);
+        }}
       />
 
       <GdbServerCard

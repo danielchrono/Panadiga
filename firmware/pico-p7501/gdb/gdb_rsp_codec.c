@@ -66,12 +66,7 @@ char gdb_nibble_to_hex_char(uint8_t n) {
 }
 
 uint8_t gdb_compute_checksum(const char *payload) {
-    uint8_t sum = 0U;
-    while (*payload != '\0') {
-        sum = (uint8_t)(sum + (uint8_t)(*payload));
-        payload++;
-    }
-    return sum;
+    return p7501_rsp_checksum_str(payload);
 }
 
 const char *gdb_parse_hex_u32(const char *str, uint32_t *out_val, char delim) {

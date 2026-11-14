@@ -96,34 +96,33 @@ pub fn list_service_manuals() -> Result<Vec<super::dto::ServiceManualCatalogItem
     Ok(items)
 }
 
+fn resolve_frm_input_path(frm_path: Option<String>) -> String {
+    if let Some(raw) = frm_path
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+    {
+        let nested = format!("firmware_and_images/{}", raw);
+        return resolve_candidate(&[&raw, &nested], &raw);
+    }
+    resolve_candidate(
+        &[
+            panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
+            "../../firmware_and_images/PANA_DVD.FRM",
+        ],
+        panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
+    )
+}
+
 /// Frontend `analyze_frm` command.
 #[tauri::command]
 pub fn analyze_frm(frm_path: Option<String>) -> Result<FrmEntropyReport, String> {
-    let path = frm_path.unwrap_or_else(|| {
-        resolve_candidate(
-            &[
-                panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-                "../../firmware_and_images/PANA_DVD.FRM",
-            ],
-            panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-        )
-    });
-    analyze_frm_command(path)
+    analyze_frm_command(resolve_frm_input_path(frm_path))
 }
 
 /// Frontend `dump_frm_toc` command.
 #[tauri::command]
 pub fn dump_frm_toc(frm_path: Option<String>) -> Result<FrmTocDumpReport, String> {
-    let path = frm_path.unwrap_or_else(|| {
-        resolve_candidate(
-            &[
-                panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-                "../../firmware_and_images/PANA_DVD.FRM",
-            ],
-            panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-        )
-    });
-    dump_frm_toc_command(path)
+    dump_frm_toc_command(resolve_frm_input_path(frm_path))
 }
 
 /// Frontend `get_codebook` command.
@@ -132,16 +131,7 @@ pub fn get_codebook(
     frm_path: Option<String>,
     hdd_path: Option<String>,
 ) -> Result<CodebookReport, String> {
-    let path = frm_path.unwrap_or_else(|| {
-        resolve_candidate(
-            &[
-                panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-                "../../firmware_and_images/PANA_DVD.FRM",
-            ],
-            panadiga_core::constants::DEFAULT_FRM_CONTAINER_PATH,
-        )
-    });
-    get_frm_codebook_command(path, hdd_path)
+    get_frm_codebook_command(resolve_frm_input_path(frm_path), hdd_path)
 }
 
 /// Frontend `search_manuals` command accepting either `query` or `term`.

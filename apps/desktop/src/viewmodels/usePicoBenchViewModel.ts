@@ -14,7 +14,13 @@ import { useSerialConsole } from './useSerialConsole';
  * Granular Diagnostic Studio, GDB RSP Bridge, In-Circuit Erase, and Reactive Console.
  */
 export function usePicoBenchViewModel() {
-  const { ssot, isLoaded: isSsotLoaded } = useHardwareSsot();
+  const {
+    ssot,
+    isLoaded: isSsotLoaded,
+    isLoading: isSsotLoading,
+    error: ssotError,
+    reload: reloadSsot,
+  } = useHardwareSsot();
   const telemetryRef = useRef<((result: PicoDiagnosticResult) => void) | undefined>(undefined);
   const console = useSerialConsole({
     onCommandTelemetry: useCallback((result: PicoDiagnosticResult) => {
@@ -83,6 +89,9 @@ export function usePicoBenchViewModel() {
     // Hardware/Firmware SSOT Spec
     ssot,
     isSsotLoaded,
+    isSsotLoading,
+    ssotError,
+    reloadSsot,
 
     // Device & Connection Subsystem
     deviceStatus: device.deviceStatus,

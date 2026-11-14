@@ -326,7 +326,7 @@ pub fn parse_diagnostic_output(
     }
 }
 
-/// Executes a granular diagnostic command against the real USB CDC Pico or mock bench simulator.
+/// Executes a granular diagnostic command against the connected USB CDC Pico.
 pub fn execute_diagnostic_on_port(
     port_name: &str,
     command_id: &str,
@@ -336,15 +336,7 @@ pub fn execute_diagnostic_on_port(
     let clean = extract_port_name(port_name);
     let started = Instant::now();
 
-    if clean.starts_with("MOCK") {
-        #[cfg(test)]
-        {
-            let mock_out = simulate_mock_diagnostic(&raw_cmd);
-            return Ok(parse_diagnostic_output(command_id, &raw_cmd, &mock_out, 45));
-        }
-        #[cfg(not(test))]
-        return crate::pico::types::reject_mock_port(&clean).map(|_| unreachable!());
-    }
+    crate::pico::types::reject_mock_port(&clean)?;
 
     if clean.starts_with("BLE") || clean.starts_with("ANDROID-USB-OTG") {
         return Err(
@@ -476,19 +468,35 @@ mod tests {
 
     #[test]
     fn parses_pincheck_dump_and_sniff_outputs_cleanly() {
-        let pincheck = execute_diagnostic_on_port("MOCK_RP2040", "PINCHECK", None).unwrap();
+        assert!(execute_diagnostic_on_port("MOCK_RP2040", "PINCHECK", None).is_err());
+
+        let pincheck = parse_diagnostic_output(
+            "PINCHECK",
+            "PINCHECK",
+            &simulate_mock_diagnostic("PINCHECK"),
+            45,
+        );
         assert!(pincheck.success);
         assert_eq!(pincheck.pincheck_rows.len(), 5);
         assert_eq!(pincheck.xreset_rise_us.as_deref(), Some("40 us"));
         assert!((pincheck.vdd_volts.unwrap() - 3.28).abs() < 0.01);
 
-        let dump =
-            execute_diagnostic_on_port("MOCK_RP2040", "DUMP", Some("0x807F0000 16")).unwrap();
+        let dump = parse_diagnostic_output(
+            "DUMP",
+            "DUMP 0x807F0000 16",
+            &simulate_mock_diagnostic("DUMP 0x807F0000 16"),
+            45,
+        );
         assert!(dump.success);
         assert_eq!(dump.dump_rows.len(), 4);
         assert_eq!(dump.dump_rows[1].address, "0x807F0010");
 
-        let sniff = execute_diagnostic_on_port("MOCK_RP2040", "SNIFF", Some("250")).unwrap();
+        let sniff = parse_diagnostic_output(
+            "SNIFF",
+            "SNIFF 250",
+            &simulate_mock_diagnostic("SNIFF 250"),
+            45,
+        );
         assert!(sniff.success);
         assert_eq!(sniff.transition_rows.len(), 4);
         assert_eq!(sniff.transition_rows[2].transitions, 68);

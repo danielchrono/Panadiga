@@ -13,7 +13,7 @@ import { ingestP7501DumpOutput } from '@/services/liveNvramCaptureStore';
 
 export interface UsePicoDiagnosticsOptions {
   selectedPort: string;
-  ssot: HardwareSsotSpec;
+  ssot: HardwareSsotSpec | null;
   onLog?: (
     level: SerialLogEntry['level'],
     source: SerialLogEntry['source'],
@@ -25,7 +25,7 @@ export interface UsePicoDiagnosticsOptions {
 /**
  * Granular Diagnostic Studio ViewModel:
  * Executes any firmware CLI command (`PINCHECK`, `BUSDIAG`, `SNIFF`, `DUMP`, `CFI`, `BOOTCAP`, `FMU*`)
- * transparently across Desktop USB CDC, Android USB-C OTG, Bluetooth LE NUS, or Demo Simulator.
+ * transparently across Desktop USB CDC, Android USB-C OTG, and Bluetooth LE NUS.
  */
 export function usePicoDiagnostics({
   selectedPort,
@@ -75,7 +75,7 @@ export function usePicoDiagnostics({
   const executeCommand = useCallback(
     async (commandId: string, arg?: string): Promise<PicoDiagnosticResult | null> => {
       const norm = commandId.trim().toUpperCase();
-      const spec = ssot.pico_commands.find(c => c.id === norm);
+      const spec = ssot?.pico_commands.find(c => c.id === norm);
       const cleanArg = arg?.trim() ? arg.trim() : undefined;
       const rawCommand = cleanArg ? `${norm} ${cleanArg}` : norm;
       const timeoutMs = spec?.timeout_ms ?? 4000;
@@ -113,7 +113,7 @@ export function usePicoDiagnostics({
           }));
         }
 
-        if (!selectedPort || selectedPort.startsWith('MOCK')) {
+        if (!selectedPort) {
           const msg =
             'Selecione ou conecte uma sonda Pico real antes de executar diagnósticos P7501 UART / OCD.';
           setError(msg);
@@ -140,7 +140,7 @@ export function usePicoDiagnostics({
         setRunningCommandId(null);
       }
     },
-    [selectedPort, ssot.pico_commands, onLog, commitDiagnosticResult]
+    [selectedPort, ssot?.pico_commands, onLog, commitDiagnosticResult]
   );
 
   const clearHistory = useCallback(() => {

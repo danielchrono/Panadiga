@@ -140,7 +140,6 @@ export const PICO_RP2350_RISCV_CDC_PID = 0x000e;
 /** RP2040 / RP2350 USB BOOTSEL Mass Storage PID */
 export const PICO_BOOTSEL_PID = 0x0003;
 
-export { DEFAULT_HARDWARE_SSOT_SPEC } from './ssotFallback';
 export { DIGA_HEX_BOOKMARKS } from './hexBookmarks';
 
 /* =========================================================================

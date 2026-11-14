@@ -76,8 +76,10 @@ pub struct FrmModuleInfo {
 pub struct FrmTocDumpReport {
     pub frm_file: String,
     pub file_size_bytes: usize,
+    pub toc_format: String,
     pub global_header_hex: String,
     pub toc_entries: Vec<TocEntry>,
+    pub decrypted_toc: Vec<DecryptedFrmTocEntry>,
     pub modules: Vec<FrmModuleInfo>,
     pub toc_invariants_valid: bool,
 }

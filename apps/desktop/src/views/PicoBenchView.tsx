@@ -12,7 +12,7 @@ import {
   PicoDiagnosticsStudio,
 } from '@/components/pico';
 import { useTranslation } from '@/i18n/useTranslation';
-import { CheckCircle2, Send, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle2, RefreshCw, Send, ShieldCheck } from 'lucide-react';
 
 /**
  * MVVM View: Panasonic P7501 Async UART Hardware Bench Controller.
@@ -23,6 +23,9 @@ export const PicoBenchView: React.FC = () => {
   const { t } = useTranslation();
   const {
     ssot,
+    isSsotLoading,
+    ssotError,
+    reloadSsot,
     deviceStatus,
     availablePorts,
     selectedPort,
@@ -62,6 +65,37 @@ export const PicoBenchView: React.FC = () => {
     sendCommand,
     clearLogs,
   } = usePicoBenchViewModel();
+
+  if (isSsotLoading && !ssot) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 gap-3 text-slate-400 font-mono text-xs">
+        <RefreshCw className="w-6 h-6 animate-spin text-cyan-400" />
+        <span>Carregando especificação SSOT de hardware do backend...</span>
+      </div>
+    );
+  }
+
+  if (!ssot) {
+    return (
+      <div className="max-w-2xl mx-auto my-16 p-6 rounded-2xl bg-bench-900 border border-rose-500/30 text-center space-y-4 font-mono">
+        <div className="w-12 h-12 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-slate-100">
+            Falha ao Carregar Especificação Hardware SSOT
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            {ssotError || 'Não foi possível obter a tabela de pinagem P7501 e comandos PICO via IPC nativo.'}
+          </p>
+        </div>
+        <Button type="button" onClick={reloadSsot} className="gap-2 mx-auto font-bold text-xs">
+          <RefreshCw className="w-4 h-4" />
+          <span>Recarregar SSOT</span>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12 font-mono">

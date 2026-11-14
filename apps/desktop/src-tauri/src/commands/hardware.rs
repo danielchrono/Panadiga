@@ -18,7 +18,7 @@ pub fn get_diga_model_catalog() -> Result<Vec<DigaModelProfileDto>, String> {
     Ok(get_diga_model_catalog_dto())
 }
 
-/// Enumerates connected serial ports and provides RP2040 simulation options.
+/// Enumerates connected USB CDC serial ports for Raspberry Pi Pico hardware.
 #[tauri::command]
 pub fn list_pico_serial_ports() -> Result<Vec<String>, String> {
     super::super::pico::list_pico_serial_ports()

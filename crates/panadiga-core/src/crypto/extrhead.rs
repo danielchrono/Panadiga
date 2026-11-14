@@ -23,6 +23,20 @@ pub enum ExtrheadCryptMode {
     Plain,
 }
 
+impl std::str::FromStr for ExtrheadCryptMode {
+    type Err = anyhow::Error;
+
+    fn from_str(raw: &str) -> Result<Self> {
+        match raw.trim().to_ascii_lowercase().as_str() {
+            "auto" => Ok(Self::Auto),
+            "main" => Ok(Self::Main),
+            "drv" => Ok(Self::Drv),
+            "plain" => Ok(Self::Plain),
+            other => bail!("Unsupported unpack mode '{other}': expected auto, main, drv, or plain"),
+        }
+    }
+}
+
 /// Parsed 64-byte (`0x40`) Panasonic `EXTRHEAD` header block.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExtrheadHeader {

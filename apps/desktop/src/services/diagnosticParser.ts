@@ -117,7 +117,7 @@ function parseFlashMb(rawOutput: string): number | null {
 }
 
 /**
- * Shared structured diagnostic parser used by Android BLE / USB-OTG bridges and Demo simulator.
+ * Shared structured diagnostic parser used by Android BLE / USB-OTG and USB CDC transports.
  */
 export function parseDiagnosticOutput(
   commandId: string,

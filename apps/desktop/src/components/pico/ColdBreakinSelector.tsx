@@ -1,13 +1,12 @@
 import React from 'react';
 import type { BreakInModeSpec, ColdBreakinMode } from '@/models';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
 import { Badge, Card } from '@/components/ui';
 import { Sliders } from 'lucide-react';
 
 export interface ColdBreakinSelectorProps {
   currentMode: ColdBreakinMode;
   onSelectMode: (mode: ColdBreakinMode) => void;
-  breakinModes?: BreakInModeSpec[];
+  breakinModes: BreakInModeSpec[];
 }
 
 /**
@@ -17,7 +16,7 @@ export interface ColdBreakinSelectorProps {
 export const ColdBreakinSelector: React.FC<ColdBreakinSelectorProps> = ({
   currentMode,
   onSelectMode,
-  breakinModes = DEFAULT_HARDWARE_SSOT_SPEC.breakin_modes,
+  breakinModes,
 }) => {
   return (
     <Card className="p-5 shadow-xl space-y-4">

@@ -22,7 +22,6 @@ pub struct PicoStatusResponse {
     pub vdd_voltage: f32,
     pub target_powered: bool,
     pub firmware_banner: String,
-    pub is_mock: bool,
     pub message: String,
 }
 

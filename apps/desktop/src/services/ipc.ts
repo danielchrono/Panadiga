@@ -1,7 +1,7 @@
 /**
  * IPC Communication & Reactive Event Stream Transport for Panasonic DIGA Suite
  * Single Responsibility: Wraps @tauri-apps/api/core and @tauri-apps/api/event
- * with automatic fallback to `mockDispatcher.ts` ONLY when outside Tauri (e.g. tests).
+ * with an injected test IPC bridge restricted strictly to dev/test harnesses.
  */
 
 import { isTauri } from '@tauri-apps/api/core';
@@ -59,7 +59,9 @@ export async function invokeCommand<T>(
     return await invoke<T>(cmd, normalizedArgs);
   }
 
-  const testBridge = typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
+  const isTestOrDevHarness = import.meta.env.DEV || import.meta.env.MODE === 'test';
+  const testBridge =
+    isTestOrDevHarness && typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
   if (testBridge?.invoke) {
     return await testBridge.invoke<T>(cmd, normalizedArgs);
   }
@@ -115,7 +117,9 @@ export async function listenEvent<T>(
       logger.warn('IPC', `Failed registering Tauri event listener for ${eventName}`, err);
     }
   } else {
-    const testBridge = typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
+    const isTestOrDevHarness = import.meta.env.DEV || import.meta.env.MODE === 'test';
+    const testBridge =
+      isTestOrDevHarness && typeof window !== 'undefined' ? window.__PANADIGA_TEST_IPC__ : undefined;
     if (testBridge?.listen) {
       const unlistenTest = await testBridge.listen<T>(eventName, handler);
       return () => {

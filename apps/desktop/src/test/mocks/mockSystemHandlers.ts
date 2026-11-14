@@ -2,7 +2,7 @@
  * Mock IPC handlers for system overview, manuals lookup, hex viewer, external tools, and RAG queries.
  */
 
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
+import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/test/fixtures/ssotFixture';
 import {
   generateMockHexDump,
   mockManualDocuments,

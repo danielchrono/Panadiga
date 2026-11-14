@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DEFAULT_HARDWARE_SSOT_SPEC,
   PICO_MAX_VDD_CEILING_VOLTS,
   PICO_MIN_VDD_THRESHOLD_VOLTS,
   PICO_RP2350_CDC_PID,
 } from '@/constants';
+import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/test/fixtures/ssotFixture';
 import { parseDiagnosticOutput, parseP7501DumpBytes } from './diagnosticParser';
 import { simulateMockDiagnostic } from '@/test/mocks/mockDiagnostics';
 

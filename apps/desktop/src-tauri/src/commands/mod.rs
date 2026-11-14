@@ -9,6 +9,7 @@
 
 pub mod crypto_manuals;
 pub mod dto;
+pub mod frm_pack;
 pub mod hardware;
 pub mod hardware_diag;
 pub mod storage;
@@ -16,6 +17,7 @@ pub mod workspace;
 
 pub use crypto_manuals::*;
 pub use dto::*;
+pub use frm_pack::*;
 pub use hardware::*;
 pub use hardware_diag::*;
 pub use storage::*;

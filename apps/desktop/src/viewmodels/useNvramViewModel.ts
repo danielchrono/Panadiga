@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useSyncExternalStore } from 'react';
-import { NvramCleanReport, FlashSectorInfo, PicoDeviceInfo } from '@/models';
+import { NvramCleanReport, FlashSectorInfo } from '@/models';
 import { invokeCommand } from '@/services/ipc';
 import { bleService } from '@/services/bleService';
 import {
@@ -175,9 +175,9 @@ export function useNvramViewModel() {
 
         let targetPort = explicitPort?.trim() || '';
         if (!targetPort) {
-          const ports = await invokeCommand<PicoDeviceInfo[]>('list_pico_serial_ports');
-          const preferred = ports.find(p => p.architecture !== 'Bootloader' && !p.port_name.startsWith('MOCK'));
-          targetPort = preferred?.port_name || '';
+          const ports = await invokeCommand<string[]>('list_pico_serial_ports');
+          const preferred = ports.find(p => !p.includes('BOOTSEL') && !p.includes('PID:0003'));
+          targetPort = (preferred || ports[0] || '').trim();
         }
         if (!targetPort) {
           throw new Error(

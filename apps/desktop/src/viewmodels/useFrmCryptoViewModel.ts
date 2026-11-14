@@ -7,9 +7,12 @@ import {
 import { invokeCommand } from '@/services/ipc';
 import { logger } from '@/utils/logger';
 
-export type FrmTab = 'entropy' | 'toc' | 'codebook' | 'correlation';
+export type FrmTab = 'entropy' | 'toc' | 'packager' | 'codebook' | 'correlation';
 
-export function useFrmCryptoViewModel() {
+export const DEFAULT_FRM_CONTAINER_PATH = 'firmware_and_images/PANA_DVD.FRM';
+
+export function useFrmCryptoViewModel(initialFrmPath = DEFAULT_FRM_CONTAINER_PATH) {
+  const [frmPath, setFrmPath] = useState<string>(initialFrmPath);
   const [cryptReport, setCryptReport] = useState<CryptanalysisReport | null>(null);
   const [tocReport, setTocReport] = useState<FrmTocDumpReport | null>(null);
   const [codebookReport, setCodebookReport] = useState<CodebookReport | null>(null);
@@ -21,28 +24,35 @@ export function useFrmCryptoViewModel() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const trimmedPath = frmPath.trim();
+    const frmArgs = trimmedPath
+      ? { frmPath: trimmedPath, frm_path: trimmedPath }
+      : undefined;
     try {
       const results = await Promise.allSettled([
-        invokeCommand<CryptanalysisReport>('analyze_frm'),
-        invokeCommand<FrmTocDumpReport>('dump_frm_toc'),
-        invokeCommand<CodebookReport>('get_codebook'),
+        invokeCommand<CryptanalysisReport>('analyze_frm', frmArgs),
+        invokeCommand<FrmTocDumpReport>('dump_frm_toc', frmArgs),
+        invokeCommand<CodebookReport>('get_codebook', frmArgs),
       ]);
 
       if (results[0].status === 'fulfilled') {
         setCryptReport(results[0].value);
       } else {
+        setCryptReport(null);
         logger.error('FrmCryptoViewModel', 'Failed analyzing FRM entropy', results[0].reason);
       }
 
       if (results[1].status === 'fulfilled') {
         setTocReport(results[1].value);
       } else {
+        setTocReport(null);
         logger.error('FrmCryptoViewModel', 'Failed dumping FRM TOC', results[1].reason);
       }
 
       if (results[2].status === 'fulfilled') {
         setCodebookReport(results[2].value);
       } else {
+        setCodebookReport(null);
         logger.error('FrmCryptoViewModel', 'Failed getting codebook', results[2].reason);
       }
 
@@ -58,7 +68,7 @@ export function useFrmCryptoViewModel() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [frmPath]);
 
   useEffect(() => {
     loadData();
@@ -79,6 +89,8 @@ export function useFrmCryptoViewModel() {
   }, [codebookReport, codebookFilter]);
 
   return {
+    frmPath,
+    setFrmPath,
     cryptReport,
     tocReport,
     codebookReport,

@@ -1,7 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Badge, Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
 import { isTargetPowered } from '@/utils/formatters';
 import {
   LayoutDashboard,
@@ -30,7 +29,7 @@ interface SidebarProps {
   vddVolts?: number;
   hardwareConnected?: boolean;
   nvramCleaned?: boolean;
-  indexedManualsCount?: number;
+  indexedManualsCount?: number | null;
   flashSizeMb?: number;
 }
 
@@ -44,7 +43,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
   vddVolts = 0.0,
   hardwareConnected = false,
   nvramCleaned = false,
-  indexedManualsCount = DEFAULT_HARDWARE_SSOT_SPEC.indexed_manuals_count,
+  indexedManualsCount = null,
   flashSizeMb = 8,
   onAfterSelect,
 }) => {
@@ -98,9 +97,9 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     {
       key: 'manuals',
       label: 'Manuais & Esquemas',
-      sublabel: `${indexedManualsCount} PDFs & Indexação Rápida`,
+      sublabel: `${indexedManualsCount ?? '--'} PDFs & Indexação Rápida`,
       icon: <BookOpen className="w-4 h-4" />,
-      badge: `${indexedManualsCount}`,
+      badge: `${indexedManualsCount ?? '--'}`,
       badgeVariant: 'secondary',
     },
     {

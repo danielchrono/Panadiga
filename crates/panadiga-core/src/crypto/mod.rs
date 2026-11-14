@@ -13,6 +13,7 @@ pub mod toc;
 pub mod types;
 
 pub use codebook::{correlate_hdd_partitions, print_codebook};
+pub use codec::parse_u32_radix;
 pub use entropy::{analyze_8byte_frequencies, analyze_frm_container};
 pub use extrhead::{
     ExtrheadCryptMode, ExtrheadHeader, UnpackedExtrhead, pack_extrhead, parse_extrhead_header,

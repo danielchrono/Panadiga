@@ -19,6 +19,10 @@ function getTestBridgeScript(): string {
       format: 'iife',
       platform: 'browser',
       tsconfig,
+      define: {
+        'import.meta.env.DEV': 'true',
+        'import.meta.env.MODE': '"test"',
+      },
     });
     compiledBridgeScript = result.outputFiles[0].text;
   }

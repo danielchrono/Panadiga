@@ -159,13 +159,17 @@ export function useSerialConsole({
         return;
       }
 
-      if (!targetPort || targetPort.startsWith('MOCK')) {
+      if (!targetPort) {
         addLog('error', 'HOST', 'Nenhuma porta Pico USB CDC / OTG / BLE selecionada para transmissão.');
         setConsoleState({ status: 'idle' });
         return;
       }
 
-      if (!isTauriEnvironment() && typeof window !== 'undefined' && !window.__PANADIGA_TEST_IPC__) {
+      const hasTestBridge =
+        (import.meta.env.DEV || import.meta.env.MODE === 'test') &&
+        typeof window !== 'undefined' &&
+        Boolean(window.__PANADIGA_TEST_IPC__);
+      if (!isTauriEnvironment() && !hasTestBridge) {
         addLog('error', 'HOST', 'Runtime nativo Tauri indisponível para acesso serial ao Pico.');
         setConsoleState({ status: 'idle' });
         return;

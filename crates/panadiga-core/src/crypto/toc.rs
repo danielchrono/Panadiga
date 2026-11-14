@@ -285,13 +285,20 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     }
 
     let decrypted_toc = decrypt_and_parse_frm_toc(&frm_mmap);
-    let sd_toc = if decrypted_toc.iter().any(|e| e.list_sum_valid) {
+    let use_decrypted_dvd = decrypted_toc.iter().any(|e| e.list_sum_valid);
+    let sd_toc = if use_decrypted_dvd {
         Vec::new()
     } else {
         parse_sd_frm_toc(&frm_mmap)
     };
-    let use_sd_toc =
-        !decrypted_toc.iter().any(|e| e.list_sum_valid) && sd_toc.iter().any(|e| e.list_sum_valid);
+    let use_sd_toc = !use_decrypted_dvd && sd_toc.iter().any(|e| e.list_sum_valid);
+    let toc_format = if use_decrypted_dvd {
+        "dvd-feistel"
+    } else if use_sd_toc {
+        "sd-plaintext"
+    } else {
+        "unknown"
+    };
     let (toc_title, parsed_toc) = if use_sd_toc {
         (
             "TABELA PLAINTEXT SD (\"PANA__SD.FRM\" — Slots de 64B):",
@@ -420,8 +427,10 @@ pub fn dump_toc(frm_path: &Path, json_path: Option<&Path>) -> Result<FrmTocDumpR
     let report = FrmTocDumpReport {
         frm_file: resolved_frm.to_string_lossy().to_string(),
         file_size_bytes: file_size,
+        toc_format: toc_format.to_string(),
         global_header_hex,
         toc_entries,
+        decrypted_toc: parsed_toc.to_vec(),
         modules,
         toc_invariants_valid: invariants_ok,
     };

@@ -123,8 +123,7 @@ pub fn read_serial_response_complete(
     }
 }
 
-/// Lists all available serial COM ports, tagging recognized RP2040 and RP2350 hardware,
-/// and includes high-fidelity bench simulator options.
+/// Lists all available USB CDC serial COM ports, tagging recognized RP2040 and RP2350 hardware.
 /// NOTE: Pico in BOOTSEL mode (VID:2E8A PID:0003) appears as USB mass storage, NOT as a COM port.
 /// If the OS does register a COM entry for it, we exclude it here to prevent "Acesso Negado"
 /// when the connection dialog iterates all ports.
@@ -259,7 +258,6 @@ fn pico_connect_and_test_with_guard(
         vdd_voltage: vdd_volts,
         target_powered,
         firmware_banner: banner,
-        is_mock: false,
         message: vdd_msg,
     })
 }

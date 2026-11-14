@@ -96,7 +96,7 @@ export const App: React.FC = () => {
     hdd: 'Armazenamento MEIHDFS & Forensic do Disco Rígido',
     picobench: 'Bancada Raspberry Pi Pico — P7501 UART (115200 8N1)',
     frmcrypto: 'Criptoanálise Óptica PANA_DVD.FRM & Dicionário ECB',
-    manuals: `Manuais de Serviço & Diagramas Esquemáticos (${ssot.indexed_manuals_count} PDFs)`,
+    manuals: `Manuais de Serviço & Diagramas Esquemáticos (${ssot ? `${ssot.indexed_manuals_count} PDFs` : 'SSOT'})`,
     hexinspector: 'Inspetor Hexadecimal & Alinhamento LBA',
   };
 
@@ -138,7 +138,7 @@ export const App: React.FC = () => {
           vddVolts={hardwareStatus.vdd_volts}
           hardwareConnected={hardwareStatus.connected}
           nvramCleaned={false}
-          indexedManualsCount={ssot.indexed_manuals_count}
+          indexedManualsCount={ssot?.indexed_manuals_count ?? null}
         />
 
         <MobileSidebarDrawer
@@ -149,7 +149,7 @@ export const App: React.FC = () => {
           vddVolts={hardwareStatus.vdd_volts}
           hardwareConnected={hardwareStatus.connected}
           nvramCleaned={false}
-          indexedManualsCount={ssot.indexed_manuals_count}
+          indexedManualsCount={ssot?.indexed_manuals_count ?? null}
         />
 
         <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">

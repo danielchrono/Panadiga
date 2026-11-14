@@ -24,6 +24,49 @@ export function handleMockCryptoCommand(cmd: string): unknown | undefined {
     case 'get_codebook':
       return mockCodebookReport;
 
+    case 'list_frm_containers_command':
+      return ['firmware_and_images/PANA_DVD.FRM'];
+
+    case 'pack_frm_command':
+      return {
+        mode: 'sd',
+        total_bytes: 67584,
+        toc_region_size: 2048,
+        modules: [
+          {
+            index: 0,
+            name: 'DIAG01',
+            module_offset: 2048,
+            module_size: 65536,
+            fvu_checksum_u32: 0x12345678,
+            list_sum_u16: 0x0abc,
+          },
+        ],
+      };
+
+    case 'unpack_extrhead_command':
+      return {
+        file_path: 'firmware_and_images/DIGADIAG.FRM',
+        header: {
+          tag: 'FVU ',
+          flag: 0,
+          algo: 1,
+          dst_len: 1024,
+          dst_addr: 0x50400000,
+          src_len: 512,
+          footer_offset: 576,
+          header_checksum: 0x12345678,
+          adler_step: 16,
+          build_name: 'DIAG01',
+        },
+        decompressed_bytes: 1024,
+        calculated_checksum_hex: '0x12345678',
+        header_checksum_hex: '0x12345678',
+        checksum_valid: true,
+        footer_present: true,
+        written_output_path: null,
+      };
+
     case 'get_diga_model_catalog':
       return [
         {

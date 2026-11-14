@@ -2,7 +2,6 @@
   "app": {
     "title": "Panasonic DMR-EH55 DIGA Engineering Suite",
     "subtitle": "Reverse Engineering Bench, Cryptanalysis & Hardware Repair",
-    "demoMode": "Demo Mode",
     "liveMode": "Live Hardware",
     "loading": "Loading engineering subsystem...",
     "subsystemFailure": "Critical Subsystem Failure",
@@ -102,6 +101,7 @@
       "ecbLeaks": "Detected ECB Leaks",
       "ecbLeaksSub": "Virgin 0xFF pattern discovered",
       "ecbBadge": "KPA PROVEN",
+      "ecbCleanBadge": "LOW ECB",
       "size": "Container Size",
       "sizeSub": "PANA_DVD.FRM (7.18 MB)",
       "cpus": "CPUs in Periodic TOC",
@@ -109,7 +109,8 @@
       "cpusBadge": "48B TOC"
     },
     "tabs": {
-      "toc": "48-Byte TOC & 3 Co-Processors",
+      "toc": "TOC (Feistel 48B / SD 64B)",
+      "packager": ".FRM Packager & EXTRHEAD",
       "codebook": "64-bit Codebook Dictionary (KPA Attack)",
       "entropy": "Entropy Density & ECB Frequency",
       "correlation": "Cross Correlation FRM ↔ HD"
@@ -122,14 +123,32 @@
       "frequent": "FREQUENT"
     },
     "tocSection": {
-      "title": "48-Byte Periodic Table of Contents (TOC) (3 Sub-Systems)",
-      "desc": "Describes executables distributed through the container for each recorder processor.",
+      "title": "Table of Contents (TOC) & Descriptors",
+      "desc": "Decrypted 48-byte DVD Firm list (Feistel) or 64-byte SD plaintext slots with 16-bit list_sum verification.",
+      "decryptedTitle": "Decrypted Firm List / SD Module Slots",
+      "decryptedEmpty": "No decrypted Firm list or SD slots parsed in this container",
       "arch": "Architecture:",
       "familyId": "Family ID:",
       "descriptor": "Descriptor:",
       "dump": "DESCRIPTOR DUMP:",
       "modulesTitle": "Extractable Firmware Modules",
+      "modulesEmpty": "No extractable modules detected",
       "empty": "No TOC entries found"
+    },
+    "packager": {
+      "packTitle": ".FRM Container Packager (SD / DVD / DIGADIAG)",
+      "packDesc": "Packages module binaries into PANA__SD.FRM (plaintext 64B TOC), PANA_DVD.FRM (Feistel), or DIGADIAG.FRM (128 KiB).",
+      "packMode": "Container Format",
+      "outPath": "Output File Path (.FRM)",
+      "addModule": "Add Module",
+      "packSubmit": "Pack .FRM Container",
+      "packIdle": "Configure output path and module binaries or diagnostic payload, then click Pack.",
+      "packSuccess": "Container packed successfully.",
+      "inspectPacked": "Open in Inspector",
+      "unpackTitle": "EXTRHEAD / EXTRFOOT Unpacker & Verifier",
+      "unpackDesc": "Decrypts partial Feistel spans (main/drv/plain), inflates zlib stream, and verifies strided Adler-32.",
+      "unpackSubmit": "Unpack & Verify EXTRHEAD",
+      "unpackIdle": "Select an EXTRHEAD container or extracted module payload to decompress and verify Adler-32."
     },
     "codebookSection": {
       "title": "64-bit ECB Codebook Dictionary (Known-Plaintext Attack KPA)",

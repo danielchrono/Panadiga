@@ -1,6 +1,5 @@
 import React from 'react';
 import type { HardwareSsotSpec, PicoDeviceStatus } from '@/models';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
 import { MetricCard } from '@/components/MetricCard';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
@@ -11,7 +10,7 @@ import {
 
 export interface PicoBenchMetricsProps {
   deviceStatus: PicoDeviceStatus | null;
-  ssot?: HardwareSsotSpec;
+  ssot: HardwareSsotSpec;
   detectedFlashMb?: number | null;
 }
 
@@ -21,7 +20,7 @@ export interface PicoBenchMetricsProps {
  */
 export const PicoBenchMetrics: React.FC<PicoBenchMetricsProps> = ({
   deviceStatus,
-  ssot = DEFAULT_HARDWARE_SSOT_SPEC,
+  ssot,
   detectedFlashMb,
 }) => {
   const { thresholds } = ssot;

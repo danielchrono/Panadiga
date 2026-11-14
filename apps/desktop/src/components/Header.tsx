@@ -59,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Telemetry pill & Demo Mode controls */}
+      {/* Right: Hardware Telemetry pill */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-bench-950 border border-slate-800 font-mono text-xs">
           <Activity className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />

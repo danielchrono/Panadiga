@@ -39,7 +39,6 @@ export function handleMockPicoCommand(
         vdd_voltage: 3.28,
         target_powered: true,
         firmware_banner: `PANADIGA P7501 ASYNC UART ENGINE v2.0 (${isRp2350 ? 'RP2350' : 'RP2040'}, 520 KB SRAM)`,
-        is_mock: portName.startsWith('MOCK'),
         message: `Conectado ao dispositivo em ${portName}. Canal P7501 Async UART (115200 8N1) pronto.`,
       };
     }

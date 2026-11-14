@@ -7,6 +7,7 @@ test.describe('Pico Bench & P7501 UART Hardware Workbench E2E', () => {
     await page.goto('/');
     await page.click('button:has-text("Bancada PicoBench")');
     await expect(page.locator('header')).toContainText('Bancada Raspberry Pi Pico');
+    await expect(page.getByLabel('Selecionar porta serial do Pico')).toHaveValue(/.+/);
   });
 
   test('displays hardware controller telemetry and architecture badge', async ({ page }) => {

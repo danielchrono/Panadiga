@@ -236,7 +236,7 @@ pub async fn pico_execute_diagnostic(
             && diag_vdd > 0.01
         {
             status.vdd_volts = diag_vdd;
-            status.target_powered = diag_vdd >= 2.5 && diag_vdd < 3.45;
+            status.target_powered = (2.5..3.45).contains(&diag_vdd);
             if status.target_powered && status.core_state == "RESET" {
                 status.core_state = "RUNNING".to_string();
             }

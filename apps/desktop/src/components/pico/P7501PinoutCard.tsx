@@ -1,11 +1,10 @@
 import React from 'react';
 import { Zap, AlertTriangle } from 'lucide-react';
 import { Badge, Card } from '@/components/ui';
-import { DEFAULT_HARDWARE_SSOT_SPEC } from '@/constants';
 import type { HardwareSsotSpec } from '@/models';
 
 export interface P7501PinoutCardProps {
-  ssot?: HardwareSsotSpec;
+  ssot: HardwareSsotSpec;
 }
 
 const PIN_COLOR_MAP: Record<number, string> = {
@@ -18,9 +17,7 @@ const PIN_COLOR_MAP: Record<number, string> = {
  * Pure Functional Presentation Component: Displays physical wiring guide between Pico and DMR-EH55 P7501 (B6B-ZR-3R4)
  * driven directly from Rust SSOT (`ssot.pinout`).
  */
-export const P7501PinoutCard: React.FC<P7501PinoutCardProps> = ({
-  ssot = DEFAULT_HARDWARE_SSOT_SPEC,
-}) => {
+export const P7501PinoutCard: React.FC<P7501PinoutCardProps> = ({ ssot }) => {
   return (
     <Card className="p-4 shadow-xl space-y-3 flex flex-col justify-between overflow-hidden">
       <div>

@@ -5,24 +5,10 @@ use anyhow::{Context, Result, bail};
 use panadiga_core::constants::{PANA_DIGADIAG_FRM_SIZE, PANA_EXTRHEAD_DEFAULT_ADLER_STEP};
 use panadiga_core::crypto::{
     ExtrheadCryptMode, FrmContainerMode, FrmPackModule, FrmPackReport, build_digadiag_frm,
-    pack_frm, unpack_extrhead,
+    pack_frm, parse_u32_radix, unpack_extrhead,
 };
 use serde::Serialize;
 use std::path::Path;
-
-fn parse_u32_radix(raw: &str) -> Result<u32> {
-    let trimmed = raw.trim();
-    if let Some(hex_body) = trimmed
-        .strip_prefix("0x")
-        .or_else(|| trimmed.strip_prefix("0X"))
-    {
-        return u32::from_str_radix(hex_body, 16)
-            .with_context(|| format!("Invalid hex u32 literal: {raw}"));
-    }
-    trimmed
-        .parse::<u32>()
-        .with_context(|| format!("Invalid decimal u32 literal: {raw}"))
-}
 
 fn write_json_report<T: Serialize>(json_path: Option<&Path>, value: &T) -> Result<()> {
     if let Some(path) = json_path {
@@ -103,13 +89,7 @@ pub fn handle_frm_pack(args: &FrmPackArgs) -> Result<()> {
 }
 
 pub fn handle_frm_unpack(args: &FrmUnpackArgs) -> Result<()> {
-    let crypt_mode = match args.mode.to_ascii_lowercase().as_str() {
-        "auto" => ExtrheadCryptMode::Auto,
-        "main" => ExtrheadCryptMode::Main,
-        "drv" => ExtrheadCryptMode::Drv,
-        "plain" => ExtrheadCryptMode::Plain,
-        other => bail!("Unsupported unpack mode '{other}': expected auto, main, drv, or plain"),
-    };
+    let crypt_mode: ExtrheadCryptMode = args.mode.parse()?;
     let raw =
         std::fs::read(&args.file).with_context(|| format!("Reading {}", args.file.display()))?;
     let unpacked = unpack_extrhead(&raw, crypt_mode)?;

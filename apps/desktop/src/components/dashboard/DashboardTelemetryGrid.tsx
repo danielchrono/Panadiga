@@ -16,8 +16,9 @@ export const DashboardTelemetryGrid: React.FC<DashboardTelemetryGridProps> = ({ 
   const hddBin = overview?.binaries?.find(b => b.id.includes('hdd') || b.name.toLowerCase().includes('hdd'));
   const frmBin = overview?.binaries?.find(b => b.id.includes('frm') || b.name.toLowerCase().includes('frm'));
 
-  const flashMb = flashBin?.size_bytes ? (flashBin.size_bytes / (1024 * 1024)).toFixed(2) : '8.00';
-  const hddMb = hddBin?.size_bytes ? (hddBin.size_bytes / (1024 * 1024)).toFixed(1) : '100.0';
+  const flashMb = flashBin?.size_bytes ? (flashBin.size_bytes / (1024 * 1024)).toFixed(2) : '--';
+  const hddMb = hddBin?.size_bytes ? (hddBin.size_bytes / (1024 * 1024)).toFixed(1) : '--';
+  const frmMb = frmBin?.size_bytes ? (frmBin.size_bytes / (1024 * 1024)).toFixed(2) : '--';
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
@@ -51,8 +52,8 @@ export const DashboardTelemetryGrid: React.FC<DashboardTelemetryGridProps> = ({ 
       />
       <MetricCard
         title={t('dashboard.metricFrm', 'Firmware PANA_DVD.FRM')}
-        value={frmBin?.exists ? '7.99958' : '--'}
-        unit={frmBin?.exists ? 'bits/byte' : ''}
+        value={frmMb}
+        unit={frmBin?.exists ? 'MB' : ''}
         subtitle={frmBin?.exists ? frmBin.name : 'Container oficial de update'}
         variant={frmBin?.exists ? 'slate' : 'slate'}
         icon={<Lock className="w-4 h-4" />}

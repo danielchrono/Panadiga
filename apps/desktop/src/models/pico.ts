@@ -73,7 +73,6 @@ export interface PicoStatusResponse {
   vdd_voltage: number;
   target_powered: boolean;
   firmware_banner: string;
-  is_mock: boolean;
   message: string;
 }
 

@@ -194,7 +194,6 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
 
       const realPorts = allPorts.filter(
         p =>
-          !p.startsWith('MOCK') &&
           !p.startsWith('BLE') &&
           !p.includes('BOOTSEL Mode') &&
           !p.includes('BOOTSEL') &&
@@ -214,7 +213,7 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
       const targetDefault = preferredPicoPort || realPorts[0];
 
       if (targetDefault) {
-        if (!selectedPort || selectedPort.startsWith('MOCK') || !allPorts.includes(selectedPort)) {
+        if (!selectedPort || !allPorts.includes(selectedPort)) {
           setSelectedPort(targetDefault);
         }
       } else if (allPorts.length > 0 && !selectedPort) {
@@ -371,7 +370,6 @@ export function usePicoDevice({ onLog }: UsePicoDeviceOptions = {}) {
         vdd_voltage: number;
         target_powered: boolean;
         firmware_banner: string;
-        is_mock: boolean;
         message: string;
       }>('pico_connect_and_test', {
         portName: selectedPort,

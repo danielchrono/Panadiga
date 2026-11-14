@@ -17,16 +17,13 @@ pub(crate) fn sha256_hex(data: &[u8]) -> String {
     calculate_hashes(data).1
 }
 
-pub(crate) fn open_and_handshake_p7501(
-    port_name: &str,
-) -> Result<
-    (
-        std::sync::MutexGuard<'static, ()>,
-        Box<dyn serialport::SerialPort>,
-        String,
-    ),
+pub(crate) type P7501Session = (
+    std::sync::MutexGuard<'static, ()>,
+    Box<dyn serialport::SerialPort>,
     String,
-> {
+);
+
+pub(crate) fn open_and_handshake_p7501(port_name: &str) -> Result<P7501Session, String> {
     let clean_port = extract_port_name(port_name);
     crate::pico::types::reject_mock_port(&clean_port)?;
     let io_guard = crate::pico::serial::lock_serial_io();

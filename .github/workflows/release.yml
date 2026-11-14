@@ -210,7 +210,7 @@ jobs:
       - name: Install ARM Embedded Toolchain & Ninja
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build
+          sudo apt-get install -y gcc-arm-none-eabi libnewlib-arm-none-eabi cmake ninja-build libudev-dev pkg-config
 
       - name: Set up stable Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -323,7 +323,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install Prebuilt cargo-ndk
-        uses: taiki-e/install-action@cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
 
       - name: Setup Node.js 22
         uses: actions/setup-node@v4
